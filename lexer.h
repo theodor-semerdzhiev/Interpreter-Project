@@ -4,19 +4,22 @@
 enum lexeme_type {
   UNDEFINED='\0',
   WHITESPACE=' ',
-  AT='@',
   HASHTAG='#',
   DOT='.',
   SEMI_COLON=';',
   QUOTES='"',
-  OPEN_BRACKETS='{',
-  CLOSING_BRACKETS='}',
+  COMMA=',',
+  OPEN_CURLY_BRACKETS='{',
+  CLOSING_CURLY_BRACKETS='}',
   OPEN_PARENTHESIS='(',
   CLOSING_PARENTHESIS=')',
+  OPEN_SQUARE_BRACKETS='[',
+  CLOSING_SQUARE_BRACKETS=']',
   NEW_LINE='\n',
   KEYWORD='k',
   LITERALS='l',
-  VARIABLE='$',
+  VARIABLE='v',
+  AT_VARIABLE='@',
   IDENTIFIER='i'
 };  
 

@@ -10,7 +10,6 @@
 #define DEFAULT_LEX_ARR_LENGTH 256
 
 
-
 /* Clears buffer and push its contents into the lexeme array*/
 static void helper_parse_line_into_lexemes(
   char* buffer,
@@ -39,9 +38,70 @@ void print_lexeme_arr_list(struct lexeme_array_list *lexemes) {
     str[0]=lexemes->list[i]->type;
     str[1]='\0';
 
-    printf("[%d] Type: %s, ident:%s\n",
-    lexemes->list[i]->line_num,
-    lexemes->list[i]->type == NEW_LINE? "(enter)":str, 
+    char *type_in_str;
+
+    switch(lexemes->list[i]->type) {
+      case UNDEFINED:
+        type_in_str="UNDEFINED";
+        break;
+      case WHITESPACE:
+        type_in_str="WHITESPACE";
+        break;
+      case HASHTAG:
+        type_in_str="#";
+        break;
+      case DOT:
+        type_in_str="DOT";
+        break;
+      case SEMI_COLON:
+        type_in_str="SEMI_COLON";
+        break;
+      case QUOTES:
+        type_in_str="QUOTES";
+        break;
+      case COMMA:
+        type_in_str="COMMA";
+        break;
+      case OPEN_CURLY_BRACKETS:
+        type_in_str="{";
+        break;
+      case CLOSING_CURLY_BRACKETS:
+        type_in_str="}";
+        break;
+      case OPEN_PARENTHESIS:
+        type_in_str="(";
+        break;
+      case CLOSING_PARENTHESIS:
+        type_in_str=")";
+        break;
+      case OPEN_SQUARE_BRACKETS:
+        type_in_str="[";
+        break;
+      case CLOSING_SQUARE_BRACKETS:
+        type_in_str="]";
+        break;
+      case NEW_LINE:
+        type_in_str="(ENTER)";
+        break;
+      case KEYWORD:
+        type_in_str="KEYWORD";
+        break;
+      case LITERALS:
+        type_in_str="LITERALS";
+        break;
+      case VARIABLE:
+        type_in_str="VARIABLE";
+        break;
+      case AT_VARIABLE:
+        type_in_str="AT_VARIABLE";
+        break;
+      case IDENTIFIER:
+         type_in_str="IDENTIFIER";
+        break;
+    }
+    printf("[%d] Type: %s  , ident:%s\n", 
+    lexemes->list[i]->line_num, 
+    type_in_str,
     lexemes->list[i]->ident);
   }
 }
@@ -73,14 +133,11 @@ struct line_construct* line_struct) {
 
   while(i < line_len) {
     if(line[i] == '#') {
-      helper_parse_line_into_lexemes(
-        buffer,buffer_ptr, lexeme_arrlist,  UNDEFINED, line_struct->line_number
-      );
       break;
 
     } else if(line[i] == '"') {
       helper_parse_line_into_lexemes(
-        buffer,buffer_ptr, lexeme_arrlist,  UNDEFINED, line_struct->line_number
+        buffer,buffer_ptr, lexeme_arrlist, UNDEFINED, line_struct->line_number
       );
       buffer_ptr=0;
 
@@ -100,21 +157,30 @@ struct line_construct* line_struct) {
       }
 
       add_lexeme_to_arrlist(
-        lexeme_arrlist,  QUOTES, NULL, line_struct->line_number
+        lexeme_arrlist, QUOTES, NULL, line_struct->line_number
       );
       add_lexeme_to_arrlist(
         lexeme_arrlist, LITERALS , literal, line_struct->line_number
       );
       add_lexeme_to_arrlist(
-        lexeme_arrlist,  QUOTES, NULL, line_struct->line_number
+        lexeme_arrlist, QUOTES, NULL, line_struct->line_number
       );
 
       i+=literal_len+2;
       continue;
+    } else if(line[i] == ',') {
+
+      helper_parse_line_into_lexemes(
+        buffer,buffer_ptr, lexeme_arrlist, UNDEFINED, line_struct->line_number
+      );
+      buffer_ptr=0;
+      add_lexeme_to_arrlist(
+        lexeme_arrlist, COMMA, NULL, line_struct->line_number
+      );
 
     } else if(line[i] == '.') {
       helper_parse_line_into_lexemes(
-        buffer,buffer_ptr, lexeme_arrlist,  UNDEFINED, line_struct->line_number
+        buffer,buffer_ptr, lexeme_arrlist, UNDEFINED, line_struct->line_number
       );
       buffer_ptr=0;
       add_lexeme_to_arrlist(
@@ -123,7 +189,7 @@ struct line_construct* line_struct) {
 
     } else if(line[i] =='(') {
       helper_parse_line_into_lexemes(
-        buffer,buffer_ptr, lexeme_arrlist,  UNDEFINED, line_struct->line_number
+        buffer,buffer_ptr, lexeme_arrlist, UNDEFINED, line_struct->line_number
       );
       buffer_ptr=0;
       add_lexeme_to_arrlist(
@@ -131,7 +197,7 @@ struct line_construct* line_struct) {
       );
     } else if(line[i] == ')') {
       helper_parse_line_into_lexemes(
-        buffer,buffer_ptr, lexeme_arrlist,  UNDEFINED, line_struct->line_number
+        buffer,buffer_ptr, lexeme_arrlist, UNDEFINED, line_struct->line_number
       );
       buffer_ptr=0;
       add_lexeme_to_arrlist(
@@ -139,23 +205,39 @@ struct line_construct* line_struct) {
       );
     } else if(line[i] == '{') {
       helper_parse_line_into_lexemes(
-        buffer,buffer_ptr, lexeme_arrlist,  UNDEFINED, line_struct->line_number
+        buffer,buffer_ptr, lexeme_arrlist, UNDEFINED, line_struct->line_number
       );
       buffer_ptr=0;
       add_lexeme_to_arrlist(
-        lexeme_arrlist, OPEN_BRACKETS, NULL, line_struct->line_number
+        lexeme_arrlist, OPEN_CURLY_BRACKETS, NULL, line_struct->line_number
       );
     } else if(line[i] == '}') {
       helper_parse_line_into_lexemes(
-        buffer,buffer_ptr, lexeme_arrlist,  UNDEFINED, line_struct->line_number
+        buffer,buffer_ptr, lexeme_arrlist, UNDEFINED, line_struct->line_number
       );
       buffer_ptr=0;
       add_lexeme_to_arrlist(
-        lexeme_arrlist, CLOSING_BRACKETS, NULL, line_struct->line_number
+        lexeme_arrlist, CLOSING_CURLY_BRACKETS, NULL, line_struct->line_number
+      );
+    } else if(line[i] == '[') {
+      helper_parse_line_into_lexemes(
+        buffer,buffer_ptr, lexeme_arrlist, UNDEFINED, line_struct->line_number
+      );
+      buffer_ptr=0;
+      add_lexeme_to_arrlist(
+        lexeme_arrlist, OPEN_SQUARE_BRACKETS, NULL, line_struct->line_number
+      );
+    } else if(line[i] == ']') {
+      helper_parse_line_into_lexemes(
+        buffer,buffer_ptr, lexeme_arrlist, UNDEFINED, line_struct->line_number
+      );
+      buffer_ptr=0;
+      add_lexeme_to_arrlist(
+        lexeme_arrlist, CLOSING_SQUARE_BRACKETS, NULL, line_struct->line_number
       );
     } else if(line[i] == ';') {
       helper_parse_line_into_lexemes(
-        buffer,buffer_ptr, lexeme_arrlist,  UNDEFINED, line_struct->line_number
+        buffer,buffer_ptr, lexeme_arrlist, UNDEFINED, line_struct->line_number
       );
       buffer_ptr=0;
       add_lexeme_to_arrlist(
@@ -163,10 +245,18 @@ struct line_construct* line_struct) {
       );
     } else if(isspace(line[i])) {
 
+      while(isspace(line[i]) && line[i] != '\0')    
+        ++i;  
+
+      //checks if line is empty
+      if(line[i] == '\0')
+        break;
+
       helper_parse_line_into_lexemes(
-        buffer,buffer_ptr, lexeme_arrlist,  UNDEFINED, line_struct->line_number
+        buffer,buffer_ptr, lexeme_arrlist, UNDEFINED, line_struct->line_number
       );
       buffer_ptr=0;
+      continue;
 
     } else if(
       line[i] == '$' || 
@@ -174,11 +264,16 @@ struct line_construct* line_struct) {
       isalnum(line[i]) || 
       line[i] == '_') {
 
-        buffer[buffer_ptr]=line[i];
-        buffer_ptr++;
+      buffer[buffer_ptr]=line[i];
+      buffer_ptr++;
     } 
     i++;
   }
+
+  //clears last of the buffer
+  helper_parse_line_into_lexemes(
+    buffer,buffer_ptr, lexeme_arrlist, UNDEFINED, line_struct->line_number
+  );
 
   add_lexeme_to_arrlist(
     lexeme_arrlist, NEW_LINE,NULL, line_struct->line_number
@@ -208,6 +303,8 @@ struct lexeme_array_list* create_lexeme_arrlist(struct line_list* lines) {
         lexeme_arrlist->list[i]->type=VARIABLE;
       } else if(is_keyword(lexeme_arrlist->list[i]->ident)) {
         lexeme_arrlist->list[i]->type=KEYWORD;
+      } else if(lexeme_arrlist->list[i]->ident[0] == '@') {
+        lexeme_arrlist->list[i]->type=AT_VARIABLE;
       } else {
         lexeme_arrlist->list[i]->type=IDENTIFIER;
       }

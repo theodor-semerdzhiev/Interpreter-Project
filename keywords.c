@@ -14,7 +14,7 @@ static struct keywords_table *keyword_table=NULL;
 
 /* Stores all keywords */
 static char *keyword_list[] = {
-  "jump",
+  "call",
   "move",
   "lw",
   "sw",

@@ -289,25 +289,26 @@ struct lexeme_array_list* create_lexeme_arrlist(struct line_list* lines) {
   lexeme_arrlist->list=list;
   lexeme_arrlist->max_len=DEFAULT_LEX_ARR_LENGTH;
 
+  //loops across each line
   struct line_construct *ptr = lines->head;
   while(ptr != NULL) {
     parse_line_into_lexemes(lexeme_arrlist,ptr); 
     ptr=ptr->next;
   }
 
+  // Sets the type for the lexemes that are not yet set 
   for(int i=0; i < lexeme_arrlist->len; i++) {
     if(lexeme_arrlist->list[i]->type == UNDEFINED) {
       if(lexeme_arrlist->list[i]->ident == NULL) continue;
 
-      if(lexeme_arrlist->list[i]->ident[0] == '$') {
+      if(lexeme_arrlist->list[i]->ident[0] == '$') 
         lexeme_arrlist->list[i]->type=VARIABLE;
-      } else if(is_keyword(lexeme_arrlist->list[i]->ident)) {
+      else if(is_keyword(lexeme_arrlist->list[i]->ident)) 
         lexeme_arrlist->list[i]->type=KEYWORD;
-      } else if(lexeme_arrlist->list[i]->ident[0] == '@') {
+      else if(lexeme_arrlist->list[i]->ident[0] == '@') 
         lexeme_arrlist->list[i]->type=AT_VARIABLE;
-      } else {
+      else 
         lexeme_arrlist->list[i]->type=IDENTIFIER;
-      }
     }
   }
 

@@ -25,6 +25,7 @@ static char *keyword_list[] = {
   "\0"
 };
 
+// Initializes keyword table
 void init_keyword_table() {
   keyword_table= (struct keywords_table*)malloc(sizeof(struct keywords_table));
   keyword_table->nb_of_buckets=INITIAL_BUCKET_SIZE;
@@ -42,6 +43,7 @@ void init_keyword_table() {
 
 }
 
+// Checks table to see if token is keyword
 bool is_keyword(const char* token) {
   int index=hash(token) % keyword_table->nb_of_buckets;
 
@@ -56,6 +58,7 @@ bool is_keyword(const char* token) {
   return false;
 }
 
+// Inserts new keyword into table 
 static void insert_keyword_to_table(char* keyword) {
   int index=hash(keyword) % keyword_table->nb_of_buckets;
   
@@ -74,6 +77,7 @@ static void insert_keyword_to_table(char* keyword) {
 
 }
 
+// hash function: string -> int
 static unsigned int hash(const char* keywords) {
   int hash=7; //prime number
 

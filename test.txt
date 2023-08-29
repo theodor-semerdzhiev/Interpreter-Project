@@ -1,0 +1,17 @@
+
+@data {
+
+}
+
+.loop1 {
+  move $i1 @data.num;
+  move $f4 $f5;
+  move $f3 $f4;
+  jump loop2;
+}
+#123123123
+.loop2 {
+  print $name; # 21 123
+  lw $23 0($5);
+  jump $ra;
+}

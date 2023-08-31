@@ -1,6 +1,9 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include "./lexer.h"
 #include "./keywords.h"
+
+
 int main(int argc, char *argv[]) {
   init_keyword_table();
 
@@ -11,6 +14,8 @@ int main(int argc, char *argv[]) {
   }
   struct line_list *list = tokenize_string_by_newline(file_contents);
 
+  free(file_contents);
+  
   struct lexeme_array_list * lexemes = create_lexeme_arrlist(list);
   
 

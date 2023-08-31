@@ -18,7 +18,7 @@ static char *keyword_list[] = {
   "move",
   "lw",
   "sw",
-  "print"
+  "print",
   "int", 
   "str",
   "double",
@@ -40,7 +40,6 @@ void init_keyword_table() {
   for(int i=0; *keyword_list[i] != '\0'; i++) {
     insert_keyword_to_table(keyword_list[i]);
   }
-
 }
 
 // Checks table to see if token is keyword

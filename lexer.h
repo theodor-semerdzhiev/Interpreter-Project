@@ -5,9 +5,12 @@ enum lexeme_type {
   UNDEFINED='\0',
   WHITESPACE=' ',
   HASHTAG='#',
+  QUOTES='"',
+
+  /// @brief This enums are 'special chars'
+
   DOT='.',
   SEMI_COLON=';',
-  QUOTES='"',
   COMMA=',',
   OPEN_CURLY_BRACKETS='{',
   CLOSING_CURLY_BRACKETS='}',
@@ -15,9 +18,24 @@ enum lexeme_type {
   CLOSING_PARENTHESIS=')',
   OPEN_SQUARE_BRACKETS='[',
   CLOSING_SQUARE_BRACKETS=']',
+  EQUAL_SIGN='=',
+  MULT_OPERATOR='*',
+  DIV_OPERATOR='/',
+  PLUS_OPERATOR='+',
+  MINUS_OPERATOR='-',
+  COLON=':',
+  AND_OPERATOR='&',
+  OR_OPERATOR='|',
+  NOT_OPERATPR='!',
+  GREATER_THAN_OPERATOR='>',
+  LESSER_THAN_OPERATOR='<',
+
+  /////////
+
   NEW_LINE='\n',
   KEYWORD='k',
   LITERALS='l',
+  NUMERIC_LITERAL='n',
   VARIABLE='v',
   AT_VARIABLE='@',
   IDENTIFIER='i'
@@ -68,6 +86,5 @@ void print_line_list(struct line_list *list);
 void add_line_to_list(struct line_list *list, struct line_construct* line);
 void free_line_list(struct line_list *list);
 void free_lexeme_arrlist(struct lexeme_array_list* arr);
-struct line_list* malloc_line_list();
 struct line_construct* malloc_line_struct(char* line, int line_nb);
 char *malloc_substring(char *g, int start, int end);

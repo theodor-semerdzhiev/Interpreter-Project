@@ -1,12 +1,15 @@
 
-@data {
+num:int=20;
 
+while(num > 20) {
+    if(num >= 123) {
+        if(!num) {
+            move num 100
+        } else {
+            jump dummy
+        }
+    }
 }
 
-#123123123
-.loop2 {
-  print name; # 21 123
-  lw 23 0(5);
-  jump $ra;
-  come, 123 , 32
-}
+
+

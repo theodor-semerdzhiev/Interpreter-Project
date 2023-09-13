@@ -1,5 +1,5 @@
-*.exe
-*.out
-*.o
+**/*.exe
+**/*.out
+**/*.o
 /.vscode/
 /main.out.dSYM/

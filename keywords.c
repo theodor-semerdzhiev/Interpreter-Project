@@ -25,6 +25,7 @@ char *keyword_list[] = {
   "str",
   "double",
   "int",
+  "list",
   "void",
   "\0"
 };
@@ -54,6 +55,7 @@ void init_keyword_table() {
   insert_keyword_to_table("double", DOUBLE);
   insert_keyword_to_table("int", INT);
   insert_keyword_to_table("void", VOID);
+  insert_keyword_to_table("list", LIST);
 }
 
 /* Frees the keyword table */
@@ -73,6 +75,28 @@ void free_keyword_table() {
   free(keyword_table->buckets);
   free(keyword_table);
   keyword_table=NULL;
+}
+
+/* Checks wether token represents a type keyword */
+bool is_type_keyword(const char* token) {
+  if(token == NULL) return false;
+
+  int index=hash(token) % keyword_table->nb_of_buckets;
+
+  struct keyword_linked_list *list = keyword_table->buckets[index];
+  struct keyword *ptr = list->head;
+  
+  while(ptr != NULL) {
+    if(strcmp(token, ptr->keyword) == 0) {
+      if (ptr->type == INT || ptr->type == DOUBLE || ptr->type == STR || ptr->type == LIST)  
+        return true;
+      
+      return false;
+    }
+    ptr=ptr->next;
+  }
+
+  return false;
 }
 
 // Checks table to see if token is keyword

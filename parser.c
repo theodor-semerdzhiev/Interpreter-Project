@@ -1,226 +1,153 @@
 #include <string.h>
-#include "lexer.h"
+#include <stdlib.h>
+#include <assert.h>
+#include <math.h>
 #include "keywords.h"
+#include "lexer.h"
 #include "parser.h"
 
-/* Mallocs if type node for parse tree */
-static inline struct if_node *malloc_if_node(
-    struct parse_tree_node *_branch_condition,
-    struct parse_tree_node *_else_block,
-    struct parse_tree_node *_if_body,
-    struct parse_tree_node *_else_if_block)
-{
 
-    struct if_node *_if_node = (struct if_node *)malloc(sizeof(struct if_node));
-    _if_node->_branch_condition = _branch_condition;
-    _if_node->_else_block = _else_block;
-    _if_node->_if_body;
-    _if_node->_else_if_block = _else_if_block;
+/// @brief State of the parser (lexeme list and the lexeme pointer)
+static int token_ptr=-1;
+static struct lexeme_array_list *arrlist=NULL;
 
-    return _if_node;
+/* Resets the token_ptr and arrlist fields */
+void reset_parser_state() {
+    token_ptr=-1;
+    arrlist=NULL;
 }
 
-/* Mallocs for type node for parse tree, currently will not be implemented */
-static inline struct for_node *malloc_for_node() { return NULL; }
-
-/* Mallocs while type node for parse tree */
-static inline struct if_node *malloc_while_node(
-    struct parse_tree_node *_branch_condition,
-    struct parse_tree_node *_while_body)
-{
-
-    struct while_node *_while_node = (struct while_node *)malloc(sizeof(struct while_node));
-    _while_node->_branch_condition = _branch_condition;
-    _while_node->_while_body = _while_body;
-
-    return _while_node;
+/* Modifies the parser state */
+void set_parser_state(int _token_ptr, struct lexeme_array_list *_arrlist) {
+    token_ptr=_token_ptr;
+    arrlist=_arrlist;
 }
 
-/* Mallocs else type node for parse tree */
-static inline struct else_node *malloc_else_node(
-    struct parse_tree_node *_branch_condition,
-    struct parse_tree_node *_else_body)
-{
 
-    struct else_node *_else_node = (struct else_node *)malloc(sizeof(struct else_node));
-    _else_node->_branch_condition = _branch_condition;
-    _else_node->_else_body = _else_body;
+double compute_exp(struct bin_exp_node *root) {
+    switch(root->type) {
+        case VAR:
+            return 10.0;
+        case CONSTANT:
+            return (double) root->meta_data.constant;
+        case MULT: 
+            return compute_exp(root->LHS)*compute_exp(root->RHS);
+        case DIV:
+            return compute_exp(root->LHS) / compute_exp(root->RHS);
+        case PLUS:
+            return compute_exp(root->LHS) + compute_exp(root->RHS);
+        case MINUS:
+            return compute_exp(root->LHS) - compute_exp(root->RHS);
+        case MOD: {
+            double lhs_d = compute_exp(root->LHS);
+            double rhs_d = compute_exp(root->RHS);
 
-    return _else_node;
-}
-
-/* Mallocs function call type node for parse tree */
-static inline struct func_call_node *malloc_func_call_node(struct parse_tree_node **_args, char *ident)
-{
-
-    struct func_call_node *_func_call_node = (struct func_call_node *)malloc(sizeof(struct func_call_node));
-    _func_call_node->args = _args;
-    _func_call_node->ident = ident;
-
-    return _func_call_node;
-}
-
-/* Mallocs function declaration type node for parse tree */
-static inline struct func_declaration_node *malloc_else_node(
-    enum variable_types _return_type,
-    struct parse_tree_node **_args,
-    char *ident)
-{
-
-    struct func_declaration_node *_func_declaration_node =
-        (struct func_declaration_node *)malloc(sizeof(struct func_declaration_node));
-    _func_declaration_node->return_type = _return_type;
-    _func_declaration_node->args = _args;
-    _func_declaration_node->ident = ident;
-
-    return _func_declaration_node;
-}
-
-/* Mallocs function declaration type node for parse tree */
-static inline struct func_declaration_node *malloc_func_declaration_node(
-    enum variable_types _return_type,
-    struct parse_tree_node **_args,
-    char *ident)
-{
-
-    struct func_declaration_node *_func_declaration_node =
-        (struct func_declaration_node *)malloc(sizeof(struct func_declaration_node));
-    _func_declaration_node->return_type = _return_type;
-    _func_declaration_node->args = _args;
-    _func_declaration_node->ident = ident;
-
-    return _func_declaration_node;
-}
-
-/* Mallocs variable declaration type node for parse tree */
-static inline struct var_declaration_node *malloc_var_assignment_node(
-    struct parse_tree_node *_assign_to,
-    char *ident)
-{
-
-    struct var_declaration_node *_var_declaration_node = (struct var_declaration_node *)malloc(sizeof(struct var_declaration_node));
-
-    _var_declaration_node->ident = ident;
-    _var_declaration_node->_assign_to = _assign_to;
-
-    return _var_declaration_node;
-}
-
-/* Mallocs variable assignment type node for parse tree */
-static inline struct var_assignment_node *malloc_var_assignment_node(
-    struct parser_tree_node *_assign_to,
-    char *ident)
-{
-
-    struct var_assignment_node *_var_assignment_node = (struct var_assignment_node *)malloc(sizeof(struct var_assignment_node));
-
-    _var_assignment_node->ident = ident;
-    _var_assignment_node->_assign_to = _assign_to;
-
-    return _var_assignment_node;
-}
-
-/* Mallocs variable reference type node for the parser tree */
-static inline struct var_reference_node *malloc_var_reference_node(
-    enum variable_types type,
-    char *ident)
-{
-    struct var_reference_node *_var_reference_node = (struct var_reference_node *)malloc(sizeof(struct var_reference_node));
-    _var_reference_node->type = type;
-    _var_reference_node->ident = ident;
-    return _var_reference_node;
-}
-
-/* Mallocs bool expression type node for parse tree */
-static inline struct bool_expression_node *malloc_bool_expression_node(
-    struct parse_tree_node *left,
-    struct parse_tree_node *right,
-    enum bool_expression_types type)
-{
-    struct bool_expression_node *_bool_expression_node = (struct bool_expression_node *)malloc(sizeof(struct bool_expression_node));
-    _bool_expression_node->left = left;
-    _bool_expression_node->right = right;
-    _bool_expression_node->type = type;
-    return _bool_expression_node;
-}
-
-/* Mallocs binary i.e math operations (+_-* ...) type node for parse tree */
-static inline struct bin_operation_node *malloc_bin_operation_node(
-    struct parse_tree_node *left,
-    struct parse_tree_node *right,
-    enum bin_operation_types type)
-{
-
-    struct bin_operation_node *_bin_operation_node = (struct bin_operation_node *)malloc(sizeof(struct bin_operation_node));
-    _bin_operation_node->left = left;
-    _bin_operation_node->right = right;
-    _bin_operation_node->type = type;
-
-    return _bin_operation_node;
-}
-
-/* Mallocs a literal (constant) value reference type node for the parse tree */
-static inline struct literal_value_node *malloc_literal_value_node(
-    char *ident,
-    enum literal_value_type type)
-{
-    struct literal_value_node *_literal_value_node = (struct literal_value_node *)malloc(sizeof(struct literal_value_node));
-    _literal_value_node->ident = ident;
-    _literal_value_node->type = type;
-    return _literal_value_node;
-}
-
-/* Mallocs the top level struct for a parse tree node, does NOT set the data union */
-static inline struct parse_tree_node *malloc_parse_tree_node(
-    struct parse_tree_node *_next,
-    struct parse_tree_node *_parent,
-    enum parse_tree_type *_type
-) {
-    struct parse_tree_node *_parser_tree_node = (struct parse_tree_node*)malloc(sizeof(struct parse_tree_node));
-    _parser_tree_node->next=_next;
-    _parser_tree_node->parent=_parent;
-    _parser_tree_node->type=_type;
-
-    return _parser_tree_node;
-}
-
-/* This function is a helper that will call the syntax_analysis function with the proper
-args depending on the type of keyword */
-void call_keyword_spec_parser_args(int starting_index, struct lexeme_array_list *arrlist, enum keyword_type type) {
-    if(type == FUNC) {
-    
-
-    } else if(type == WHILE) {
-
-    /* */
-    } else if(type == IF) {
-
-    /* else if block */
-    } else if(type == ELSE && get_keyword_type(arrlist->list[starting_index+1]->ident) == IF) {
-        
-    } else if(type == ELSE) {
-
-    } else if(type == LET) {
-        
+            return lhs_d - floor(lhs_d / rhs_d)*rhs_d;
+        }
     }
 }
 
-// Will be Resursive
-void syntax_analysis(int index, struct lexeme_array_list *arrlist)
-{
-    struct lexeme **ptr = arrlist->list[index];
+/* Frees binary expression parse tree */
+void free_parse_bin_exp(struct bin_exp_node *root) {
+    switch(root->type) {
+        case CONSTANT:
+            free(root);
+            return;
+        case VAR:
+            free(root->meta_data.ident);
+            free(root);
+            return;
+        default:
+            free_parse_bin_exp(root->LHS);
+            free_parse_bin_exp(root->RHS);
+            free(root);
+            return;
+    }
+}
 
-    while (ptr[index] != NULL)
-    {
-        if (ptr[index]->type == KEYWORD)
-        {
-            const char *keyword = (*ptr)->ident;
-            enum keyword_type type = get_keyword_type(keyword);
+// uses reverse polish notation
+struct bin_exp_node *parse_bin_exp(
+    struct bin_exp_node *LHS,
+    struct bin_exp_node *RHS,
+    enum lexeme_type end_of_exp) {
 
-            
-            
+    assert(token_ptr != -1 && arrlist != NULL);
+    struct lexeme **list = arrlist->list;
+
+    if(list[token_ptr]->type == END_OF_FILE) return LHS;
+    // Base case
+    if(list[token_ptr]->type == end_of_exp) {
+        token_ptr++;
+        return LHS;
+    }
+
+    // Handles and Computes sub expressions
+    if(list[token_ptr]->type == OPEN_PARENTHESIS) {
+        token_ptr++;
+        struct bin_exp_node *sub_exp = parse_bin_exp(NULL,NULL, CLOSING_PARENTHESIS);
+        
+        if(!LHS) return parse_bin_exp(sub_exp, RHS, end_of_exp);
+        else return parse_bin_exp(LHS, sub_exp, end_of_exp);
+        
+    }
+
+    struct bin_exp_node *node = malloc(sizeof(struct bin_exp_node));
+    node->LHS=NULL;
+    node->RHS=NULL;
+
+    // handles variables
+    if(list[token_ptr]->type == IDENTIFIER) {
+        node->type=VAR;
+        char* ident_cpy = malloc(sizeof(char)*strlen(list[token_ptr]->ident));
+        strcpy(ident_cpy, list[token_ptr]->ident);
+        
+        node->meta_data.ident=ident_cpy;
+        //
+        token_ptr++;
+        if(!LHS) return parse_bin_exp(node, RHS, end_of_exp);
+        else if(!RHS) return parse_bin_exp(LHS, node, end_of_exp);
+        else {
+            free(node);
+            return NULL; 
+        }
+    } 
+
+    // handles constants
+    if(list[token_ptr]->type == NUMERIC_LITERAL) {
+        node->type= CONSTANT;
+        node->meta_data.constant=atoi(list[token_ptr]->ident);
+        token_ptr++;
+        if(!LHS) return parse_bin_exp(node, RHS, end_of_exp);
+        else if(!RHS) return parse_bin_exp(LHS, node, end_of_exp);
+        else {
+            free(node);
+            return NULL; 
         }
 
-        ++index;
     }
+
+    // Handles math operators
+    switch(list[token_ptr]->type) {
+        case MULT_OP: node->type=MULT;
+            break;
+        case MINUS_OP: node->type=MINUS;
+            break;
+        case PLUS_OP: node->type=PLUS;
+            break;
+        case DIV_OP: node->type=DIV;
+            break;
+        case MOD_OP: node->type=MOD;
+            break;
+        default:
+            free(node);
+            
+            return LHS;
+    }
+
+    node->LHS=LHS;
+    node->RHS=RHS;
+
+    token_ptr++;
+
+    return parse_bin_exp(node, NULL, end_of_exp);
 }

@@ -15,6 +15,7 @@ enum keyword_type {
   STR,
   DOUBLE,
   INT,
+  LIST,
   VOID
 };
 
@@ -37,6 +38,7 @@ struct keywords_table {
 extern char *keyword_list[];
 
 void init_keyword_table(); 
+bool is_type_keyword(const char* token);
 bool is_keyword(const char* token);
 enum keyword_type get_keyword_type(const char* token);
 void free_keyword_table();

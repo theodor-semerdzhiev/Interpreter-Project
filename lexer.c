@@ -13,7 +13,7 @@
 All chars that are stand alone token unless otherwise specified 
 =, &, |, <, > are not included because they contain variants (i.e ==, >=, ||, &&, etc)
 */
-static char *special_tokens = ".;,{}()[]:-+*/!";
+static char *special_tokens = ".;,{}()[]:-+*/!%";
 
 /* Takes a 'special' char and returns its corresponding enumerator */
 static enum lexeme_type get_special_char_type(const char c) {
@@ -33,6 +33,7 @@ static enum lexeme_type get_special_char_type(const char c) {
     case '*': return MULT_OP;
     case '/': return DIV_OP;
     case '!': return LOGICAL_NOT_OP;
+    case '%': return MOD_OP;
     default: return UNDEFINED;
   }
 }
@@ -151,6 +152,9 @@ void print_lexeme_arr_list(struct lexeme_array_list *lexemes)
     case MINUS_OP:
       type_in_str = "'-'";
       break;
+    case MOD_OP:
+      type_in_str = "'%'";
+      break;
     case SHIFT_LEFT_OP:
       type_in_str = "'<<'";
       break;
@@ -189,6 +193,9 @@ void print_lexeme_arr_list(struct lexeme_array_list *lexemes)
       break;
     case EQUAL_TO_OP:
       type_in_str = "'=='";
+      break;
+    case END_OF_FILE:
+      type_in_str = "END_OF_LINE";
       break;
     case NEW_LINE:
       type_in_str = "NEW_LINE";
@@ -446,6 +453,8 @@ struct lexeme_array_list *create_lexeme_arrlist(struct line_list *lines)
     parse_line_into_lexemes(lexeme_arrlist, ptr);
     ptr = ptr->next;
   }
+
+  add_lexeme_to_arrlist(lexeme_arrlist, END_OF_FILE, NULL, lines->length);
 
   // Sets the type for the lexemes that are not yet set
   for (int i = 0; i < lexeme_arrlist->len; i++)

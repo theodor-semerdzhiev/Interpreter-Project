@@ -1,5 +1,3 @@
-#include <stdio.h>
-
 /* Lexeme type */
 enum lexeme_type
 {
@@ -28,6 +26,7 @@ enum lexeme_type
   DIV_OP, // /
   PLUS_OP, // +
   MINUS_OP, // -
+  MOD_OP, // %
 
   SHIFT_RIGHT_OP, // >>
   SHIFT_LEFT_OP, // <<
@@ -47,6 +46,7 @@ enum lexeme_type
   /////////
 
   NEW_LINE, // new line marker
+  END_OF_FILE, // end of file token
   KEYWORD, // reserved keywords 
   STRING_LITERALS, // "hello" ...
   NUMERIC_LITERAL, // numbers like 10230, 12, 23, etc

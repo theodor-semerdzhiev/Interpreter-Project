@@ -1,11 +1,12 @@
 let num:double = 100 * 20 + ( num2 * num1 )
 func main() : void {
-    let num:int=20;
+    let num:int=20 % 67.23;
     while(num > 20) {
         if(num >= 123) {
             if(num == 10) {
                 let num +=2;
-            } else if (num == 2 || )
+            } else if (num == 2 || ) {
+                function_example(19,29);
             } else {
                 let num -= 10;
             }

@@ -1,11 +1,12 @@
 CC = clang
-CFLAGS = -Wall -Wextra -std=c11
+CFLAGS = -g -Wall -Wextra -std=c11
 
 SRC_FILES = \
  	keywords.c \
  	main.c \
  	lexer.c \
-	#parser.c
+	parser.c
+	
 OBJ_FILES = $(patsubst %.c, $(BUILD_DIR)/%.o, $(SRC_FILES))
 EXECUTABLE = main.out
 BUILD_DIR = build

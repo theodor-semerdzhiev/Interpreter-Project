@@ -13,7 +13,7 @@
 All chars that are stand alone token unless otherwise specified 
 =, &, |, <, > are not included because they contain variants (i.e ==, >=, ||, &&, etc)
 */
-static char *special_tokens = ".;,{}()[]:-+*/!%";
+static char *special_tokens = ".;,{}()[]:-+*/!%^";
 
 /* Takes a 'special' char and returns its corresponding enumerator */
 static enum lexeme_type get_special_char_type(const char c) {
@@ -34,6 +34,7 @@ static enum lexeme_type get_special_char_type(const char c) {
     case '/': return DIV_OP;
     case '!': return LOGICAL_NOT_OP;
     case '%': return MOD_OP;
+    case '^': return BITWISE_XOR_OP;
     default: return UNDEFINED;
   }
 }
@@ -48,6 +49,7 @@ static bool is_char_special(const char c)
   }
   return false;
 }
+
 
 /* Checks if string is a number, string must not have whitespace */
 static bool is_token_numeric(char *token)
@@ -79,6 +81,16 @@ static void clear_token_buffer_into_lexeme_arrlist(
   char *lexeme = (char *)malloc(sizeof(char) * buffer_ptr + 1);
   buffer[buffer_ptr] = '\0';
   strcpy(lexeme, buffer);
+
+  // Checks the type of token 
+  if (type == UNDEFINED && buffer)
+    {
+      if (is_token_numeric(buffer)) type = NUMERIC_LITERAL;
+      else if (is_keyword(buffer)) type = KEYWORD;
+      else type = IDENTIFIER;
+    }
+
+  
   add_lexeme_to_arrlist(
       lexeme_arrlist, type, lexeme, line_number);
 }
@@ -98,120 +110,46 @@ void print_lexeme_arr_list(struct lexeme_array_list *lexemes)
 
     switch (lexemes->list[i]->type)
     {
-    case UNDEFINED: 
-      type_in_str = "UNDEFINED";
-      break;
-    case WHITESPACE:
-      type_in_str = "WHITESPACE";
-      break;
-    case HASHTAG:
-      type_in_str = "'#'";
-      break;
-    case DOT:
-      type_in_str = "'.'";
-      break;
-    case SEMI_COLON:
-      type_in_str = "';'";
-      break;
-    case QUOTES:
-      type_in_str = "\"";
-      break;
-    case COMMA:
-      type_in_str = "','";
-      break;
-    case OPEN_CURLY_BRACKETS:
-      type_in_str = "'{'";
-      break;
-    case CLOSING_CURLY_BRACKETS:
-      type_in_str = "'}'";
-      break;
-    case OPEN_PARENTHESIS:
-      type_in_str = "'('";
-      break;
-    case CLOSING_PARENTHESIS:
-      type_in_str = "')'";
-      break;
-    case OPEN_SQUARE_BRACKETS:
-      type_in_str = "'['";
-      break;
-    case CLOSING_SQUARE_BRACKETS:
-      type_in_str = "']'";
-      break;
-    case ASSIGNMENT_OP:
-      type_in_str = "'='";
-      break;
-    case MULT_OP:
-      type_in_str = "'*'";
-      break;
-    case DIV_OP:
-      type_in_str = "'/'";
-      break;
-    case PLUS_OP:
-      type_in_str = "'+'";
-      break;
-    case MINUS_OP:
-      type_in_str = "'-'";
-      break;
-    case MOD_OP:
-      type_in_str = "'%'";
-      break;
-    case SHIFT_LEFT_OP:
-      type_in_str = "'<<'";
-      break;
-    case SHIFT_RIGHT_OP:
-      type_in_str = "'>>";
-      break;
-    case BITWISE_AND_OP:
-      type_in_str = "'&";
-      break;
-    case BITWISE_OR_OP:
-      type_in_str = "'|'";
-      break;
-    case COLON:
-      type_in_str = "':'";
-      break;
-    case LOGICAL_AND_OP:
-      type_in_str = "'&&'";
-      break;
-    case LOGICAL_OR_OP:
-      type_in_str = "'||'";
-      break;
-    case LOGICAL_NOT_OP:
-      type_in_str = "'!'";
-      break;
-    case GREATER_THAN_OP:
-      type_in_str = "'>'";
-      break;
-    case LESSER_THAN_OP:
-      type_in_str = "'<'";
-      break;
-    case GREATER_EQUAL_OP:
-      type_in_str = "'>='";
-      break;
-    case LESSER_EQUAL_OP:
-      type_in_str = "'<='";
-      break;
-    case EQUAL_TO_OP:
-      type_in_str = "'=='";
-      break;
-    case END_OF_FILE:
-      type_in_str = "END_OF_LINE";
-      break;
-    case NEW_LINE:
-      type_in_str = "NEW_LINE";
-      break;
-    case KEYWORD:
-      type_in_str = "KEYWORD";
-      break;
-    case STRING_LITERALS:
-      type_in_str = "STRING LITERALS";
-      break;
-    case NUMERIC_LITERAL:
-      type_in_str = "NUMERIC_LITERAL";
-      break;
-    case IDENTIFIER:
-      type_in_str = "IDENTIFIER";
-      break;
+    case UNDEFINED: type_in_str = "UNDEFINED"; break;
+    case WHITESPACE: type_in_str = "WHITESPACE"; break;
+    case HASHTAG: type_in_str = "'#'"; break;
+    case DOT: type_in_str = "'.'"; break;
+    case SEMI_COLON: type_in_str = "';'"; break;
+    case QUOTES: type_in_str = "\""; break; 
+    case COMMA: type_in_str = "','"; break;
+    case OPEN_CURLY_BRACKETS: type_in_str = "'{'"; break;
+    case CLOSING_CURLY_BRACKETS: type_in_str = "'}'"; break;
+    case OPEN_PARENTHESIS: type_in_str = "'('"; break;
+    case CLOSING_PARENTHESIS: type_in_str = "')'"; break;
+    case OPEN_SQUARE_BRACKETS: type_in_str = "'['"; break;
+    case CLOSING_SQUARE_BRACKETS: type_in_str = "']'"; break;
+    case ASSIGNMENT_OP: type_in_str = "'='"; break;
+    case MULT_OP: type_in_str = "'*'"; break;
+    case DIV_OP: type_in_str = "'/'"; break;
+    case PLUS_OP: type_in_str = "'+'"; break;
+    case MINUS_OP: type_in_str = "'-'"; break;
+    case MOD_OP: type_in_str = "'%'"; break;
+    case SHIFT_LEFT_OP: type_in_str = "'<<'"; break;
+    case SHIFT_RIGHT_OP: type_in_str = "'>>"; break;
+    case BITWISE_AND_OP: type_in_str = "'&"; break;
+    case BITWISE_OR_OP: type_in_str = "'|'"; break;
+    case BITWISE_XOR_OP: type_in_str = "'^'"; break;
+    case COLON: type_in_str = "':'"; break;
+    case ATTRIBUTE_ARROW: type_in_str = "'->'"; break;
+    case LOGICAL_AND_OP: type_in_str = "'&&'"; break;
+    case LOGICAL_OR_OP: type_in_str = "'||'"; break;
+    case LOGICAL_NOT_OP: type_in_str = "'!'"; break;
+    case GREATER_THAN_OP: type_in_str = "'>'"; break;
+    case LESSER_THAN_OP: type_in_str = "'<'"; break;
+    case GREATER_EQUAL_OP: type_in_str = "'>='"; break;
+    case LESSER_EQUAL_OP: type_in_str = "'<='"; break;
+    case EQUAL_TO_OP: type_in_str = "'=='"; break;
+    case END_OF_FILE: type_in_str = "END_OF_FILE"; break;
+    case NEW_LINE: type_in_str = "NEW_LINE"; break;
+    case KEYWORD: type_in_str = "KEYWORD"; break;
+    case STRING_LITERALS: type_in_str = "STRING LITERALS"; break;
+    case NUMERIC_LITERAL: type_in_str = "NUMERIC_LITERAL"; break;
+    case IDENTIFIER: type_in_str = "IDENTIFIER"; break;
     }
     printf("[Line %d] Type: %s       ident:%s\n",
            lexemes->list[i]->line_num,
@@ -329,9 +267,9 @@ void parse_line_into_lexemes(
             i+=2;
             break;
           }
-          // handles lesser '>' operator
+          // handles lesser '<' operator
           default: {
-            add_lexeme_to_arrlist(lexeme_arrlist, GREATER_THAN_OP, NULL, line_struct->line_number);
+            add_lexeme_to_arrlist(lexeme_arrlist, LESSER_THAN_OP, NULL, line_struct->line_number);
             ++i;
           }
         }
@@ -360,7 +298,6 @@ void parse_line_into_lexemes(
         continue;
       }
       case '=': {
-
         // handles logical equal '==' operator
         if (line[i+1] == '=') {
           add_lexeme_to_arrlist(lexeme_arrlist, EQUAL_TO_OP, NULL, line_struct->line_number);
@@ -402,6 +339,17 @@ void parse_line_into_lexemes(
       }
     }
     
+    /* Handles attribute arrow '->' */
+    if (line[i] == '-' && line[i+1] == '>') {
+      clear_token_buffer_into_lexeme_arrlist(
+          buffer, buffer_ptr, lexeme_arrlist, UNDEFINED, line_struct->line_number);
+      buffer_ptr = 0;
+
+      add_lexeme_to_arrlist(lexeme_arrlist, ATTRIBUTE_ARROW, NULL, line_struct->line_number);
+      i+=2;
+      continue;
+    }
+
     // if its a special standalone char
     if (is_char_special(line[i]))
     {
@@ -427,9 +375,6 @@ void parse_line_into_lexemes(
   // clears last of the buffer
   clear_token_buffer_into_lexeme_arrlist(
       buffer, buffer_ptr, lexeme_arrlist, UNDEFINED, line_struct->line_number);
-
-  add_lexeme_to_arrlist(
-      lexeme_arrlist, NEW_LINE, NULL, line_struct->line_number);
 }
 
 /* Creates and populates the array list */
@@ -455,23 +400,6 @@ struct lexeme_array_list *create_lexeme_arrlist(struct line_list *lines)
   }
 
   add_lexeme_to_arrlist(lexeme_arrlist, END_OF_FILE, NULL, lines->length);
-
-  // Sets the type for the lexemes that are not yet set
-  for (int i = 0; i < lexeme_arrlist->len; i++)
-  {
-    if (lexeme_arrlist->list[i]->type == UNDEFINED)
-    {
-      if (lexeme_arrlist->list[i]->ident == NULL)
-        continue;
-
-      if (is_token_numeric(lexeme_arrlist->list[i]->ident))
-        lexeme_arrlist->list[i]->type = NUMERIC_LITERAL;
-      else if (is_keyword(lexeme_arrlist->list[i]->ident))
-        lexeme_arrlist->list[i]->type = KEYWORD;
-      else
-        lexeme_arrlist->list[i]->type = IDENTIFIER;
-    }
-  }
 
   return lexeme_arrlist;
 }

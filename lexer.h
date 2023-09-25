@@ -18,6 +18,7 @@ enum lexeme_type
   OPEN_SQUARE_BRACKETS, // [
   CLOSING_SQUARE_BRACKETS, // ]
   COLON, // :
+  ATTRIBUTE_ARROW, // ->
 
   // Math and Bitwise Operators 
   
@@ -32,6 +33,7 @@ enum lexeme_type
   SHIFT_LEFT_OP, // <<
   BITWISE_AND_OP, // &
   BITWISE_OR_OP, // |
+  BITWISE_XOR_OP, // ^
 
   // BOOLS
   LOGICAL_AND_OP, // &&

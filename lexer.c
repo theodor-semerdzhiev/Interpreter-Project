@@ -215,12 +215,12 @@ void parse_line_into_lexemes(
         literal[k] = line[i + k + 1];
       }
 
-      add_lexeme_to_arrlist(
-          lexeme_arrlist, QUOTES, NULL, line_struct->line_number);
+      // add_lexeme_to_arrlist(
+      //     lexeme_arrlist, QUOTES, NULL, line_struct->line_number);
       add_lexeme_to_arrlist(
           lexeme_arrlist, STRING_LITERALS, literal, line_struct->line_number);
-      add_lexeme_to_arrlist(
-          lexeme_arrlist, QUOTES, NULL, line_struct->line_number);
+      // add_lexeme_to_arrlist(
+      //     lexeme_arrlist, QUOTES, NULL, line_struct->line_number);
 
       i += literal_len + 2;
       continue;

@@ -52,8 +52,7 @@ void init_keyword_table() {
   insert_keyword_to_table("while", WHILE);
   insert_keyword_to_table("continue", CONTINUE);
   insert_keyword_to_table("str", STR);
-  insert_keyword_to_table("double", DOUBLE);
-  insert_keyword_to_table("int", INT);
+  insert_keyword_to_table("number", NUMBER);
   insert_keyword_to_table("void", VOID);
   insert_keyword_to_table("list", LIST);
 }
@@ -88,7 +87,7 @@ bool is_type_keyword(const char* token) {
   
   while(ptr != NULL) {
     if(strcmp(token, ptr->keyword) == 0) {
-      if (ptr->type == INT || ptr->type == DOUBLE || ptr->type == STR || ptr->type == LIST)  
+      if (ptr->type == NUMBER || ptr->type == STR || ptr->type == LIST)  
         return true;
       
       return false;

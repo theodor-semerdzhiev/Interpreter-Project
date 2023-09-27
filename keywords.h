@@ -13,8 +13,7 @@ enum keyword_type {
   WHILE,
   CONTINUE, 
   STR,
-  DOUBLE,
-  INT,
+  NUMBER,
   LIST,
   VOID
 };

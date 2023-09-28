@@ -21,10 +21,11 @@ enum expression_token_type
     VALUE,
 };
 
-enum expression_component_type {
+enum expression_component_type
+{
     NUMERIC_CONSTANT,
     STRING_CONSTANT,
-    LIST_CONSTANT, //TODO
+    LIST_CONSTANT, // TODO
 
     VARIABLE,
     LIST_INDEX,
@@ -33,7 +34,8 @@ enum expression_component_type {
 
 struct expression_node;
 
-struct expression_component {
+struct expression_component
+{
     enum expression_component_type type;
 
     struct expression_component *sub_component;
@@ -43,19 +45,27 @@ struct expression_component {
     {
         double numeric_const; // NUMERIC_CONSTANT type
 
-        char *string_literal; //NUMERIC_CONSTANT type
+        char *string_literal; // NUMERIC_CONSTANT type
 
-        char* ident; // for VARIABLE type
+        char *ident; // for VARIABLE type
 
         /* i.e the expression inside [identifier][...] */
         struct expression_node *list_index;
 
+        /* for LIST_CONSTANT type, i.e [t_1, ..., t_n)] */
+        struct list_data
+        {
+            struct expression_node **list_elements;
+            int list_length;
+        } list_const;
+
         /* for FUNC_CALL type, stores data about function call,
             i,e [identifer](arg_1, ... , arg_n) */
-        struct func_data { 
+        struct func_data
+        {
             /* i.e expression for each function call param */
             struct expression_node **func_args;
-            int args_num; 
+            int args_num;
         } func_data;
 
     } meta_data;
@@ -69,7 +79,7 @@ struct expression_node
 {
     enum expression_token_type type;
 
-    struct expression_component *component; // contains a the 'value' of the node 
+    struct expression_component *component; // contains a the 'value' of the node
 
     struct expression_node *RHS;
     struct expression_node *LHS;
@@ -80,7 +90,7 @@ void set_parser_state(int _token_ptr, struct lexeme_array_list *_arrlist);
 bool is_numeric_const_fractional(int index);
 bool is_lexeme_in_list(enum lexeme_type type, enum lexeme_type list[], const int list_length);
 double compute_fractional_double(struct lexeme *whole, struct lexeme *frac);
-char *malloc_string_cpy(const char* str);
+char *malloc_string_cpy(const char *str);
 
 struct expression_component *malloc_expression_component();
 struct expression_node *malloc_expression_node();
@@ -89,13 +99,11 @@ void free_expression_tree(struct expression_node *root);
 
 double compute_exp(struct expression_node *root);
 
-struct expression_component *parse_expression_component(
-    struct expression_component *parent,
-    int rec_lvl
-);
+struct expression_node **parse_expressions_by_seperator(
+    enum lexeme_type seperator,
+    enum lexeme_type end_of_exp);
 
-struct expression_node **parse_function_args();
-int get_argument_count(struct expression_node **args);
+int get_expression_list_length(struct expression_node **args);
 
 struct expression_node *parse_expression(
     struct expression_node *LHS,

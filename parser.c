@@ -63,7 +63,6 @@ double compute_fractional_double(struct lexeme *whole, struct lexeme *frac)
     assert(whole->type == NUMERIC_LITERAL && frac->type == NUMERIC_LITERAL);
     double lhs = (double)atoi(whole->ident);
     double fraction = (double)atoi(frac->ident);
-
     return lhs + (double)(fraction / (pow(10, strlen(whole->ident))));
 }
 
@@ -71,7 +70,6 @@ double compute_fractional_double(struct lexeme *whole, struct lexeme *frac)
 struct expression_component *malloc_expression_component()
 {
     struct expression_component *component = malloc(sizeof(struct expression_component));
-    component->attribute_arrow = NULL;
     component->sub_component = NULL;
     component->type = -1;
     return component;
@@ -96,10 +94,12 @@ double compute_exp(struct expression_node *root)
     {
         switch (root->component->type)
         {
-        case LIST_CONSTANT: {
-            double result=0.0;
-            for(int i=0; i < root->component->meta_data.list_const.list_length; i++) {
-                result+=compute_exp(root->component->meta_data.list_const.list_elements[i]);
+        case LIST_CONSTANT:
+        {
+            double result = 0.0;
+            for (int i = 0; i < root->component->meta_data.list_const.list_length; i++)
+            {
+                result += compute_exp(root->component->meta_data.list_const.list_elements[i]);
             }
             return result;
         }
@@ -115,6 +115,7 @@ double compute_exp(struct expression_node *root)
         // recursive call
         case LIST_INDEX:
             return compute_exp(root->component->meta_data.list_index);
+
         default:
             break;
         }
@@ -142,7 +143,8 @@ double compute_exp(struct expression_node *root)
         return (int)compute_exp(root->LHS) && (int)compute_exp(root->RHS);
     case LOGICAL_OR:
         return (int)compute_exp(root->LHS) || (int)compute_exp(root->RHS);
-    case EQUAL_TO:{
+    case EQUAL_TO:
+    {
         double lhs = compute_exp(root->LHS);
         double rhs = compute_exp(root->RHS);
 
@@ -176,7 +178,6 @@ void free_expression_component(struct expression_component *component)
     if (!component)
         return;
 
-    free_expression_component(component->attribute_arrow);
     free_expression_component(component->sub_component);
 
     switch (component->type)
@@ -192,7 +193,6 @@ void free_expression_component(struct expression_component *component)
         free(component);
         return;
     }
-    // TODO TO BE IMPLEMENTED
     case LIST_CONSTANT:
     {
         for (int i = 0; i < component->meta_data.list_const.list_length; i++)
@@ -237,6 +237,7 @@ void free_expression_tree(struct expression_node *root)
     free_expression_component(root->component);
     free(root);
 }
+
 
 #define DEFAULT_ARG_LIST_LENGTH 6
 
@@ -297,7 +298,6 @@ STRING_CONSTANT -> string
 LIST_CONSTANT -> list
 FUNC_CALL -> func call -> (arg1, ..., arg_n)
 LIST_INDEX -> [...]
-
 */
 struct expression_component *parse_expression_component(
     struct expression_component *parent,
@@ -333,16 +333,13 @@ struct expression_component *parse_expression_component(
 
     struct expression_component *component = malloc_expression_component();
 
-    // CONSTANT LIST
     if (rec_lvl == 0 && !parent && list[token_ptr]->type == OPEN_SQUARE_BRACKETS)
     {
-        // TODO TO BE IMPLEMENTED
-
         component->type = LIST_CONSTANT;
         token_ptr++;
-        struct expression_node ** elements = parse_expressions_by_seperator(COMMA, CLOSING_SQUARE_BRACKETS);
+        struct expression_node **elements = parse_expressions_by_seperator(COMMA, CLOSING_SQUARE_BRACKETS);
         component->meta_data.list_const.list_elements = elements;
-        component->meta_data.list_const.list_length=get_expression_list_length(elements);
+        component->meta_data.list_const.list_length = get_expression_list_length(elements);
     }
     else if (list[token_ptr]->type == NUMERIC_LITERAL)
     {
@@ -351,7 +348,9 @@ struct expression_component *parse_expression_component(
         {
             component->meta_data.numeric_const = compute_fractional_double(list[token_ptr], list[token_ptr + 2]);
             token_ptr += 2;
-        } else {
+        }
+        else
+        {
             component->meta_data.numeric_const = (double)atoi(list[token_ptr]->ident);
         }
         token_ptr++;
@@ -409,12 +408,6 @@ struct expression_node *parse_expression(
 
     if (list[token_ptr]->type == END_OF_FILE)
         return LHS;
-
-    /*        if (!LHS)
-            return parse_expression(sub_exp, RHS, ends_of_exp, ends_of_exp_length);
-        else
-            return parse_expression(LHS, sub_exp, ends_of_exp, ends_of_exp_length);
-            */
 
     // Base case (meet end of expression token)
     if (is_lexeme_in_list(list[token_ptr]->type, ends_of_exp, ends_of_exp_length))
@@ -516,4 +509,88 @@ struct expression_node *parse_expression(
     token_ptr++;
 
     return parse_expression(node, NULL, ends_of_exp, ends_of_exp_length);
+}
+
+/* Mallocs abstract syntac tree node */
+struct ast_node *malloc_ast_node() {
+    struct ast_node *node = malloc(sizeof(struct ast_node));
+    node->body=NULL;
+    node->ident=NULL;
+    node->type=-1;
+    return node;
+}
+
+// TODO
+/* Recursively parses code block and returns a ast_node (abstract syntax tree node)*/
+struct ast_node *parse_code_block(
+    struct ast_node *parent_block,
+    int rec_lvl,
+    enum lexeme_type ends_of_exp[],
+    const int ends_of_exp_length)
+{
+
+    struct lexeme **list = arrlist->list;
+
+    struct ast_node *node = malloc_ast_node();
+
+    while (is_lexeme_in_list(list[token_ptr]->type, ends_of_exp, ends_of_exp_length))
+    {
+        
+        switch(get_keyword_type(list[token_ptr]->ident)) {
+            
+            case LET: {
+                assert(list[token_ptr+1]->type == IDENTIFIER && list[token_ptr+2]->type == ASSIGNMENT_OP);
+                token_ptr++;
+                node->type= VAR_DECLARATION;
+                node->ident=malloc_string_cpy(list[token_ptr]->ident);
+                token_ptr+=2;
+                enum lexeme_type end_of_exp = {SEMI_COLON};
+                node->ast_data.exp=parse_expression(NULL,NULL,SEMI_COLON,1);
+                break;
+            }
+
+            case WHILE: {
+                assert(list[token_ptr+1]->type == OPEN_PARENTHESIS);
+                node->type=WHILE_LOOP;
+                token_ptr++;
+
+                enum lexeme_type end_of_exp = {SEMI_COLON};
+                node->ast_data.exp=parse_expression(NULL,NULL,end_of_exp,1);
+                
+                assert(list[token_ptr]->type == OPEN_CURLY_BRACKETS);
+
+                enum lexeme_type end_of_block = {CLOSING_CURLY_BRACKETS};
+                node->body = parse_code_block(NULL, ++rec_lvl,end_of_block,1);
+            }
+            case IF: {
+
+            }
+            case ELSE: {
+
+            }
+
+            case BREAK: {
+                assert(list[token_ptr+1]->type == SEMI_COLON);
+                node->type=LOOP_TERMINATOR;
+                break;
+            }
+            case CONTINUE: {
+                assert(list[token_ptr+1]->type == SEMI_COLON);
+                node->type=LOOP_CONTINUATION;
+                break;
+            }
+            case FUNC: {
+
+            }
+
+            default: {
+                if(list[token_ptr]->type == IDENTIFIER) {
+
+                } else {
+                    // syntax error
+                }         
+            }
+        }
+    }
+    return node;
 }

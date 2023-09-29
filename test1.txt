@@ -1,4 +1,13 @@
-use ""
+type tree(num,) {
+    left=void;
+    right=void;
+    val;
+}
+
+val = tree()
+
+
+
 
 
 

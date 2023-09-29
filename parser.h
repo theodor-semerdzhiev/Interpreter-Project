@@ -49,10 +49,10 @@ struct expression_component
 
         char *ident; // for VARIABLE type
 
-        /* i.e the expression inside [identifier][...] */
+        /* i.e the expression inside , i.e syntax: [identifier][...] */
         struct expression_node *list_index;
 
-        /* for LIST_CONSTANT type, i.e [t_1, ..., t_n)] */
+        /* for LIST_CONSTANT type, i.e syntax: [t_1, ..., t_n)] */
         struct list_data
         {
             struct expression_node **list_elements;
@@ -60,7 +60,7 @@ struct expression_component
         } list_const;
 
         /* for FUNC_CALL type, stores data about function call,
-            i,e [identifer](arg_1, ... , arg_n) */
+            i.e syntax: [identifer](arg_1, ... , arg_n) */
         struct func_data
         {
             /* i.e expression for each function call param */
@@ -69,9 +69,6 @@ struct expression_component
         } func_data;
 
     } meta_data;
-
-    /* i.e the expression component after the '->' attribute arrow   */
-    struct expression_component *attribute_arrow;
 };
 
 /* General struct for a expression */
@@ -83,6 +80,46 @@ struct expression_node
 
     struct expression_node *RHS;
     struct expression_node *LHS;
+};
+
+/* Defines a abstract syntax tree type */
+enum ast_node_type
+{
+    VAR_DECLARATION,
+    VAR_ASSIGNMENT,
+    IF_CONDITIONAL,
+    ELSE_CONDITIONAL,
+    WHILE_LOOP,
+    FUNCTION_DECLARATION, 
+    RETURN_VAL,
+    LOOP_TERMINATOR,
+    LOOP_CONTINUATION,
+};
+
+/* Represents the high level */
+struct ast_node
+{
+    // ast tree TYPE
+    enum ast_node_type type;
+
+    // name of function, variable declaration/assignment name
+    char *ident;
+
+    // contains extra information about the ast node
+    union ast_data
+    {   
+        // related expression 
+        struct expression_ndoe *exp;
+        
+        // list of function prototype args 
+        struct func_args {
+            char **func_prototype_args;
+            int args_num;
+        } func_args;
+        
+    } ast_data;
+
+    struct ast_node *body;
 };
 
 void reset_parser_state();

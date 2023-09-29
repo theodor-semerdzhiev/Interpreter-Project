@@ -26,10 +26,10 @@ int main(int argc, char *argv[])
 
   struct expression_node *tree = NULL;
 
-  if (lexemes->len > 1) {
+  if (lexemes->len > 1)
+  {
     enum lexeme_type end_of_exp[] = {SEMI_COLON};
     tree = parse_expression(NULL, NULL, end_of_exp, 1);
-
   }
   reset_parser_state();
   print_lexeme_arr_list(lexemes);
@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
 
   // print_line_list(list);
   free_lexeme_arrlist(lexemes);
-  free_line_linked_list(list);
+  free_line_list(list);
   free_keyword_table();
   return 0;
 }

@@ -8,51 +8,51 @@ enum lexeme_type
 
   // Syntax tokens
   QUOTES,
-  DOT, // .
-  SEMI_COLON, // ;
-  COMMA, // ,
-  OPEN_CURLY_BRACKETS, // [
-  CLOSING_CURLY_BRACKETS, // ]
-  OPEN_PARENTHESIS, // (
-  CLOSING_PARENTHESIS, // )
-  OPEN_SQUARE_BRACKETS, // [
+  DOT,                     // .
+  SEMI_COLON,              // ;
+  COMMA,                   // ,
+  OPEN_CURLY_BRACKETS,     // [
+  CLOSING_CURLY_BRACKETS,  // ]
+  OPEN_PARENTHESIS,        // (
+  CLOSING_PARENTHESIS,     // )
+  OPEN_SQUARE_BRACKETS,    // [
   CLOSING_SQUARE_BRACKETS, // ]
-  COLON, // :
-  ATTRIBUTE_ARROW, // ->
+  COLON,                   // :
+  ATTRIBUTE_ARROW,         // ->
 
-  // Math and Bitwise Operators 
-  
+  // Math and Bitwise Operators
+
   ASSIGNMENT_OP, // =
-  MULT_OP, // *
-  DIV_OP, // /
-  PLUS_OP, // +
-  MINUS_OP, // -
-  MOD_OP, // %
+  MULT_OP,       // *
+  DIV_OP,        // /
+  PLUS_OP,       // +
+  MINUS_OP,      // -
+  MOD_OP,        // %
 
   SHIFT_RIGHT_OP, // >>
-  SHIFT_LEFT_OP, // <<
+  SHIFT_LEFT_OP,  // <<
   BITWISE_AND_OP, // &
-  BITWISE_OR_OP, // |
+  BITWISE_OR_OP,  // |
   BITWISE_XOR_OP, // ^
 
   // BOOLS
-  LOGICAL_AND_OP, // &&
-  LOGICAL_OR_OP, // ||
-  LOGICAL_NOT_OP, // !
-  GREATER_THAN_OP, // >
-  LESSER_THAN_OP, // <
+  LOGICAL_AND_OP,   // &&
+  LOGICAL_OR_OP,    // ||
+  LOGICAL_NOT_OP,   // !
+  GREATER_THAN_OP,  // >
+  LESSER_THAN_OP,   // <
   GREATER_EQUAL_OP, // >=
-  LESSER_EQUAL_OP, // <=
-  EQUAL_TO_OP, // ==
+  LESSER_EQUAL_OP,  // <=
+  EQUAL_TO_OP,      // ==
 
   /////////
 
-  NEW_LINE, // new line marker
-  END_OF_FILE, // end of file token
-  KEYWORD, // reserved keywords 
+  NEW_LINE,        // new line marker
+  END_OF_FILE,     // end of file token
+  KEYWORD,         // reserved keywords
   STRING_LITERALS, // "hello" ...
   NUMERIC_LITERAL, // numbers like 10230, 12, 23, etc
-  IDENTIFIER // reference to variables, functions etc
+  IDENTIFIER       // reference to variables, functions etc
 };
 
 /* Structs for lexeme (a single token) list*/
@@ -76,16 +76,15 @@ struct lexeme_array_list
 struct line_construct
 {
   char *line;
-  struct line_construct *next;
   int line_number;
 };
 
 /* Defined a list of lines */
 struct line_list
 {
-  struct line_construct *head;
-  struct line_construct *tail;
+  struct line_construct **list;
   size_t length;
+  int max_length;
 };
 
 /* Main lexing logic */
@@ -100,16 +99,16 @@ void add_lexeme_to_arrlist(
     enum lexeme_type type,
     char *ident,
     int line_num);
+
 void free_lexeme_arrlist(struct lexeme_array_list *arr);
 void print_lexeme_arr_list(struct lexeme_array_list *lexemes);
 struct lexeme_array_list *create_lexeme_arrlist(struct line_list *lines);
 /*************************************/
 
-/* Line linked list */
-
-void add_line_to_linked_list(struct line_list *list, struct line_construct *line);
-void print_line_linked_list(struct line_list *list);
-void free_line_linked_list(struct line_list *list);
+/* Line array list */
+void add_line_to_line_list(struct line_list *list, struct line_construct *line);
+void print_line_list(struct line_list *list);
+void free_line_list(struct line_list *list);
 struct line_construct *malloc_line_struct(char *line, int line_nb);
 /***************************************/
 

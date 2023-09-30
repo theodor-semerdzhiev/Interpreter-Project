@@ -1,18 +1,10 @@
-type tree(num,) {
-    left=void;
-    right=void;
-    val;
+let num = 0 10 -;
+
+func looping(num1, num2) {
+    while(num 20 <) {
+        num = num 1 +;
+    }
 }
-
-val = tree()
-
-
-
-
-
-
-
-
 
 
 

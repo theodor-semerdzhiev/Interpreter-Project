@@ -121,6 +121,7 @@ static void clear_token_buffer_into_lexeme_arrlist(
 void print_lexeme_arr_list(struct lexeme_array_list *lexemes)
 {
   printf("Length: %zu\n", lexemes->len);
+  
 
   for (int i = 0; i < lexemes->len; i++)
   {
@@ -253,10 +254,11 @@ void print_lexeme_arr_list(struct lexeme_array_list *lexemes)
       type_in_str = "IDENTIFIER";
       break;
     }
-    printf("[Line %d] Type: %s       ident:%s\n",
-           lexemes->list[i]->line_num,
-           type_in_str,
-           lexemes->list[i]->ident);
+    printf("Index: %d [Line %d] Type: %s     ident:%s\n",
+          i,
+          lexemes->list[i]->line_num,
+          type_in_str,
+          lexemes->list[i]->ident);
   }
 }
 

@@ -89,6 +89,7 @@ enum ast_node_type
     VAR_ASSIGNMENT,
     IF_CONDITIONAL,
     ELSE_CONDITIONAL,
+    ELSE_IF_CONDITIONAL,
     WHILE_LOOP,
     FUNCTION_DECLARATION, 
     RETURN_VAL,
@@ -109,23 +110,30 @@ struct ast_node
     union ast_data
     {   
         // related expression 
-        struct expression_ndoe *exp;
+        struct expression_node *exp;
         
         // list of function prototype args 
         struct func_args {
-            char **func_prototype_args;
+            struct expression_node **func_prototype_args;
             int args_num;
         } func_args;
         
     } ast_data;
 
     struct ast_node *body;
+
+    struct ast_node *parent_block;
+
+    struct ast_node *next; // points to some next node
+    struct ast_node *prev;
 };
 
 void reset_parser_state();
 void set_parser_state(int _token_ptr, struct lexeme_array_list *_arrlist);
 bool is_numeric_const_fractional(int index);
 bool is_lexeme_in_list(enum lexeme_type type, enum lexeme_type list[], const int list_length);
+bool lexeme_lists_intersect(
+    enum lexeme_type list1[],const int list1_length,enum lexeme_type list2[],const int list2_length);
 double compute_fractional_double(struct lexeme *whole, struct lexeme *frac);
 char *malloc_string_cpy(const char *str);
 
@@ -145,5 +153,12 @@ int get_expression_list_length(struct expression_node **args);
 struct expression_node *parse_expression(
     struct expression_node *LHS,
     struct expression_node *RHS,
+    enum lexeme_type ends_of_exp[],
+    const int ends_of_exp_length);
+
+struct ast_node *malloc_ast_node(); 
+struct ast_node *parse_code_block(
+    struct ast_node *parent_block,
+    int rec_lvl,
     enum lexeme_type ends_of_exp[],
     const int ends_of_exp_length);

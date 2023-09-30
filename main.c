@@ -21,18 +21,22 @@ int main(int argc, char *argv[])
   free(file_contents);
 
   struct lexeme_array_list *lexemes = create_lexeme_arrlist(list);
-
+  print_lexeme_arr_list(lexemes);
+  
   set_parser_state(0, lexemes);
 
   struct expression_node *tree = NULL;
+  struct ast_node *ast = NULL;
 
   if (lexemes->len > 1)
   {
-    enum lexeme_type end_of_exp[] = {SEMI_COLON};
-    tree = parse_expression(NULL, NULL, end_of_exp, 1);
+    // enum lexeme_type end_of_exp[] = {SEMI_COLON};
+    // tree = parse_expression(NULL, NULL, end_of_exp, 1);
+    enum lexeme_type end_of_program[] = {END_OF_FILE};
+
+    ast = parse_code_block(NULL, NULL, end_of_program, 1);
   }
   reset_parser_state();
-  print_lexeme_arr_list(lexemes);
 
   if (tree)
     printf("%f\n", compute_exp(tree));

@@ -49,6 +49,23 @@ bool is_lexeme_in_list(
     return false;
 }
 
+/* Checks if list1 and list2 have common enums */
+bool lexeme_lists_intersect(
+    enum lexeme_type list1[],
+    const int list1_length,
+    enum lexeme_type list2[],
+    const int list2_length
+) {
+    for(int i=0; i < list1_length; i++) {
+        for(int j=0; j < list2_length; j++) {
+            if(list1[i] == list2[j]) 
+                return true;
+        }
+    }
+        
+    return false;
+}
+
 /* Mallocs copy of input string*/
 char *malloc_string_cpy(const char *str)
 {
@@ -511,16 +528,26 @@ struct expression_node *parse_expression(
     return parse_expression(node, NULL, ends_of_exp, ends_of_exp_length);
 }
 
+
 /* Mallocs abstract syntac tree node */
 struct ast_node *malloc_ast_node() {
     struct ast_node *node = malloc(sizeof(struct ast_node));
     node->body=NULL;
     node->ident=NULL;
+    node->parent_block=NULL;
+    node->prev=NULL;
+    node->next=NULL;
     node->type=-1;
     return node;
 }
 
-// TODO
+/* Adds next_node to head as the next pointer */
+void push_ast_node(struct ast_node *head, struct ast_node *next_node) {
+    head->next=next_node;
+    next_node->prev=head;
+}
+
+// TODO TO BE IMPLEMENTED
 /* Recursively parses code block and returns a ast_node (abstract syntax tree node)*/
 struct ast_node *parse_code_block(
     struct ast_node *parent_block,
@@ -531,42 +558,92 @@ struct ast_node *parse_code_block(
 
     struct lexeme **list = arrlist->list;
 
-    struct ast_node *node = malloc_ast_node();
+    if(is_lexeme_in_list(list[token_ptr]->type, ends_of_exp, ends_of_exp_length)) {
+        return NULL;
+    }
 
-    while (is_lexeme_in_list(list[token_ptr]->type, ends_of_exp, ends_of_exp_length))
+    struct ast_node *node = malloc_ast_node();
+    struct ast_node *tail = node;
+
+    while (!is_lexeme_in_list(list[token_ptr]->type, ends_of_exp, ends_of_exp_length))
     {
         
         switch(get_keyword_type(list[token_ptr]->ident)) {
             
             case LET: {
                 assert(list[token_ptr+1]->type == IDENTIFIER && list[token_ptr+2]->type == ASSIGNMENT_OP);
-                token_ptr++;
                 node->type= VAR_DECLARATION;
                 node->ident=malloc_string_cpy(list[token_ptr]->ident);
-                token_ptr+=2;
-                enum lexeme_type end_of_exp = {SEMI_COLON};
-                node->ast_data.exp=parse_expression(NULL,NULL,SEMI_COLON,1);
+                token_ptr+=3;
+                enum lexeme_type end_of_exp[] = {SEMI_COLON};
+                node->ast_data.exp=parse_expression(NULL,NULL,end_of_exp,1);
                 break;
             }
 
             case WHILE: {
                 assert(list[token_ptr+1]->type == OPEN_PARENTHESIS);
                 node->type=WHILE_LOOP;
-                token_ptr++;
+                token_ptr+=2;
 
-                enum lexeme_type end_of_exp = {SEMI_COLON};
+                enum lexeme_type end_of_exp[] = {CLOSING_PARENTHESIS};
+                node->ast_data.exp=parse_expression(NULL,NULL,end_of_exp,1);
+                
+                assert(list[token_ptr]->type == OPEN_CURLY_BRACKETS);
+                token_ptr++;
+                enum lexeme_type end_of_block[] = {CLOSING_CURLY_BRACKETS};
+                node->body = parse_code_block(node, ++rec_lvl,end_of_block,1);
+                break;
+            }
+
+            case IF: {
+                assert(list[token_ptr+1]->type == OPEN_PARENTHESIS);
+                node->type=IF_CONDITIONAL;
+                token_ptr+=2;
+
+                enum lexeme_type end_of_exp[] = {CLOSING_PARENTHESIS};
                 node->ast_data.exp=parse_expression(NULL,NULL,end_of_exp,1);
                 
                 assert(list[token_ptr]->type == OPEN_CURLY_BRACKETS);
 
-                enum lexeme_type end_of_block = {CLOSING_CURLY_BRACKETS};
-                node->body = parse_code_block(NULL, ++rec_lvl,end_of_block,1);
-            }
-            case IF: {
+                token_ptr++;
 
+                enum lexeme_type end_of_block[] = {CLOSING_CURLY_BRACKETS};
+                node->body = parse_code_block(node, ++rec_lvl,end_of_block,1);
+                break;
             }
             case ELSE: {
+                
+                //else if block
+                if(get_keyword_type(list[token_ptr+1]->ident) == IF) {
+                    node->type=ELSE_IF_CONDITIONAL;
 
+                    assert(list[token_ptr+2]->type == OPEN_PARENTHESIS);
+                    enum lexeme_type end_of_exp[] = {CLOSING_PARENTHESIS};
+                    token_ptr+=3;
+                    node->ast_data.exp=parse_expression(NULL,NULL,end_of_exp,1);
+
+                    assert(list[token_ptr]->type == OPEN_CURLY_BRACKETS);
+                    token_ptr++;
+                    
+                    enum lexeme_type end_of_block[] = {CLOSING_CURLY_BRACKETS};
+
+                    node->body=parse_code_block(node,++rec_lvl,end_of_block,1);
+
+                
+                // regular else block
+                } else if(list[token_ptr+1]->type == OPEN_CURLY_BRACKETS){
+                    node->type=ELSE_CONDITIONAL;
+
+                    enum lexeme_type end_of_block[] = {CLOSING_CURLY_BRACKETS};
+                    token_ptr+=2;
+                    node->body=parse_code_block(node,++rec_lvl, end_of_block, 1);
+                    
+
+                } else {
+                    // bad syntax
+                }
+
+                break;
             }
 
             case BREAK: {
@@ -579,18 +656,47 @@ struct ast_node *parse_code_block(
                 node->type=LOOP_CONTINUATION;
                 break;
             }
-            case FUNC: {
 
+            // TO BE IMPLEMENTED
+            case FUNC: {
+                assert(list[token_ptr+1]->type == IDENTIFIER);
+                assert(list[token_ptr+2]->type == OPEN_PARENTHESIS);
+                
+                node->type=FUNCTION_DECLARATION;
+                node->ident=malloc_string_cpy(list[token_ptr+1]->ident);
+                token_ptr+=3;
+                struct expression_node **args = parse_expressions_by_seperator(COMMA,CLOSING_PARENTHESIS);
+                node->ast_data.func_args.func_prototype_args=args;
+
+                node->ast_data.func_args.args_num=get_expression_list_length(args);
+
+                assert(list[token_ptr]->type == OPEN_CURLY_BRACKETS);
+
+                enum lexeme_type end_of_block[] = {CLOSING_CURLY_BRACKETS};
+                token_ptr++;
+                node->body=parse_code_block(node, ++rec_lvl, end_of_block, 1);
+                
+                break;
             }
 
             default: {
-                if(list[token_ptr]->type == IDENTIFIER) {
-
+                if(list[token_ptr]->type == IDENTIFIER && list[token_ptr+1]->type == ASSIGNMENT_OP) {
+                    node->type=VAR_ASSIGNMENT;
+                    node->ident=malloc_string_cpy(list[token_ptr]->ident);
+                    token_ptr+=2;
+                    enum lexeme_type end_of_exp[] = {SEMI_COLON};
+                    node->ast_data.exp=parse_expression(NULL,NULL,end_of_exp,1);
+                    
                 } else {
                     // syntax error
-                }         
+                }   
+                break;      
             }
         }
     }
+
+    node->parent_block=parent_block;
+    
+    token_ptr++;
     return node;
 }

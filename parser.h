@@ -97,14 +97,17 @@ enum ast_node_type
     LOOP_CONTINUATION,
 };
 
-/* Represents the high level */
+/* Represents the high level representation of the abstract syntax tree */
 struct ast_node
 {
     // ast tree TYPE
     enum ast_node_type type;
 
-    // name of function, variable declaration/assignment name
-    char *ident;
+    // represents LHS identifer or function name
+    union identifier {
+        char *ident;
+        struct expression_component *var_assignment;
+    } identifier;
 
     // contains extra information about the ast node
     union ast_data
@@ -120,18 +123,29 @@ struct ast_node
         
     } ast_data;
 
-    struct ast_node *body;
+    /* Points to abstract syntax tree */
+    struct ast_list *body;
 
-    struct ast_node *parent_block;
-
-    struct ast_node *next; // points to some next node
+    /* Used to traverse ast_list */
+    struct ast_node *next; 
     struct ast_node *prev;
+};
+
+/* Top level data structure for ast*/
+struct ast_list
+{
+    struct ast_node *head;
+    struct ast_node *tail;
+
+    size_t length;
+    struct ast_list *parent_block;
 };
 
 void reset_parser_state();
 void set_parser_state(int _token_ptr, struct lexeme_array_list *_arrlist);
 bool is_numeric_const_fractional(int index);
 bool is_lexeme_in_list(enum lexeme_type type, enum lexeme_type list[], const int list_length);
+
 bool lexeme_lists_intersect(
     enum lexeme_type list1[],const int list1_length,enum lexeme_type list2[],const int list2_length);
 double compute_fractional_double(struct lexeme *whole, struct lexeme *frac);
@@ -139,8 +153,9 @@ char *malloc_string_cpy(const char *str);
 
 struct expression_component *malloc_expression_component();
 struct expression_node *malloc_expression_node();
-
 void free_expression_tree(struct expression_node *root);
+
+bool is_lexeme_preliminary_expression_token(enum lexeme_type type);
 
 double compute_exp(struct expression_node *root);
 
@@ -157,8 +172,13 @@ struct expression_node *parse_expression(
     const int ends_of_exp_length);
 
 struct ast_node *malloc_ast_node(); 
-struct ast_node *parse_code_block(
-    struct ast_node *parent_block,
+void free_ast_list(struct ast_list *list);
+void free_ast_node(struct ast_node *node);
+
+void push_to_ast_list(struct ast_list *list, struct ast_node *node);
+
+struct ast_list *parse_code_block(
+    struct ast_list *parent_block,
     int rec_lvl,
     enum lexeme_type ends_of_exp[],
     const int ends_of_exp_length);

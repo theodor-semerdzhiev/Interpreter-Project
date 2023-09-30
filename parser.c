@@ -83,6 +83,7 @@ double compute_fractional_double(struct lexeme *whole, struct lexeme *frac)
     return lhs + (double)(fraction / (pow(10, strlen(whole->ident))));
 }
 
+
 /* Mallocs expression component struct */
 struct expression_component *malloc_expression_component()
 {
@@ -101,6 +102,17 @@ struct expression_node *malloc_expression_node()
     node->component = NULL;
     node->type = -1;
     return node;
+}
+
+/* Checks wether lexeme_type is a valid beginning of expression component */
+bool is_lexeme_preliminary_expression_token(enum lexeme_type type) {
+    struct lexeme **list = arrlist->list;
+
+    return 
+    type == IDENTIFIER || 
+    type == OPEN_SQUARE_BRACKETS ||
+    type == NUMERIC_LITERAL ||
+    type == STRING_LITERALS;
 }
 
 double compute_exp(struct expression_node *root)
@@ -310,6 +322,7 @@ int get_expression_list_length(struct expression_node **args)
 
 /*
 This function is responsible for recursively parsing expression components (i.e num in -> num 10 *)
+rec_lvl (recursion level) should be called with inital value of 0
 NUMERIC_CONSTANT -> number
 STRING_CONSTANT -> string
 LIST_CONSTANT -> list
@@ -448,11 +461,7 @@ struct expression_node *parse_expression(
 
     struct expression_node *node = malloc_expression_node();
 
-    if (
-        list[token_ptr]->type == IDENTIFIER ||
-        list[token_ptr]->type == STRING_LITERALS ||
-        list[token_ptr]->type == NUMERIC_LITERAL ||
-        list[token_ptr]->type == OPEN_SQUARE_BRACKETS)
+    if (is_lexeme_preliminary_expression_token(list[token_ptr]->type))
     {
 
         node->component = parse_expression_component(NULL, 0);
@@ -533,24 +542,118 @@ struct expression_node *parse_expression(
 struct ast_node *malloc_ast_node() {
     struct ast_node *node = malloc(sizeof(struct ast_node));
     node->body=NULL;
-    node->ident=NULL;
-    node->parent_block=NULL;
     node->prev=NULL;
     node->next=NULL;
     node->type=-1;
     return node;
 }
 
-/* Adds next_node to head as the next pointer */
-void push_ast_node(struct ast_node *head, struct ast_node *next_node) {
-    head->next=next_node;
-    next_node->prev=head;
+/* The function ONLY frees the ast_node itself, not the other nodes that its pointing to */
+void free_ast_node(struct ast_node *node) {
+    switch(node->type) {
+        case VAR_DECLARATION: {
+            free(node->identifier.ident);
+            free_expression_tree(node->ast_data.exp);
+            free(node);
+            return;
+        }
+
+        case VAR_ASSIGNMENT: {
+            free_expression_tree(node->ast_data.exp);
+            free_expression_component(node->identifier.var_assignment);
+            free(node);
+            return;
+        }
+
+        case IF_CONDITIONAL: {
+            free_expression_tree(node->ast_data.exp);
+            free_ast_list(node->body);
+            return;
+        }
+
+        case ELSE_IF_CONDITIONAL: {
+            free_expression_tree(node->ast_data.exp);
+            free_ast_list(node->body);
+            free(node);
+            return;
+        }
+
+        case ELSE_CONDITIONAL: {
+            free_ast_list(node->body);
+            free(node);
+            return;
+        }
+
+        case WHILE_LOOP: {
+            free_expression_tree(node->ast_data.exp);
+            free_ast_list(node->body);
+            free(node);
+            return;
+        }
+
+        case FUNCTION_DECLARATION: {
+            for(int i=0; i < node->ast_data.func_args.args_num; i++) 
+                free_expression_tree(node->ast_data.func_args.func_prototype_args[i]);
+            
+            free(node->ast_data.func_args.func_prototype_args);
+
+            free_ast_list(node->body);
+            free(node->identifier.ident);
+            free(node);
+            return;
+        }
+
+        case RETURN_VAL:
+        case LOOP_TERMINATOR:
+        case LOOP_CONTINUATION:
+            free(node);
+            return;
+
+        default: return;
+    }
+}
+
+/* Mallocs abstract syntax tree list */
+struct ast_list *malloc_ast_list() {
+    struct ast_list * list = malloc(sizeof(struct ast_list));
+    list->head=NULL;
+    list->parent_block=NULL;
+    list->tail=NULL;
+    list->length=0;
+    return list;
+}
+
+/* Recursively frees ast_list struct */
+void free_ast_list(struct ast_list *list) {
+
+    struct ast_node *ptr = list->head;
+
+    // frees all ast_nodes in list
+    while(ptr) {
+        struct ast_node *tmp = ptr->next;
+        free_ast_node(ptr);
+        ptr=tmp;
+    }
+
+    free(list);
+}
+
+/* Adds a ast_node to the high abstraction ast_list data structure (i.e linked list)*/
+void push_to_ast_list(struct ast_list *list, struct ast_node *node) {
+    if(!list->head) {
+        list->head=node;
+        list->tail=node;
+    } else {
+        list->tail->next=node;
+        list->tail=node;
+    }
+    list->length++;
 }
 
 // TODO TO BE IMPLEMENTED
 /* Recursively parses code block and returns a ast_node (abstract syntax tree node)*/
-struct ast_node *parse_code_block(
-    struct ast_node *parent_block,
+struct ast_list *parse_code_block(
+    struct ast_list *parent_block,
     int rec_lvl,
     enum lexeme_type ends_of_exp[],
     const int ends_of_exp_length)
@@ -562,24 +665,29 @@ struct ast_node *parse_code_block(
         return NULL;
     }
 
-    struct ast_node *node = malloc_ast_node();
-    struct ast_node *tail = node;
+    struct ast_list *ast_list = malloc(sizeof(struct ast_list));
+
 
     while (!is_lexeme_in_list(list[token_ptr]->type, ends_of_exp, ends_of_exp_length))
     {
+        struct ast_node *node = malloc_ast_node();
         
         switch(get_keyword_type(list[token_ptr]->ident)) {
             
+            // variable declaration
             case LET: {
                 assert(list[token_ptr+1]->type == IDENTIFIER && list[token_ptr+2]->type == ASSIGNMENT_OP);
                 node->type= VAR_DECLARATION;
-                node->ident=malloc_string_cpy(list[token_ptr]->ident);
+                node->identifier.ident=malloc_string_cpy(list[token_ptr]->ident);
                 token_ptr+=3;
                 enum lexeme_type end_of_exp[] = {SEMI_COLON};
-                node->ast_data.exp=parse_expression(NULL,NULL,end_of_exp,1);
+                node->
+                ast_data.exp=parse_expression(NULL,NULL,end_of_exp,1);
+
+                push_to_ast_list(ast_list, node);
                 break;
             }
-
+            // WHILE loop
             case WHILE: {
                 assert(list[token_ptr+1]->type == OPEN_PARENTHESIS);
                 node->type=WHILE_LOOP;
@@ -591,10 +699,15 @@ struct ast_node *parse_code_block(
                 assert(list[token_ptr]->type == OPEN_CURLY_BRACKETS);
                 token_ptr++;
                 enum lexeme_type end_of_block[] = {CLOSING_CURLY_BRACKETS};
-                node->body = parse_code_block(node, ++rec_lvl,end_of_block,1);
+                node->
+                body = parse_code_block(ast_list, ++rec_lvl,end_of_block,1);
+
+                push_to_ast_list(ast_list, node);
+
                 break;
             }
 
+            //if conditional 
             case IF: {
                 assert(list[token_ptr+1]->type == OPEN_PARENTHESIS);
                 node->type=IF_CONDITIONAL;
@@ -608,7 +721,10 @@ struct ast_node *parse_code_block(
                 token_ptr++;
 
                 enum lexeme_type end_of_block[] = {CLOSING_CURLY_BRACKETS};
-                node->body = parse_code_block(node, ++rec_lvl,end_of_block,1);
+                node->
+                body = parse_code_block(ast_list, ++rec_lvl,end_of_block,1);
+                push_to_ast_list(ast_list, node);
+
                 break;
             }
             case ELSE: {
@@ -627,7 +743,9 @@ struct ast_node *parse_code_block(
                     
                     enum lexeme_type end_of_block[] = {CLOSING_CURLY_BRACKETS};
 
-                    node->body=parse_code_block(node,++rec_lvl,end_of_block,1);
+                    node->body=parse_code_block(ast_list,++rec_lvl,end_of_block,1);
+
+                    push_to_ast_list(ast_list, node);
 
                 
                 // regular else block
@@ -636,34 +754,42 @@ struct ast_node *parse_code_block(
 
                     enum lexeme_type end_of_block[] = {CLOSING_CURLY_BRACKETS};
                     token_ptr+=2;
-                    node->body=parse_code_block(node,++rec_lvl, end_of_block, 1);
+                    node->body=parse_code_block(ast_list,++rec_lvl, end_of_block, 1);
                     
+                    push_to_ast_list(ast_list, node);
 
                 } else {
                     // bad syntax
                 }
+
 
                 break;
             }
 
             case BREAK: {
                 assert(list[token_ptr+1]->type == SEMI_COLON);
-                node->type=LOOP_TERMINATOR;
+                node->
+                type=LOOP_TERMINATOR;
+                push_to_ast_list(ast_list, node);
+
                 break;
             }
             case CONTINUE: {
                 assert(list[token_ptr+1]->type == SEMI_COLON);
-                node->type=LOOP_CONTINUATION;
+                node->
+                type=LOOP_CONTINUATION;
+                push_to_ast_list(ast_list, node);
+
                 break;
             }
 
-            // TO BE IMPLEMENTED
+            // function declaration
             case FUNC: {
                 assert(list[token_ptr+1]->type == IDENTIFIER);
                 assert(list[token_ptr+2]->type == OPEN_PARENTHESIS);
                 
                 node->type=FUNCTION_DECLARATION;
-                node->ident=malloc_string_cpy(list[token_ptr+1]->ident);
+                node->identifier.ident=malloc_string_cpy(list[token_ptr+1]->ident);
                 token_ptr+=3;
                 struct expression_node **args = parse_expressions_by_seperator(COMMA,CLOSING_PARENTHESIS);
                 node->ast_data.func_args.func_prototype_args=args;
@@ -674,29 +800,39 @@ struct ast_node *parse_code_block(
 
                 enum lexeme_type end_of_block[] = {CLOSING_CURLY_BRACKETS};
                 token_ptr++;
-                node->body=parse_code_block(node, ++rec_lvl, end_of_block, 1);
+                node->body=parse_code_block(ast_list, ++rec_lvl, end_of_block, 1);
                 
+                push_to_ast_list(ast_list, node);
+
                 break;
             }
 
             default: {
-                if(list[token_ptr]->type == IDENTIFIER && list[token_ptr+1]->type == ASSIGNMENT_OP) {
+                // parses variable assignment
+                // Grammar: [EXPRESSION COMPONENT] [ASSIGNMENT OP] [EXPRESSION]
+                if(is_lexeme_preliminary_expression_token(list[token_ptr]->type)) {
                     node->type=VAR_ASSIGNMENT;
-                    node->ident=malloc_string_cpy(list[token_ptr]->ident);
-                    token_ptr+=2;
+                    node->identifier.var_assignment=parse_expression_component(NULL,0);
+                    
+                    assert(list[token_ptr]->type == ASSIGNMENT_OP);
+                    token_ptr++;
                     enum lexeme_type end_of_exp[] = {SEMI_COLON};
                     node->ast_data.exp=parse_expression(NULL,NULL,end_of_exp,1);
                     
+                    push_to_ast_list(ast_list, node);
+                    
                 } else {
-                    // syntax error
+                    // syntax error TODO
+                    
                 }   
+
                 break;      
             }
         }
     }
 
-    node->parent_block=parent_block;
+    ast_list->parent_block=parent_block;
     
     token_ptr++;
-    return node;
+    return ast_list;
 }

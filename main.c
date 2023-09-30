@@ -26,7 +26,7 @@ int main(int argc, char *argv[])
   set_parser_state(0, lexemes);
 
   struct expression_node *tree = NULL;
-  struct ast_node *ast = NULL;
+  struct ast_list *ast = NULL;
 
   if (lexemes->len > 1)
   {
@@ -40,7 +40,9 @@ int main(int argc, char *argv[])
 
   if (tree)
     printf("%f\n", compute_exp(tree));
-
+  
+  free_ast_list(ast);
+  
   free_expression_tree(tree);
 
   // print_line_list(list);

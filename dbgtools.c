@@ -182,7 +182,7 @@ void print_expression_component(struct expression_component *component, char* bu
         case LIST_CONSTANT: {
             printf(" LIST_CONSTANT -> \n");
             for(int i=0; i < component->meta_data.list_const.list_length; i++)
-                print_expression_tree(component->meta_data.list_const.list_elements[i], buffer, ++rec_lvl);
+                print_expression_tree(component->meta_data.list_const.list_elements[i], buffer, rec_lvl+1);
             
             break;
         }
@@ -361,7 +361,7 @@ void print_ast_node(struct ast_node *node, char* buffer, int rec_lvl) {
             
         case VAR_ASSIGNMENT: {
             printf("@ VAR_ASSIGNMENT: \n");
-            print_expression_component(node->identifier.var_assignment, buffer, rec_lvl+1);
+            print_expression_component(node->identifier.expression_component, buffer, rec_lvl+1);
             print_expression_tree(node->ast_data.exp, buffer, rec_lvl+1);
             break;
         }
@@ -398,11 +398,11 @@ void print_ast_node(struct ast_node *node, char* buffer, int rec_lvl) {
 
         case FUNCTION_DECLARATION: {
             printf("@ FUNCTION DECLARATION: func %s\n", node->identifier.ident);
-
+            print_repeated_string(buffer, rec_lvl);
+            printf("FUNCTION ARGS:\n");
             for(int i=0; i < node->ast_data.func_args.args_num; i++) {
                 print_expression_tree(node->ast_data.func_args.func_prototype_args[i], buffer, rec_lvl+1);
             }
-
             print_ast_list(node->body,buffer, rec_lvl+1);
 
             break;
@@ -422,9 +422,9 @@ void print_ast_node(struct ast_node *node, char* buffer, int rec_lvl) {
             printf("@ CONTINUE --\n");
             break;
 
-        case FUNCTION_CALL: {
-            printf("@ FUNCTION CALL --\n");
-            print_expression_component(node->identifier.func_call, buffer, rec_lvl);
+        case EXPRESSION_COMPONENT: {
+            printf("@ EXPRESSION COMPONENT --\n");
+            print_expression_component(node->identifier.expression_component, buffer, rec_lvl+1);
             break;
         }
 

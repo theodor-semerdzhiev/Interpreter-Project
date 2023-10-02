@@ -32,7 +32,7 @@ enum expression_component_type
 
     VARIABLE,
     LIST_INDEX,
-    FUNC_CALL
+    FUNC_CALL,
 };
 
 struct expression_node;
@@ -98,7 +98,9 @@ enum ast_node_type
     RETURN_VAL,
     LOOP_TERMINATOR,
     LOOP_CONTINUATION,
-    FUNCTION_CALL,
+
+
+    EXPRESSION_COMPONENT,
 };
 
 /* Represents the high level representation of the abstract syntax tree */
@@ -109,9 +111,8 @@ struct ast_node
 
     // represents LHS identifer or function name
     union identifier {
-        char *ident;
-        struct expression_component *var_assignment;
-        struct expression_component *func_call;
+        char *ident; // used for variable declaration (let keyword)
+        struct expression_component *expression_component; // used for variable assignment and function calls
     } identifier;
 
     // contains extra information about the ast node
@@ -143,7 +144,7 @@ struct ast_list
     struct ast_node *tail;
 
     size_t length;
-    struct ast_list *parent_block;
+    struct ast_node *parent_block;
 };
 
 void reset_parser_state();
@@ -183,7 +184,7 @@ void free_ast_node(struct ast_node *node);
 void push_to_ast_list(struct ast_list *list, struct ast_node *node);
 
 struct ast_list *parse_code_block(
-    struct ast_list *parent_block,
+    struct ast_node *parent_block,
     int rec_lvl,
     enum lexeme_type ends_of_exp[],
     const int ends_of_exp_length);

@@ -156,7 +156,7 @@ static void insert_keyword_to_table(char* keyword, enum keyword_type type) {
 static unsigned int hash(const char* keywords) {
   int hash=7; //prime number
 
-  for(int i=0; i< strlen(keywords); i++) {
+  for(int i=0; i < (int)strlen(keywords); i++) {
     hash = hash*31 + keywords[i];
   }
   return hash;

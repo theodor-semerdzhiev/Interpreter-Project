@@ -63,7 +63,7 @@ static enum lexeme_type get_special_char_type(const char c)
 /* Checks if char c is a special character */
 static bool is_char_special(const char c)
 {
-  for (int i = 0; i < strlen(special_tokens); i++)
+  for (int i = 0; i < (int) strlen(special_tokens); i++)
   {
     if (c == special_tokens[i])
       return true;
@@ -78,7 +78,7 @@ static bool is_token_numeric(char *token)
   if (token[0] == '-' || token[0] == '+')
     i++;
 
-  for (; i < strlen(token); i++)
+  for (; i < (int) strlen(token); i++)
   {
     if (!isdigit(token[i]))
       return false;
@@ -133,8 +133,6 @@ void parse_line_into_lexemes(
   // checks if line is empty
   if (line[i] == '\0')
   {
-    add_lexeme_to_arrlist(
-        lexeme_arrlist, NEW_LINE, NULL, line_struct->line_number);
     return;
   }
 

@@ -31,12 +31,12 @@ int main(int argc, char *argv[])
 
   if (lexemes->len > 1)
   {
-    enum lexeme_type end_of_exp[] = {SEMI_COLON};
+    // enum lexeme_type end_of_exp[] = {SEMI_COLON};
     // tree = parse_expression(NULL, NULL, end_of_exp, 1);
     // print_expression_tree(tree, "  ", 0);
     enum lexeme_type end_of_program[] = {END_OF_FILE};
 
-    ast = parse_code_block(NULL, NULL, end_of_program, 1);
+    ast = parse_code_block(NULL, 0, end_of_program, 1);
     print_ast_list(ast, "  ",0);
   }
   reset_parser_state();

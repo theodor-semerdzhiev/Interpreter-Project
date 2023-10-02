@@ -1,11 +1,15 @@
-let num = 100 20 * 
+let num = 100 20 *;
 func main() {
     let num =20 67.23 %;
+
     while(num 20 >) {
         if(num 123 >=) {
-            if(num 10 ==) {
+            let bool1 = 23 num == &&;
+            let bool2 = (bool1 20 -) 100 >;
+            let bool3 = (bool1 20 -) 100 >;
+            if(bool1 bool2 && bool3 ||) {
                 let num = 2;
-            } else if (num 2 ==) {
+            } else if (bool bool2 &&) {
                 function_example(19,29);
             } else {
                 let num = 10;
@@ -13,9 +17,34 @@ func main() {
         }
     }
     print(num);
+    main_1();
+    return function_proto(num, 20 20 *);
 }
 
 num = 0 299 - get_text(10) + ;
 
+func func_test(x1,x2,x3,x4,x5,x6,x7,x8) {
+    return (((((((x1 x2 +) x3 +) x4 +) x5 +) x6 +) x7 +) x8 +);
+}
 
+num = 230;
 
+main();
+
+num -> length();
+
+if(num->lenth[0]()()) {
+    if(num) {
+        if(num) {
+            if(num) {
+                if(num) {
+                    test();
+                }
+            }
+        } else {
+            num = num 2 +;
+        }     
+    }
+}
+
+[123, 123, func123 ,23, 321,23][0];

@@ -6,7 +6,7 @@
 #include "keywords.h"
 #include "lexer.h"
 #include "parser.h"
-#include "types.h"
+
 
 /// @brief State of the parser (lexeme list and the lexeme pointer)
 static int token_ptr = -1;
@@ -106,8 +106,6 @@ struct expression_node *malloc_expression_node()
 
 /* Checks wether lexeme_type is a valid beginning of expression component */
 bool is_lexeme_preliminary_expression_token(enum lexeme_type type) {
-    struct lexeme **list = arrlist->list;
-
     return 
     type == IDENTIFIER || 
     type == OPEN_SQUARE_BRACKETS ||
@@ -181,8 +179,12 @@ double compute_exp(struct expression_node *root)
     }
     case GREATER_THAN:
         return (int)(compute_exp(root->LHS) > compute_exp(root->RHS));
+    case GREATER_EQUAL:
+        return (int)(compute_exp(root->LHS) >= compute_exp(root->RHS));
     case LESSER_THAN:
         return (int)(compute_exp(root->LHS) < compute_exp(root->RHS));
+    case LESSER_EQUAL:
+        return (int)(compute_exp(root->LHS) <= compute_exp(root->RHS));
 
     /* Bitwise operators */
     case BITWISE_AND:
@@ -494,8 +496,14 @@ struct expression_node *parse_expression(
     case GREATER_THAN_OP:
         node->type = GREATER_THAN;
         break;
+    case GREATER_EQUAL_OP:
+        node->type=GREATER_EQUAL;
+        break;
     case LESSER_THAN_OP:
         node->type = LESSER_THAN;
+        break;
+    case LESSER_EQUAL_OP:
+        node->type = LESSER_EQUAL;
         break;
     case EQUAL_TO_OP:
         node->type = EQUAL_TO;
@@ -625,7 +633,8 @@ struct ast_list *malloc_ast_list() {
 
 /* Recursively frees ast_list struct */
 void free_ast_list(struct ast_list *list) {
-
+    if(!list)
+        return;
     struct ast_node *ptr = list->head;
 
     // frees all ast_nodes in list
@@ -643,8 +652,10 @@ void push_to_ast_list(struct ast_list *list, struct ast_node *node) {
     if(!list->head) {
         list->head=node;
         list->tail=node;
+        list->head->prev=NULL;
     } else {
         list->tail->next=node;
+        node->prev=list->tail;
         list->tail=node;
     }
     list->length++;
@@ -678,7 +689,7 @@ struct ast_list *parse_code_block(
             case LET: {
                 assert(list[token_ptr+1]->type == IDENTIFIER && list[token_ptr+2]->type == ASSIGNMENT_OP);
                 node->type= VAR_DECLARATION;
-                node->identifier.ident=malloc_string_cpy(list[token_ptr]->ident);
+                node->identifier.ident=malloc_string_cpy(list[token_ptr+1]->ident);
                 token_ptr+=3;
                 enum lexeme_type end_of_exp[] = {SEMI_COLON};
                 node->
@@ -721,8 +732,7 @@ struct ast_list *parse_code_block(
                 token_ptr++;
 
                 enum lexeme_type end_of_block[] = {CLOSING_CURLY_BRACKETS};
-                node->
-                body = parse_code_block(ast_list, ++rec_lvl,end_of_block,1);
+                node->body = parse_code_block(ast_list, ++rec_lvl,end_of_block,1);
                 push_to_ast_list(ast_list, node);
 
                 break;
@@ -810,14 +820,28 @@ struct ast_list *parse_code_block(
             default: {
                 // parses variable assignment
                 // Grammar: [EXPRESSION COMPONENT] [ASSIGNMENT OP] [EXPRESSION]
+                // OR parses function calls
+                // Grammar [EXPRESSION COMPONENT] -> [IDENTIFER][ARGUMENTS ...][END OF EXPRESSION]
                 if(is_lexeme_preliminary_expression_token(list[token_ptr]->type)) {
-                    node->type=VAR_ASSIGNMENT;
-                    node->identifier.var_assignment=parse_expression_component(NULL,0);
+                    struct expression_component *component = parse_expression_component(NULL,0);
                     
-                    assert(list[token_ptr]->type == ASSIGNMENT_OP);
-                    token_ptr++;
-                    enum lexeme_type end_of_exp[] = {SEMI_COLON};
-                    node->ast_data.exp=parse_expression(NULL,NULL,end_of_exp,1);
+                    if(component->type == FUNC_CALL) {
+                        node->type=FUNCTION_CALL;
+                        assert(list[token_ptr]->type == SEMI_COLON);
+                        token_ptr++;
+                        node->identifier.func_call=component;
+
+                    } else if(component->type == VARIABLE) {
+                        node->type=VAR_ASSIGNMENT;
+                        assert(list[token_ptr]->type == ASSIGNMENT_OP);
+                        token_ptr++;
+
+                        enum lexeme_type end_of_exp[] = {SEMI_COLON};
+                        node->ast_data.exp=parse_expression(NULL,NULL,end_of_exp,1);
+                    } else {
+                        // bad syntax
+                    }
+                    
                     
                     push_to_ast_list(ast_list, node);
                     

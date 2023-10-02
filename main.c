@@ -3,12 +3,13 @@
 #include "./lexer.h"
 #include "./parser.h"
 #include "./keywords.h"
+#include "./dbgtools.h"
 
 int main(int argc, char *argv[])
 {
   init_keyword_table();
 
-  char *file_contents = get_file_contents("test1.txt");
+  char *file_contents = get_file_contents("test.txt");
 
   if (file_contents == NULL)
   {
@@ -30,11 +31,13 @@ int main(int argc, char *argv[])
 
   if (lexemes->len > 1)
   {
-    // enum lexeme_type end_of_exp[] = {SEMI_COLON};
+    enum lexeme_type end_of_exp[] = {SEMI_COLON};
     // tree = parse_expression(NULL, NULL, end_of_exp, 1);
+    // print_expression_tree(tree, "  ", 0);
     enum lexeme_type end_of_program[] = {END_OF_FILE};
 
     ast = parse_code_block(NULL, NULL, end_of_program, 1);
+    print_ast_list(ast, "  ",0);
   }
   reset_parser_state();
 
@@ -42,7 +45,7 @@ int main(int argc, char *argv[])
     printf("%f\n", compute_exp(tree));
   
   free_ast_list(ast);
-  
+
   free_expression_tree(tree);
 
   // print_line_list(list);

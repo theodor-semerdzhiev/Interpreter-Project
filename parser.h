@@ -1,5 +1,6 @@
 #include <stdbool.h>
 
+
 enum expression_token_type
 {
     PLUS,
@@ -13,7 +14,9 @@ enum expression_token_type
     SHIFT_LEFT,
     SHIFT_RIGHT,
     GREATER_THAN,
+    GREATER_EQUAL,
     LESSER_THAN,
+    LESSER_EQUAL,
     EQUAL_TO,
     LOGICAL_AND,
     LOGICAL_OR,
@@ -52,7 +55,7 @@ struct expression_component
         /* i.e the expression inside , i.e syntax: [identifier][...] */
         struct expression_node *list_index;
 
-        /* for LIST_CONSTANT type, i.e syntax: [t_1, ..., t_n)] */
+        /* for LIST_CONSTANT type, i.e syntax: [t_1, ..., t_n] */
         struct list_data
         {
             struct expression_node **list_elements;
@@ -95,6 +98,7 @@ enum ast_node_type
     RETURN_VAL,
     LOOP_TERMINATOR,
     LOOP_CONTINUATION,
+    FUNCTION_CALL,
 };
 
 /* Represents the high level representation of the abstract syntax tree */
@@ -107,6 +111,7 @@ struct ast_node
     union identifier {
         char *ident;
         struct expression_component *var_assignment;
+        struct expression_component *func_call;
     } identifier;
 
     // contains extra information about the ast node

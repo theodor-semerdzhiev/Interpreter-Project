@@ -1,10 +1,2 @@
-let num = 0 10 -;
-
-func looping(num1, num2) {
-    while(num 20 <) {
-        num = num 1 +;
-    }
-}
-
-
+"string" 10 + num * 23 & (num[20 20 *] 10 *) + num->test(num, num1, 20)[num] +
 

@@ -374,7 +374,7 @@ struct lexeme_array_list *create_lexeme_arrlist(struct line_list *lines)
   // Sets the last index to NULL to know when the array terminates
   list[DEFAULT_LEX_ARR_LENGTH] = NULL;
 
-  for (int i = 0; i < lines->length; i++)
+  for (int i = 0; i < (int) lines->length; i++)
   {
     parse_line_into_lexemes(lexeme_arrlist, lines->list[i]);
   }
@@ -401,7 +401,7 @@ struct lexeme *malloc_lexeme_struct(
 /* frees lexeme array list */
 void free_lexeme_arrlist(struct lexeme_array_list *arr)
 {
-  for (int i = 0; i < arr->len; i++)
+  for (int i = 0; i < (int) arr->len; i++)
   {
     free(arr->list[i]->ident);
     free(arr->list[i]);
@@ -429,7 +429,7 @@ void add_lexeme_to_arrlist(
   {
     struct lexeme **new_list = (struct lexeme **)malloc(sizeof(struct lexeme *) * arr->max_len * 2);
 
-    for (int i = 0; i < arr->max_len; i++)
+    for (int i = 0; i < (int)arr->max_len; i++)
       new_list[i] = arr->list[i];
 
     free(arr->list);
@@ -488,7 +488,7 @@ struct line_list *tokenize_string_by_newline(char *buffer)
 void print_line_list(struct line_list *list)
 {
 
-  for (int i = 0; i < list->length; i++)
+  for (int i = 0; i < (int) list->length; i++)
   {
     printf("Line %d: %s\n", list->list[i]->line_number, list->list[i]->line);
   }
@@ -501,12 +501,12 @@ void add_line_to_line_list(struct line_list *list, struct line_construct *line)
   list->length++;
 
   // if array list needs to be expanded
-  if (list->length == list->max_length)
+  if ((int) list->length == list->max_length)
   {
     struct line_construct **new_list = malloc(sizeof(struct line_construct *) + list->length * 2);
     list->max_length *= 2;
 
-    for (int i = 0; i < list->length; i++)
+    for (int i = 0; i < (int) list->length; i++)
       new_list[i] = list->list[i];
 
     free(list->list);

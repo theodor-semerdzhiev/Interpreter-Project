@@ -659,9 +659,15 @@ void free_ast_list(struct ast_list *list) {
     free(list);
 }
 
-/* Adds a ast_node to the high abstraction ast_list data structure (i.e linked list)*/
-void push_to_ast_list(struct ast_list *list, struct ast_node *node) {
-    if(!list->head) {
+/* 
+Adds a ast_node to the high abstraction ast_list data structure (i.e linked list)
+NOTE: list is volatile, and MUST stay that way to prevent aggressive compiler optimizations from breaking crucial logic
+*/
+
+void push_to_ast_list(volatile struct ast_list *list, struct ast_node *node) {
+    if(!list) return;
+
+    if(list->head == NULL) {
         list->head=node;
         list->tail=node;
         list->head->prev=NULL;
@@ -690,7 +696,7 @@ struct ast_list *parse_code_block(
     }
 
     struct ast_list *ast_list = malloc(sizeof(struct ast_list));
-
+    
 
     while (!is_lexeme_in_list(list[token_ptr]->type, ends_of_exp, ends_of_exp_length))
     {

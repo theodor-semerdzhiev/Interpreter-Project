@@ -11,7 +11,7 @@ void print_lexeme_arr_list(struct lexeme_array_list *lexemes)
   printf("Length: %zu\n", lexemes->len);
   
 
-  for (int i = 0; i < lexemes->len; i++)
+  for (int i = 0; i < (int)lexemes->len; i++)
   {
     char str[2];
     str[0] = lexemes->list[i]->type;

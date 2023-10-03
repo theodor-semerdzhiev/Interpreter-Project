@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
 
   struct line_list *list = tokenize_string_by_newline(file_contents);
 
-  free(file_contents);
+  // free(file_contents);
 
   struct lexeme_array_list *lexemes = create_lexeme_arrlist(list);
   print_lexeme_arr_list(lexemes);

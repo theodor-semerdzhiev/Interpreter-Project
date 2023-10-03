@@ -160,6 +160,7 @@ char *malloc_string_cpy(const char *str);
 struct expression_component *malloc_expression_component();
 struct expression_node *malloc_expression_node();
 void free_expression_tree(struct expression_node *root);
+void free_expression_component(struct expression_component *component);
 
 bool is_lexeme_preliminary_expression_token(enum lexeme_type type);
 
@@ -181,7 +182,7 @@ struct ast_node *malloc_ast_node();
 void free_ast_list(struct ast_list *list);
 void free_ast_node(struct ast_node *node);
 
-void push_to_ast_list(struct ast_list *list, struct ast_node *node);
+void push_to_ast_list(volatile struct ast_list *list, struct ast_node *node);
 
 struct ast_list *parse_code_block(
     struct ast_node *parent_block,

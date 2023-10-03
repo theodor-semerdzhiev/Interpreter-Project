@@ -24,7 +24,7 @@ func main() {
 num = 0 299 - get_text(10) + ;
 
 func func_test(x1,x2,x3,x4,x5,x6,x7,x8) {
-    return (((((((x1 x2 +) x3 +) x4 +) x5 +) x6 +) x7 +) x8 +);
+    return (((((((x1 x2 +) x3 + 10 *) x4 +) x5 +) x6 +) x7 +) x8 +);
 }
 
 num = 230;
@@ -37,7 +37,7 @@ if(num->lenth[0]()()) {
     if(num) {
         if(num) {
             if(num) {
-                if(num) {
+                if((num) (math() 20 /) > ) { 
                     test();
                 }
             }

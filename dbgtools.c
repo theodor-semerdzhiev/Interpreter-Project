@@ -200,6 +200,19 @@ void print_expression_component(struct expression_component *component, char* bu
 
             break;
         }
+        // make sure that it recursively prints out code block
+        // 
+        case INLINE_FUNC: {
+            printf(" INLINE_FUNC -> Arguments:\n");
+            for(int i=0; i < component->meta_data.func_data.args_num; i++)
+                print_expression_tree(component->meta_data.func_data.func_args[i], buffer, rec_lvl+1);
+
+            print_ast_list(component->meta_data.inline_func->body, buffer, rec_lvl+1);
+
+
+
+            break;
+        }
 
         default: 
             printf("Expression Component does not have a valid type \n");
@@ -354,7 +367,7 @@ void print_ast_node(struct ast_node *node, char* buffer, int rec_lvl) {
 
     switch(node->type) {
         case VAR_DECLARATION: {
-            printf("@ VAR_DECLARATION: let %s =\n", node->identifier.ident);
+            printf("@ VAR_DECLARATION: let %s =\n", node->identifier.declared_var);
             print_expression_tree(node->ast_data.exp, buffer, rec_lvl+1);
             break;
         }
@@ -397,7 +410,7 @@ void print_ast_node(struct ast_node *node, char* buffer, int rec_lvl) {
         }
 
         case FUNCTION_DECLARATION: {
-            printf("@ FUNCTION DECLARATION: func %s\n", node->identifier.ident);
+            printf("@ FUNCTION DECLARATION: func %s\n", node->identifier.func_name);
             print_repeated_string(buffer, rec_lvl);
             printf("FUNCTION ARGS:\n");
             for(int i=0; i < node->ast_data.func_args.args_num; i++) {

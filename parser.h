@@ -1,6 +1,5 @@
 #include <stdbool.h>
 
-
 enum expression_token_type
 {
     PLUS,
@@ -33,9 +32,12 @@ enum expression_component_type
     VARIABLE,
     LIST_INDEX,
     FUNC_CALL,
+    INLINE_FUNC
 };
 
 struct expression_node;
+struct ast_node;
+struct ast_list; 
 
 struct expression_component
 {
@@ -50,9 +52,9 @@ struct expression_component
 
         char *string_literal; // NUMERIC_CONSTANT type
 
-        char *ident; // for VARIABLE type
+        char *ident; // for VARIABLE type (var reference)
 
-        /* i.e the expression inside , i.e syntax: [identifier][...] */
+        /* i.e the expression inside a list index, i.e syntax: [identifier][... exp] */
         struct expression_node *list_index;
 
         /* for LIST_CONSTANT type, i.e syntax: [t_1, ..., t_n] */
@@ -68,8 +70,15 @@ struct expression_component
         {
             /* i.e expression for each function call param */
             struct expression_node **func_args;
-            int args_num;
+            
+            // number of args
+            int args_num; 
+
         } func_data;
+
+        // used ONLY for inline defined functions (INLINE_FUNC type)
+        struct ast_node *inline_func;
+        
 
     } meta_data;
 };
@@ -94,13 +103,14 @@ enum ast_node_type
     ELSE_CONDITIONAL,
     ELSE_IF_CONDITIONAL,
     WHILE_LOOP,
-    FUNCTION_DECLARATION, 
+    FUNCTION_DECLARATION,
     RETURN_VAL,
     LOOP_TERMINATOR,
     LOOP_CONTINUATION,
 
-
     EXPRESSION_COMPONENT,
+
+    INLINE_FUNCTION_DECLARATION
 };
 
 /* Represents the high level representation of the abstract syntax tree */
@@ -109,31 +119,34 @@ struct ast_node
     // ast tree TYPE
     enum ast_node_type type;
 
-    // represents LHS identifer or function name
-    union identifier {
-        char *ident; // used for variable declaration (let keyword)
-        struct expression_component *expression_component; // used for variable assignment and function calls
+    // represents LHS identifer (for var assignment or declaration) or function name
+    union identifier
+    {
+        char *declared_var; // used for variable declaration (let keyword)
+        char *func_name; // use for function declaration
+        struct expression_component *expression_component; // used for variable assignment, function calls or just standalone expression components
     } identifier;
 
     // contains extra information about the ast node
     union ast_data
-    {   
-        // related expression 
+    {
+        // related expression (if, else if, loops, var assignment, var declaration, return)
         struct expression_node *exp;
-        
-        // list of function prototype args 
-        struct func_args {
+
+        // list of function prototype args
+        struct func_args
+        {
             struct expression_node **func_prototype_args;
             int args_num;
         } func_args;
-        
+
     } ast_data;
 
     /* Points to abstract syntax tree */
     struct ast_list *body;
 
     /* Used to traverse ast_list */
-    struct ast_node *next; 
+    struct ast_node *next;
     struct ast_node *prev;
 };
 
@@ -153,7 +166,7 @@ bool is_numeric_const_fractional(int index);
 bool is_lexeme_in_list(enum lexeme_type type, enum lexeme_type list[], const int list_length);
 
 bool lexeme_lists_intersect(
-    enum lexeme_type list1[],const int list1_length,enum lexeme_type list2[],const int list2_length);
+    enum lexeme_type list1[], const int list1_length, enum lexeme_type list2[], const int list2_length);
 double compute_fractional_double(struct lexeme *whole, struct lexeme *frac);
 char *malloc_string_cpy(const char *str);
 
@@ -162,7 +175,7 @@ struct expression_node *malloc_expression_node();
 void free_expression_tree(struct expression_node *root);
 void free_expression_component(struct expression_component *component);
 
-bool is_lexeme_preliminary_expression_token(enum lexeme_type type);
+bool is_lexeme_preliminary_expression_token(struct lexeme *lexeme);
 
 double compute_exp(struct expression_node *root);
 
@@ -178,11 +191,21 @@ struct expression_node *parse_expression(
     enum lexeme_type ends_of_exp[],
     const int ends_of_exp_length);
 
-struct ast_node *malloc_ast_node(); 
+struct ast_node *malloc_ast_node();
 void free_ast_list(struct ast_list *list);
 void free_ast_node(struct ast_node *node);
 
 void push_to_ast_list(volatile struct ast_list *list, struct ast_node *node);
+
+/* Functions responsible for parsing code blocks */
+struct ast_node *parse_variable_declaration(int rec_lvl);
+struct ast_node *parse_while_loop(int rec_lvl);
+struct ast_node *parse_if_conditional(int rec_lvl);
+struct ast_node *parse_else_conditional(int rec_lvl);
+struct ast_node *parse_loop_termination(int rec_lvl);
+struct ast_node *parse_loop_continuation(int rec_lvl);
+struct ast_node *parse_func_declaration(int rec_lvl);
+struct ast_node *parse_inline_func(int rec_lvl);
 
 struct ast_list *parse_code_block(
     struct ast_node *parent_block,

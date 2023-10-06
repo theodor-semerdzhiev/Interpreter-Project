@@ -1,50 +1,30 @@
-let num = 100 20 *;
-func main() {
-    let num =20 67.23 %;
 
-    while(num 20 >) {
-        if(num 123 >=) {
-            let bool1 = 23 num == &&;
-            let bool2 = (bool1 20 -) 100 >;
-            let bool3 = (bool1 20 -) 100 >;
-            if(bool1 bool2 && bool3 ||) {
-                let num = 2;
-            } else if (bool bool2 &&) {
-                function_example(19,29);
-            } else {
-                let num = 10;
-            }
-        }
-    }
-    print(num);
-    main_1();
-    return function_proto(num, 20 20 *);
-}
+let num = 10;
+let num1 = 239;
+let num3 = "hello";
 
-num = 0 299 - get_text(10) + ;
-
-func func_test(x1,x2,x3,x4,x5,x6,x7,x8) {
-    return (((((((x1 x2 +) x3 + 10 *) x4 +) x5 +) x6 +) x7 +) x8 +);
-}
-
-num = 230;
-
-main();
-
-num -> length();
-
-if(num->lenth[0]()()) {
-    if(num) {
-        if(num) {
-            if(num) {
-                if((num) (math() 20 /) > ) { 
-                    test();
-                }
-            }
-        } else {
-            num = num 2 +;
-        }     
+while(num3 num1 >) {
+    while(num2  num3 >) {
+        break;
     }
 }
 
-[123, 123, func123 ,23, 321,23][0];
+func compute(x,y,f) {
+    return x y * f(y) +;
+}
+
+compute(10, 20,
+    func (num) {
+        return num 20 * compute(10,10,compute) +;
+    }
+);
+
+num[10 20 * list_[20 num->length *] + num /]->getLength();
+
+let i = 10;
+while(i 20 <) {
+    print(i);
+}
+
+
+

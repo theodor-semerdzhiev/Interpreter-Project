@@ -71,7 +71,7 @@ struct expression_component
             /* i.e expression for each function call param */
             struct expression_node **func_args;
             
-            // number of args
+            // number of arguments
             int args_num; 
 
         } func_data;
@@ -120,6 +120,7 @@ struct ast_node
     enum ast_node_type type;
 
     // represents LHS identifer (for var assignment or declaration) or function name
+    // union is NULL if type is a INLINE_FUNCTION_DECLARATION
     union identifier
     {
         char *declared_var; // used for variable declaration (let keyword)

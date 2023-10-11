@@ -55,6 +55,8 @@ void init_keyword_table() {
   insert_keyword_to_table("number", NUMBER);
   insert_keyword_to_table("void", VOID);
   insert_keyword_to_table("list", LIST);
+
+  
 }
 
 /* Frees the keyword table */

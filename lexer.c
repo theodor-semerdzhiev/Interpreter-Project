@@ -17,7 +17,7 @@ All chars that are stand alone token unless otherwise specified
 static char *special_tokens = ".;,{}()[]:-+*/!%^";
 
 /* Takes a 'special' char and returns its corresponding enumerator */
-static enum lexeme_type get_special_char_type(const char c)
+static enum token_type get_special_char_type(const char c)
 {
   switch (c)
   {
@@ -63,7 +63,7 @@ static enum lexeme_type get_special_char_type(const char c)
 /* Checks if char c is a special character */
 static bool is_char_special(const char c)
 {
-  for (int i = 0; i < (int) strlen(special_tokens); i++)
+  for (int i = 0; i < (int)strlen(special_tokens); i++)
   {
     if (c == special_tokens[i])
       return true;
@@ -78,7 +78,7 @@ static bool is_token_numeric(char *token)
   if (token[0] == '-' || token[0] == '+')
     i++;
 
-  for (; i < (int) strlen(token); i++)
+  for (; i < (int)strlen(token); i++)
   {
     if (!isdigit(token[i]))
       return false;
@@ -90,8 +90,8 @@ static bool is_token_numeric(char *token)
 static void clear_token_buffer_into_lexeme_arrlist(
     char *buffer,
     int buffer_ptr,
-    struct lexeme_array_list *lexeme_arrlist,
-    enum lexeme_type type,
+    TokenList *lexeme_arrlist,
+    enum token_type type,
     int line_number)
 {
 
@@ -117,10 +117,9 @@ static void clear_token_buffer_into_lexeme_arrlist(
       lexeme_arrlist, type, lexeme, line_number);
 }
 
-
 /* Parses line into lexemes and pushes it to the lexeme array list*/
 void parse_line_into_lexemes(
-    struct lexeme_array_list *lexeme_arrlist,
+    TokenList *lexeme_arrlist,
     struct line_construct *line_struct)
 {
   char *line = line_struct->line;
@@ -200,7 +199,7 @@ void parse_line_into_lexemes(
       // checks if line is empty
       if (line[i] == '\0')
         break;
-      
+
       continue;
     }
 
@@ -208,117 +207,117 @@ void parse_line_into_lexemes(
     if (line[i] == '<' || line[i] == '>' || line[i] == '=' || line[i] == '&' || line[i] == '|')
     {
       clear_token_buffer_into_lexeme_arrlist(
-        buffer, buffer_ptr, lexeme_arrlist, UNDEFINED, line_struct->line_number);
+          buffer, buffer_ptr, lexeme_arrlist, UNDEFINED, line_struct->line_number);
     }
 
     switch (line[i])
     {
+    case '<':
+    {
+      switch (line[i + 1])
+      {
+      // handles shift left '<<' operator
       case '<':
       {
-        switch (line[i + 1])
-        {
-        // handles shift left '<<' operator
-        case '<':
-        {
-          add_lexeme_to_arrlist(lexeme_arrlist, SHIFT_LEFT_OP, NULL, line_struct->line_number);
-          i += 2;
-          break;
-        }
-        // handles lesser or equal '<=' operator
-        case '=':
-        {
-          add_lexeme_to_arrlist(lexeme_arrlist, LESSER_EQUAL_OP, NULL, line_struct->line_number);
-          i += 2;
-          break;
-        }
-        // handles lesser '<' operator
-        default:
-        {
-          add_lexeme_to_arrlist(lexeme_arrlist, LESSER_THAN_OP, NULL, line_struct->line_number);
-          ++i;
-        }
-        }
-        continue;
+        add_lexeme_to_arrlist(lexeme_arrlist, SHIFT_LEFT_OP, NULL, line_struct->line_number);
+        i += 2;
+        break;
       }
-      case '>':
-      {
-        switch (line[i+1])
-        {
-        // handles shift right '>>' operator
-        case '>':
-        {
-          add_lexeme_to_arrlist(lexeme_arrlist, SHIFT_RIGHT_OP, NULL, line_struct->line_number);
-          i += 2;
-          break;
-        }
-        // handles greater or equal '>=' operator
-        case '=':
-        {
-          add_lexeme_to_arrlist(lexeme_arrlist, GREATER_EQUAL_OP, NULL, line_struct->line_number);
-          i += 2;
-          break;
-        }
-        // handles greater '>' than logical operator
-        default:
-        {
-          add_lexeme_to_arrlist(lexeme_arrlist, GREATER_THAN_OP, NULL, line_struct->line_number);
-          ++i;
-        }
-        }
-        continue;
-      }
+      // handles lesser or equal '<=' operator
       case '=':
       {
-        // handles logical equal '==' operator
-        if (line[i + 1] == '=')
-        {
-          add_lexeme_to_arrlist(lexeme_arrlist, EQUAL_TO_OP, NULL, line_struct->line_number);
-          i += 2;
-
-          // handles assignment '=' operator
-        }
-        else
-        {
-          add_lexeme_to_arrlist(lexeme_arrlist, ASSIGNMENT_OP, NULL, line_struct->line_number);
-          ++i;
-        }
-        continue;
+        add_lexeme_to_arrlist(lexeme_arrlist, LESSER_EQUAL_OP, NULL, line_struct->line_number);
+        i += 2;
+        break;
       }
-      case '&':
+      // handles lesser '<' operator
+      default:
       {
-        // logical and '&&' operator
-        if (line[i + 1] == '&')
-        {
-          add_lexeme_to_arrlist(lexeme_arrlist, LOGICAL_AND_OP, NULL, line_struct->line_number);
-          i += 2;
-
-          // bitwise and '&' operator
-        }
-        else
-        {
-          add_lexeme_to_arrlist(lexeme_arrlist, BITWISE_AND_OP, NULL, line_struct->line_number);
-          ++i;
-        }
-        continue;
+        add_lexeme_to_arrlist(lexeme_arrlist, LESSER_THAN_OP, NULL, line_struct->line_number);
+        ++i;
       }
-      // handles logical/bitwise or '||' operator
-      case '|':
+      }
+      continue;
+    }
+    case '>':
+    {
+      switch (line[i + 1])
       {
-        // logical and
-        if (line[i + 1] == '|')
-        {
-          add_lexeme_to_arrlist(lexeme_arrlist, LOGICAL_OR_OP, NULL, line_struct->line_number);
-          i += 2;
-
-          // bitwise or '|' operator
-        }
-        else
-        {
-          add_lexeme_to_arrlist(lexeme_arrlist, BITWISE_AND_OP, NULL, line_struct->line_number);
-          ++i;
-        }
-        continue;
+      // handles shift right '>>' operator
+      case '>':
+      {
+        add_lexeme_to_arrlist(lexeme_arrlist, SHIFT_RIGHT_OP, NULL, line_struct->line_number);
+        i += 2;
+        break;
       }
+      // handles greater or equal '>=' operator
+      case '=':
+      {
+        add_lexeme_to_arrlist(lexeme_arrlist, GREATER_EQUAL_OP, NULL, line_struct->line_number);
+        i += 2;
+        break;
+      }
+      // handles greater '>' than logical operator
+      default:
+      {
+        add_lexeme_to_arrlist(lexeme_arrlist, GREATER_THAN_OP, NULL, line_struct->line_number);
+        ++i;
+      }
+      }
+      continue;
+    }
+    case '=':
+    {
+      // handles logical equal '==' operator
+      if (line[i + 1] == '=')
+      {
+        add_lexeme_to_arrlist(lexeme_arrlist, EQUAL_TO_OP, NULL, line_struct->line_number);
+        i += 2;
+
+        // handles assignment '=' operator
+      }
+      else
+      {
+        add_lexeme_to_arrlist(lexeme_arrlist, ASSIGNMENT_OP, NULL, line_struct->line_number);
+        ++i;
+      }
+      continue;
+    }
+    case '&':
+    {
+      // logical and '&&' operator
+      if (line[i + 1] == '&')
+      {
+        add_lexeme_to_arrlist(lexeme_arrlist, LOGICAL_AND_OP, NULL, line_struct->line_number);
+        i += 2;
+
+        // bitwise and '&' operator
+      }
+      else
+      {
+        add_lexeme_to_arrlist(lexeme_arrlist, BITWISE_AND_OP, NULL, line_struct->line_number);
+        ++i;
+      }
+      continue;
+    }
+    // handles logical/bitwise or '||' operator
+    case '|':
+    {
+      // logical and
+      if (line[i + 1] == '|')
+      {
+        add_lexeme_to_arrlist(lexeme_arrlist, LOGICAL_OR_OP, NULL, line_struct->line_number);
+        i += 2;
+
+        // bitwise or '|' operator
+      }
+      else
+      {
+        add_lexeme_to_arrlist(lexeme_arrlist, BITWISE_AND_OP, NULL, line_struct->line_number);
+        ++i;
+      }
+      continue;
+    }
     }
 
     /* Handles attribute arrow '->' */
@@ -361,20 +360,20 @@ void parse_line_into_lexemes(
 }
 
 /* Creates and populates the array list */
-struct lexeme_array_list *create_lexeme_arrlist(struct line_list *lines)
+TokenList *create_lexeme_arrlist(LineList *lines)
 {
-  struct lexeme_array_list *lexeme_arrlist = (struct lexeme_array_list *)malloc(sizeof(struct lexeme_array_list));
+  TokenList *lexeme_arrlist = (TokenList *)malloc(sizeof(TokenList));
 
   // mallocs memory for array list
-  struct lexeme **list = (struct lexeme **)malloc(sizeof(struct lexeme *) * DEFAULT_LEX_ARR_LENGTH + 1);
+  struct token **list_ = (struct token **)malloc(sizeof(struct token *) * (DEFAULT_LEX_ARR_LENGTH + 1));
   lexeme_arrlist->len = 0;
-  lexeme_arrlist->list = list;
+  lexeme_arrlist->list = list_;
   lexeme_arrlist->max_len = DEFAULT_LEX_ARR_LENGTH;
 
   // Sets the last index to NULL to know when the array terminates
-  list[DEFAULT_LEX_ARR_LENGTH] = NULL;
+  list_[DEFAULT_LEX_ARR_LENGTH] = NULL;
 
-  for (int i = 0; i < (int) lines->length; i++)
+  for (int i = 0; i < (int)lines->length; i++)
   {
     parse_line_into_lexemes(lexeme_arrlist, lines->list[i]);
   }
@@ -385,13 +384,13 @@ struct lexeme_array_list *create_lexeme_arrlist(struct line_list *lines)
 }
 
 /* Mallocs lexeme struct */
-struct lexeme *malloc_lexeme_struct(
-  enum lexeme_type type,
-  char *ident,
-  int line_num)
+Token *malloc_lexeme_struct(
+    enum token_type type,
+    char *ident,
+    int line_num)
 {
 
-  struct lexeme *lexeme = (struct lexeme *)malloc(sizeof(struct lexeme));
+  Token *lexeme = (Token *)malloc(sizeof(Token));
   lexeme->ident = ident;
   lexeme->line_num = line_num;
   lexeme->type = type;
@@ -399,9 +398,12 @@ struct lexeme *malloc_lexeme_struct(
 }
 
 /* frees lexeme array list */
-void free_lexeme_arrlist(struct lexeme_array_list *arr)
+void free_lexeme_arrlist(TokenList *arr)
 {
-  for (int i = 0; i < (int) arr->len; i++)
+  if (!arr)
+    return;
+
+  for (int i = 0; i < (int)arr->len; i++)
   {
     free(arr->list[i]->ident);
     free(arr->list[i]);
@@ -412,13 +414,13 @@ void free_lexeme_arrlist(struct lexeme_array_list *arr)
 
 /* Adds lexeme to the lexeme array list */
 void add_lexeme_to_arrlist(
-    struct lexeme_array_list *arr,
-    enum lexeme_type type,
+    TokenList *arr,
+    enum token_type type,
     char *ident,
     int line_num)
 {
 
-  struct lexeme *lexeme = (struct lexeme *)malloc_lexeme_struct(
+  Token *lexeme = (Token*)malloc_lexeme_struct(
       type,
       ident,
       line_num);
@@ -427,7 +429,7 @@ void add_lexeme_to_arrlist(
   arr->len++;
   if (arr->len == arr->max_len)
   {
-    struct lexeme **new_list = (struct lexeme **)malloc(sizeof(struct lexeme *) * arr->max_len * 2);
+    Token **new_list = (Token **)malloc(sizeof(Token *) * arr->max_len * 2);
 
     for (int i = 0; i < (int)arr->max_len; i++)
       new_list[i] = arr->list[i];
@@ -441,12 +443,12 @@ void add_lexeme_to_arrlist(
 
 #define INITIAL_LINE_LIST_LENGTH 64
 /* Parses string into linked list seperating text by new lines */
-struct line_list *tokenize_string_by_newline(char *buffer)
+LineList *tokenize_string_by_newline(char *buffer)
 {
   int line_number = 1;
   int buffer_ptr = 0;
 
-  struct line_list *list = (struct line_list *)malloc(sizeof(struct line_list));
+  LineList *list = (LineList *)malloc(sizeof(LineList));
   list->max_length = INITIAL_LINE_LIST_LENGTH;
   list->list = malloc(sizeof(struct line_construct *) * INITIAL_LINE_LIST_LENGTH);
   list->length = 0;
@@ -485,28 +487,28 @@ struct line_list *tokenize_string_by_newline(char *buffer)
 }
 
 /* Prints line list to stdout */
-void print_line_list(struct line_list *list)
+void print_line_list(LineList *list)
 {
 
-  for (int i = 0; i < (int) list->length; i++)
+  for (int i = 0; i < (int)list->length; i++)
   {
     printf("Line %d: %s\n", list->list[i]->line_number, list->list[i]->line);
   }
 }
 
 /* Adds line to line list */
-void add_line_to_line_list(struct line_list *list, struct line_construct *line)
+void add_line_to_line_list(LineList *list, struct line_construct *line)
 {
   list->list[list->length] = line;
   list->length++;
 
   // if array list needs to be expanded
-  if ((int) list->length == list->max_length)
+  if ((int)list->length == list->max_length)
   {
     struct line_construct **new_list = malloc(sizeof(struct line_construct *) + list->length * 2);
     list->max_length *= 2;
 
-    for (int i = 0; i < (int) list->length; i++)
+    for (int i = 0; i < (int)list->length; i++)
       new_list[i] = list->list[i];
 
     free(list->list);
@@ -515,8 +517,11 @@ void add_line_to_line_list(struct line_list *list, struct line_construct *line)
 }
 
 /* Frees line list */
-void free_line_list(struct line_list *list)
+void free_line_list(LineList *list)
 {
+  if (!list)
+    return;
+
   for (int i = 0; i < (int)list->length; i++)
   {
     free(list->list[i]->line);
@@ -578,5 +583,6 @@ char *get_file_contents(const char *f_name)
     ++cur_buffer_len;
   }
   buffer[cur_buffer_len] = '\0';
+  fclose(file);
   return buffer;
 }

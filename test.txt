@@ -1,29 +1,13 @@
 
-let num = 10;
-let num1 = 239;
-let num3 = "hello";
 
-while(num3 num1 >) {
-    while(num2  num3 >) {
-        break;
-    }
-}
+let factorial = func (n) {
+    return n factorial(n 1 -) *;
+};
 
-func compute(x,y,f) {
-    return x y * f(y) +;
-}
+func factorial(n, acc) {
+    if(n 0 ==) {return acc(n);}
 
-compute(10, 20,
-    func (num) {
-        return num 20 * compute(10,10,compute) +;
-    }
-);
-
-num[10 20 * list_[20 num->length *] + num /]->getLength();
-
-let i = 10;
-while(i 20 <) {
-    print(i);
+    return (n) factorial(n 1 -, func(n) {acc(n 1 +);}) * ;
 }
 
 

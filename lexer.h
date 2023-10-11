@@ -1,5 +1,5 @@
 /* Lexeme type */
-enum lexeme_type
+enum token_type
 {
   // Misc
   UNDEFINED,
@@ -56,20 +56,20 @@ enum lexeme_type
 };
 
 /* Structs for lexeme (a single token) list*/
-struct lexeme
+typedef struct token
 {
-  enum lexeme_type type;
+  enum token_type type;
   char *ident;
   int line_num;
-};
+} Token;
 
 /* Array list for all lexeme (tokens) */
-struct lexeme_array_list
+typedef struct token_array_list
 {
-  struct lexeme **list;
+  struct token **list;
   size_t len;
   size_t max_len;
-};
+} TokenList;
 /////////////////////////////////
 
 /* Defines a single line */
@@ -80,41 +80,41 @@ struct line_construct
 };
 
 /* Defined a list of lines */
-struct line_list
+typedef struct line_list
 {
   struct line_construct **list;
   size_t length;
   int max_length;
-};
+} LineList;
 
 /* Main lexing logic */
 
-void parse_line_into_lexemes(struct lexeme_array_list *lexeme_arrlist, struct line_construct *line_struct);
+void parse_line_into_lexemes(TokenList *lexeme_arrlist, struct line_construct *line_struct);
 /**********************/
 
 /* Lexeme array list */
 
 void add_lexeme_to_arrlist(
-    struct lexeme_array_list *arr,
-    enum lexeme_type type,
+    TokenList *arr,
+    enum token_type type,
     char *ident,
     int line_num);
 
-void free_lexeme_arrlist(struct lexeme_array_list *arr);
-void print_lexeme_arr_list(struct lexeme_array_list *lexemes);
-struct lexeme_array_list *create_lexeme_arrlist(struct line_list *lines);
+void free_lexeme_arrlist(TokenList *arr);
+void print_lexeme_arr_list(TokenList *lexemes);
+TokenList *create_lexeme_arrlist(LineList *lines);
 /*************************************/
 
 /* Line array list */
-void add_line_to_line_list(struct line_list *list, struct line_construct *line);
-void print_line_list(struct line_list *list);
-void free_line_list(struct line_list *list);
+void add_line_to_line_list(LineList *list, struct line_construct *line);
+void print_line_list(LineList *list);
+void free_line_list(LineList *list);
 struct line_construct *malloc_line_struct(char *line, int line_nb);
 /***************************************/
 
 /* Miscellaneous */
 
-struct line_list *tokenize_string_by_newline(char *buffer);
+LineList *tokenize_string_by_newline(char *buffer);
 char *get_file_contents(const char *f_name);
 char *malloc_substring(char *g, int start, int end);
 /****************************************/

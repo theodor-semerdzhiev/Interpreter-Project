@@ -242,7 +242,7 @@ void free_expression_component(struct expression_component *component)
     }
     case VARIABLE:
     {
-        free(component->meta_data.ident);
+        free(component->meta_data.variable_reference);
         free(component);
         return;
     }
@@ -425,7 +425,7 @@ struct expression_component *parse_expression_component(
     else if (list[parser->token_ptr]->type == IDENTIFIER)
     {
         component->type = VARIABLE;
-        component->meta_data.ident = malloc_string_cpy(list[parser->token_ptr]->ident);
+        component->meta_data.variable_reference = malloc_string_cpy(list[parser->token_ptr]->ident);
         parser->token_ptr++;
 
         // list index

@@ -166,7 +166,7 @@ void print_expression_component(struct expression_component *component, char *bu
   {
   case VARIABLE:
   {
-    printf(" VARIABLE -> %s \n", component->meta_data.ident);
+    printf(" VARIABLE -> %s \n", component->meta_data.variable_reference);
     break;
   }
 

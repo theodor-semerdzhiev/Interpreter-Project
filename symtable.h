@@ -1,14 +1,31 @@
 #include "parser.h"
 
+typedef struct symbol
+{
+    char *ident;
+    struct symbol *next;
+} Symbol;
 
-struct symtable;
+struct SymbolChain
+{
+    Symbol *head;
+    Symbol *tail;
+};
 
-void free_sym_table(struct symtable *table);
+typedef struct symtable
+{
+    struct SymbolChain **table;
+    int sym_count;
+    int bucket_count;
+} SymbolTable;
 
-void free_symbol_struct(struct symbol *sym);  
+void free_sym_table(SymbolTable *symtable);
 
-void add_sym_to_symtable(struct symtable *table, const char* ident);
+void free_symbol_struct(Symbol *sym);
+SymbolTable *malloc_symbol_table();
 
-bool symtable_has_sym(struct symtable *table, const char* ident);
+void add_sym_to_symtable(SymbolTable *symtable, const char *ident);
 
-bool remove_sym_from_symtable(struct symtable *table, const char* ident);
+bool symtable_has_sym(SymbolTable *symtable, const char *ident);
+
+bool remove_sym_from_symtable(SymbolTable *symtable, const char *ident);

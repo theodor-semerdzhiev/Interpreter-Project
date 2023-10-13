@@ -61,7 +61,7 @@ struct expression_component
 
         char *string_literal; // NUMERIC_CONSTANT type
 
-        char *ident; // for VARIABLE type (var reference)
+        char *variable_reference; // for VARIABLE type (var reference)
 
         /* i.e the expression inside a list index, i.e syntax: [identifier][... exp] */
         struct expression_node *list_index;

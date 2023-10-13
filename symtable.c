@@ -1,69 +1,143 @@
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
+#include "symtable.h"
 
-// Store a symbol 
-static struct symbol {
-    char *name; // symbol name 
-    struct symbol *next; // next symbol (used for chaining)
-};
+#define DEFAULT_BUCKET_SIZE 40
 
-struct symtable {
-    int size; // # Of symbol in table
-    int buckets; // # max number of current buckets
-    
-    struct symbol **map;
+static unsigned int hash(const char *ident);
 
-};
+/* Mallocs symbol struct */
+static Symbol *malloc_symbol(char *ident)
+{
+    Symbol *sym = malloc(sizeof(Symbol));
+    sym->ident = ident;
+    sym->next = NULL;
+    return sym;
+}
 
-static unsigned int hash(const char* ident);
+/* Inserts symbol into symbol chain */
+static void *insert_symbol(struct SymbolChain *chain, Symbol *sym)
+{
+    if (!chain->head)
+    {
+        chain->head = sym;
+        chain->tail = sym;
+    }
+    else
+    {
+        chain->tail->next = sym;
+        chain->tail = sym;
+    }
+}
+
+/* Mallocs symbol table */
+SymbolTable *malloc_symbol_table()
+{
+    SymbolTable *symtable = malloc(sizeof(SymbolTable));
+    symtable->bucket_count = DEFAULT_BUCKET_SIZE;
+    symtable->sym_count = 0;
+    symtable->table = malloc(sizeof(struct SymbolChain *) * DEFAULT_BUCKET_SIZE);
+    memset(symtable->table, 0, sizeof(struct SymbolChain *) * DEFAULT_BUCKET_SIZE);
+    return symtable;
+}
 
 /* Frees symbol itself, does not touch *next node, make sure this function is called appropriately*/
-void free_symbol_struct(struct symbol *sym) {
-    free(sym->name);
+void free_symbol_struct(Symbol *sym)
+{
+    free(sym->ident);
     free(sym);
 }
 
-/* Frees symbol table */
-void free_sym_table(struct symtable *table) {
-    for(int i=0; i < table->size; i++) {
-        struct symbol *ptr = table->map[i];
-        while(ptr) {
-            struct symbol *tmp = ptr->next;
-
-            free_symbol_struct(ptr);
-            ptr = tmp;
+/* Frees the symbol table */
+void free_sym_table(SymbolTable *symtable)
+{
+    for (int i = 0; i < symtable->bucket_count; i++)
+    {
+        struct SymbolChain *chain = symtable->table[i];
+        Symbol *head = chain->head;
+        while (head)
+        {
+            struct Symbol *tmp = head->next;
+            free_symbol_struct(head);
+            head = tmp;
         }
+        free(chain);
     }
-
-    free(table->buckets);
-    free(table);
+    free(symtable->table);
+    free(symtable);
 }
 
+/* Adds symbol to symbol table */
+void add_sym_to_symtable(SymbolTable *symtable, const char *ident)
+{
+    if(!symtable_has_sym(symtable, ident)) return;
 
-//TODO
-/* Adds symbol to table */
-void add_sym_to_symtable(struct symtable *table, const char* ident) {
+    int index = hash(ident);
+    Symbol *sym = malloc_symbol(ident);
+    struct SymbolChain *chain = symtable->table[index % symtable->bucket_count];
 
+    insert_symbol(chain, sym);
+    symtable->sym_count++;
 }
 
-//TODO
-/* Checks if symbol is in table */
-bool symtable_has_sym(struct symtable *table, const char* ident) {
+/* Checks if symbol is contained within the symbol table */
+bool symtable_has_sym(SymbolTable *symtable, const char *ident)
+{
+    struct SymbolChain *chain = symtable->table[hash(ident) % symtable->bucket_count];
+    Symbol *head = chain->head;
+    while (head)
+    {
+        if (!strcmp(head->ident, ident))
+            return true;
 
+        head = head->next;
+    }
+    return false;
 }
 
 /* Removes symbol from table, return true if symbol was in table gets removes successfully, otherwise return false*/
-bool remove_sym_from_symtable(struct symtable *table, const char* ident) {
+bool remove_sym_from_symtable(SymbolTable *symtable, const char *ident)
+{
+    int index = hash(ident) % symtable->bucket_count;
+    struct SymbolChain *chain = symtable->table[index];
+    Symbol *head = chain->head;
+    Symbol *prev = NULL;
+
+    while (head)
+    {
+        if (strcmp(head->ident, ident) == 0)
+        {
+            if (!prev)
+            {
+                chain->head = head->next;
+                if (!head->next)
+                    chain->tail = NULL;
+                
+            } else {
+                 prev->next = head->next;
+                if (!head->next)
+                    chain->tail = prev;
+            }
+
+            free_symbol_struct(head);
+            return true;
+        }
+        prev = head;
+        head = head->next;
+    }
     return false;
-}   
+}
 
 
 // hash function: string -> int
-static unsigned int hash(const char* ident) {
-  int hash=7; //prime number
+static unsigned int hash(const char *ident)
+{
+    int hash = 7; // prime number
 
-  for(int i=0; i < (int)strlen(ident); i++) {
-    hash = hash*31 + ident[i];
-  }
-  return hash;
+    for (int i = 0; i < (int)strlen(ident); i++)
+    {
+        hash = hash * 31 + ident[i];
+    }
+    return hash;
 }

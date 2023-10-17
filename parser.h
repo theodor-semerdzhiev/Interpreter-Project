@@ -37,22 +37,26 @@ enum expression_component_type
     NUMERIC_CONSTANT,
     STRING_CONSTANT,
     LIST_CONSTANT, // TODO
-
+    //////////////
     VARIABLE,
     LIST_INDEX,
     FUNC_CALL,
-    UNKNOWN_FUNC
+    INLINE_FUNC
 };
 
-struct expression_node;
-struct AST_node;
-struct ast_list;
+/* pre defines some structs */
+typedef struct expression_node ExpressionNode;
+typedef struct AST_node AST_node;
+typedef struct ast_list AST_List;
+typedef struct expression_component ExpressionComponent;
+/*******************************************/
 
-struct expression_component
+typedef struct expression_component
 {
     enum expression_component_type type;
 
-    struct expression_component *sub_component;
+    ExpressionComponent *sub_component;
+    ExpressionComponent *top_component;
 
     // all the data in this union is mutually exclusive
     union data
@@ -64,12 +68,12 @@ struct expression_component
         char *variable_reference; // for VARIABLE type (var reference)
 
         /* i.e the expression inside a list index, i.e syntax: [identifier][... exp] */
-        struct expression_node *list_index;
+        ExpressionNode *list_index;
 
         /* for LIST_CONSTANT type, i.e syntax: [t_1, ..., t_n] */
         struct list_data
         {
-            struct expression_node **list_elements;
+            ExpressionNode **list_elements;
             int list_length;
         } list_const;
 
@@ -78,7 +82,7 @@ struct expression_component
         struct func_data
         {
             /* i.e expression for each function call param */
-            struct expression_node **func_args;
+            ExpressionNode **func_args;
 
             // number of arguments
             int args_num;
@@ -86,21 +90,21 @@ struct expression_component
         } func_data;
 
         // used ONLY for inline defined functions (INLINE_FUNC type)
-        struct AST_node *inline_func;
+        AST_node *inline_func;
 
     } meta_data;
-};
+} ExpressionComponent;
 
 /* General struct for a expression */
-struct expression_node
+typedef struct expression_node
 {
     enum expression_token_type type;
 
-    struct expression_component *component; // contains a the 'value' of the node
-
-    struct expression_node *RHS;
-    struct expression_node *LHS;
-};
+    ExpressionComponent *component; // contains a the 'value' of the node
+    
+    ExpressionNode *RHS;
+    ExpressionNode *LHS;
+} ExpressionNode;
 
 /* Defines a abstract syntax tree type */
 enum ast_node_type
@@ -133,43 +137,43 @@ typedef struct AST_node
     // union is NULL if type is a INLINE_FUNCTION_DECLARATION
     union identifier
     {
-        char *declared_var;                                // used for variable declaration (let keyword)
-        char *func_name;                                   // use for function declaration
-        struct expression_component *expression_component; // used for variable assignment, function calls or just standalone expression components
+        char *declared_var;                        // used for variable declaration (let keyword)
+        char *func_name;                           // use for function declaration
+        ExpressionComponent *expression_component; // used for variable assignment, function calls or just standalone expression components
     } identifier;
 
     // contains extra information about the ast node
     union ast_data
     {
         // related expression (if, else if, loops, var assignment, var declaration, return)
-        struct expression_node *exp;
+        ExpressionNode *exp;
 
         // list of function prototype args
         struct func_args
         {
-            struct expression_node **func_prototype_args;
+            ExpressionNode **func_prototype_args;
             int args_num;
         } func_args;
 
     } ast_data;
 
     /* Points to abstract syntax tree */
-    struct ast_list *body;
+    AST_List *body;
 
     /* Used to traverse ast_list */
-    struct AST_node *next;
-    struct AST_node *prev;
+    AST_node *next;
+    AST_node *prev;
 } AST_node;
 
 /* Top level data structure for ast*/
-struct ast_list
+typedef struct ast_list
 {
-    struct AST_node *head;
-    struct AST_node *tail;
+    AST_node *head;
+    AST_node *tail;
 
     size_t length;
-    struct AST_node *parent_block;
-};
+    AST_node *parent_block;
+} AST_List;
 
 Parser *malloc_parser();
 void free_parser(Parser *parser);
@@ -181,35 +185,35 @@ bool lexeme_lists_intersect(
 double compute_fractional_double(Token *whole, Token *frac);
 char *malloc_string_cpy(const char *str);
 
-struct expression_component *malloc_expression_component();
-struct expression_node *malloc_expression_node();
-void free_expression_tree(struct expression_node *root);
-void free_expression_component(struct expression_component *component);
+ExpressionComponent *malloc_expression_component();
+ExpressionNode *malloc_expression_node();
+void free_expression_tree(ExpressionNode *root);
+void free_expression_component(ExpressionComponent *component);
 
 bool is_lexeme_preliminary_expression_token(Token *lexeme);
 
-double compute_exp(struct expression_node *root);
+double compute_exp(ExpressionNode *root);
 
-struct expression_node **parse_expressions_by_seperator(
+ExpressionNode **parse_expressions_by_seperator(
     Parser *parser,
     enum token_type seperator,
     enum token_type end_of_exp);
 
-int get_expression_list_length(struct expression_node **args);
+int get_expression_list_length(ExpressionNode **args);
 
-struct expression_node *parse_expression(
+ExpressionNode *parse_expression(
     Parser *parser,
-    struct expression_node *LHS,
-    struct expression_node *RHS,
+    ExpressionNode *LHS,
+    ExpressionNode *RHS,
     enum token_type ends_of_exp[],
     const int ends_of_exp_length);
 
 AST_node *malloc_ast_node();
-struct ast_list *malloc_ast_list();
-void free_ast_list(struct ast_list *list);
+AST_List *malloc_ast_list();
+void free_ast_list(AST_List *list);
 void free_ast_node(AST_node *node);
 
-void push_to_ast_list(volatile struct ast_list *list, AST_node *node);
+void push_to_ast_list(volatile AST_List *list, AST_node *node);
 
 /* Functions responsible for parsing code blocks */
 AST_node *parse_variable_declaration(Parser *parser, int rec_lvl);
@@ -222,7 +226,7 @@ AST_node *parse_func_declaration(Parser *parser, int rec_lvl);
 AST_node *parse_inline_func(Parser *parser, int rec_lvl);
 AST_node *parse_variable_assignment(Parser *parser, int rec_lvl);
 
-struct ast_list *parse_code_block(
+AST_List *parse_code_block(
     Parser *parser,
     AST_node *parent_block,
     int rec_lvl,

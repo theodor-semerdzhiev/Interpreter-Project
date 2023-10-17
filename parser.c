@@ -31,7 +31,7 @@ void free_parser(Parser *parser)
 /* index should point to the first occurence of the numeric constant */
 bool is_numeric_const_fractional(Parser *parser, int index)
 {
-    struct token **list = parser->lexeme_list->list;
+    Token **list = parser->lexeme_list->list;
     return list[index]->type == NUMERIC_LITERAL &&
            list[++index]->type == DOT &&
            list[++index]->type == NUMERIC_LITERAL;
@@ -79,7 +79,7 @@ char *malloc_string_cpy(const char *str)
 }
 
 /* Computes fractional number (whole: integer part, frac: fractional part)*/
-double compute_fractional_double(struct token *whole, struct token *frac)
+double compute_fractional_double(Token *whole, Token *frac)
 {
     assert(whole->type == NUMERIC_LITERAL && frac->type == NUMERIC_LITERAL);
     double lhs = (double)atoi(whole->ident);
@@ -88,18 +88,19 @@ double compute_fractional_double(struct token *whole, struct token *frac)
 }
 
 /* Mallocs expression component struct */
-struct expression_component *malloc_expression_component()
+ExpressionComponent *malloc_expression_component()
 {
-    struct expression_component *component = malloc(sizeof(struct expression_component));
+    ExpressionComponent *component = malloc(sizeof(ExpressionComponent));
     component->sub_component = NULL;
+    component->top_component = NULL;
     component->type = -1;
     return component;
 }
 
 /* Mallocs malloc_exp_node setting all fields to default values */
-struct expression_node *malloc_expression_node()
+ExpressionNode *malloc_expression_node()
 {
-    struct expression_node *node = malloc(sizeof(struct expression_node));
+    ExpressionNode *node = malloc(sizeof(ExpressionNode));
     node->LHS = NULL;
     node->RHS = NULL;
     node->component = NULL;
@@ -110,7 +111,7 @@ struct expression_node *malloc_expression_node()
 /* Checks wether lexeme_type is a valid beginning of expression component,
 Is also valid for func keyword (inline functions syntax)
 */
-bool is_lexeme_preliminary_expression_token(struct token *lexeme)
+bool is_lexeme_preliminary_expression_token(Token *lexeme)
 {
     return lexeme->type == IDENTIFIER ||
            lexeme->type == OPEN_SQUARE_BRACKETS ||
@@ -120,7 +121,7 @@ bool is_lexeme_preliminary_expression_token(struct token *lexeme)
             get_keyword_type(lexeme->ident) == FUNC);
 }
 
-double compute_exp(struct expression_node *root)
+double compute_exp(ExpressionNode *root)
 {
 
     /* Base cases (except for LIST_INDEX) */
@@ -211,7 +212,7 @@ double compute_exp(struct expression_node *root)
 }
 
 /* Recursively frees expression component struct */
-void free_expression_component(struct expression_component *component)
+void free_expression_component(ExpressionComponent *component)
 {
     if (!component)
         return;
@@ -262,7 +263,7 @@ void free_expression_component(struct expression_component *component)
         return;
     }
 
-    case UNKNOWN_FUNC:
+    case INLINE_FUNC:
     {
         free_ast_node(component->meta_data.inline_func);
 
@@ -273,7 +274,7 @@ void free_expression_component(struct expression_component *component)
 }
 
 /* Recursively frees binary expression parse tree */
-void free_expression_tree(struct expression_node *root)
+void free_expression_tree(ExpressionNode *root)
 {
     if (!root)
         return;
@@ -288,14 +289,14 @@ void free_expression_tree(struct expression_node *root)
 
 // will parse individual expressions that are seperated by the seperator lexeme
 // end_of_exp is used to mark the end of the expressions sequence
-struct expression_node **parse_expressions_by_seperator(
+ExpressionNode **parse_expressions_by_seperator(
     Parser *parser,
     enum token_type seperator,
     enum token_type end_of_exp)
 {
     assert(parser);
 
-    struct expression_node **args = malloc(sizeof(struct expression_node *) * DEFAULT_ARG_LIST_LENGTH);
+    ExpressionNode **args = malloc(sizeof(ExpressionNode *) * DEFAULT_ARG_LIST_LENGTH);
     int arg_list_max_length = DEFAULT_ARG_LIST_LENGTH;
     int arg_count = 0;
     enum token_type seperators[] = {seperator, end_of_exp};
@@ -303,7 +304,7 @@ struct expression_node **parse_expressions_by_seperator(
     // iterates until end_of_exp lexeme is reached
     while (parser->lexeme_list->list[parser->token_ptr - 1]->type != end_of_exp)
     {
-        struct expression_node *tmp = parse_expression(parser, NULL, NULL, seperators, 2);
+        ExpressionNode *tmp = parse_expression(parser, NULL, NULL, seperators, 2);
 
         // if all argument tokens have been consumed
         if (!tmp)
@@ -314,7 +315,7 @@ struct expression_node **parse_expressions_by_seperator(
         if (arg_list_max_length == arg_count)
         {
             arg_list_max_length *= 2;
-            struct expression_node **new_arg_list = malloc(sizeof(struct expression_node *) * arg_list_max_length);
+            ExpressionNode **new_arg_list = malloc(sizeof(ExpressionNode *) * arg_list_max_length);
 
             for (int i = 0; i < arg_count; i++)
                 new_arg_list[i] = args[i];
@@ -328,7 +329,7 @@ struct expression_node **parse_expressions_by_seperator(
 }
 
 /* Gets the length of the argument list (ends with a NULL pointer)*/
-int get_expression_list_length(struct expression_node **args)
+int get_expression_list_length(ExpressionNode **args)
 {
     int length = 0;
     for (int i = 0; args[i] != NULL; i++)
@@ -345,13 +346,13 @@ LIST_CONSTANT -> list
 FUNC_CALL -> func call -> (arg1, ..., arg_n)
 LIST_INDEX -> [...]
 */
-struct expression_component *parse_expression_component(
+ExpressionComponent *parse_expression_component(
     Parser *parser,
-    struct expression_component *parent,
+    ExpressionComponent *parent,
     int rec_lvl)
 {
     assert(parser);
-    struct token **list = parser->lexeme_list->list;
+    Token **list = parser->lexeme_list->list;
     assert(rec_lvl >= 0);
 
     // Base cases
@@ -368,7 +369,7 @@ struct expression_component *parse_expression_component(
                 parent->type == STRING_CONSTANT ||
                 parent->type == LIST_CONSTANT ||
                 parent->type == VARIABLE ||
-                parent->type == UNKNOWN_FUNC) &&
+                parent->type == INLINE_FUNC) &&
             list[parser->token_ptr]->type != OPEN_PARENTHESIS &&
             list[parser->token_ptr]->type != OPEN_SQUARE_BRACKETS &&
             list[parser->token_ptr]->type != ATTRIBUTE_ARROW)
@@ -381,14 +382,14 @@ struct expression_component *parse_expression_component(
     if (list[parser->token_ptr]->type == ATTRIBUTE_ARROW)
         parser->token_ptr++;
 
-    struct expression_component *component = malloc_expression_component();
+    ExpressionComponent *component = malloc_expression_component();
 
     // Parse list constants
     if (rec_lvl == 0 && !parent && list[parser->token_ptr]->type == OPEN_SQUARE_BRACKETS)
     {
         component->type = LIST_CONSTANT;
         parser->token_ptr++;
-        struct expression_node **elements = parse_expressions_by_seperator(parser, COMMA, CLOSING_SQUARE_BRACKETS);
+        ExpressionNode **elements = parse_expressions_by_seperator(parser, COMMA, CLOSING_SQUARE_BRACKETS);
         component->meta_data.list_const.list_elements = elements;
         component->meta_data.list_const.list_length = get_expression_list_length(elements);
     }
@@ -396,7 +397,7 @@ struct expression_component *parse_expression_component(
     // Parses inline declared functions
     else if (get_keyword_type(list[parser->token_ptr]->ident) == FUNC)
     {
-        component->type = UNKNOWN_FUNC;
+        component->type = INLINE_FUNC;
         component->meta_data.inline_func = parse_inline_func(parser, rec_lvl);
     }
     else if (list[parser->token_ptr]->type == NUMERIC_LITERAL)
@@ -443,7 +444,7 @@ struct expression_component *parse_expression_component(
     {
         component->type = FUNC_CALL;
         parser->token_ptr++;
-        struct expression_node **args = parse_expressions_by_seperator(parser, COMMA, CLOSING_PARENTHESIS);
+        ExpressionNode **args = parse_expressions_by_seperator(parser, COMMA, CLOSING_PARENTHESIS);
         component->meta_data.func_data.func_args = args;
         component->meta_data.func_data.args_num = get_expression_list_length(args);
     }
@@ -455,21 +456,23 @@ struct expression_component *parse_expression_component(
     }
 
     component->sub_component = parent;
+    if(parent)
+        parent->top_component=component;
 
     return parse_expression_component(parser, component, ++rec_lvl);
 }
 
 // uses reverse polish notation
-struct expression_node *parse_expression(
+ExpressionNode *parse_expression(
     Parser *parser,
-    struct expression_node *LHS,
-    struct expression_node *RHS,
+    ExpressionNode *LHS,
+    ExpressionNode *RHS,
     enum token_type ends_of_exp[],
     const int ends_of_exp_length)
 {
     assert(parser);
 
-    struct token **list = parser->lexeme_list->list;
+    Token **list = parser->lexeme_list->list;
 
     if (list[parser->token_ptr]->type == END_OF_FILE)
         return LHS;
@@ -486,7 +489,7 @@ struct expression_node *parse_expression(
     {
         parser->token_ptr++;
         enum token_type end_of_exp[] = {CLOSING_PARENTHESIS};
-        struct expression_node *sub_exp = parse_expression(parser, NULL, NULL, end_of_exp, 1);
+        ExpressionNode *sub_exp = parse_expression(parser, NULL, NULL, end_of_exp, 1);
 
         if (!LHS)
             return parse_expression(parser, sub_exp, RHS, ends_of_exp, ends_of_exp_length);
@@ -494,7 +497,7 @@ struct expression_node *parse_expression(
             return parse_expression(parser, LHS, sub_exp, ends_of_exp, ends_of_exp_length);
     }
 
-    struct expression_node *node = malloc_expression_node();
+    ExpressionNode *node = malloc_expression_node();
 
     if (is_lexeme_preliminary_expression_token(list[parser->token_ptr]))
     {
@@ -692,9 +695,9 @@ void free_ast_node(AST_node *node)
 }
 
 /* Mallocs abstract syntax tree list */
-struct ast_list *malloc_ast_list()
+AST_List *malloc_ast_list()
 {
-    struct ast_list *list = malloc(sizeof(struct ast_list));
+    AST_List *list = malloc(sizeof(AST_List));
     list->head = NULL;
     list->parent_block = NULL;
     list->tail = NULL;
@@ -703,7 +706,7 @@ struct ast_list *malloc_ast_list()
 }
 
 /* Recursively frees ast_list struct */
-void free_ast_list(struct ast_list *list)
+void free_ast_list(AST_List *list)
 {
     if (!list)
         return;
@@ -725,7 +728,7 @@ Adds a ast_node to the high abstraction ast_list data structure (i.e linked list
 NOTE: list is volatile, and MUST stay that way to prevent aggressive compiler optimizations from breaking crucial logic
 */
 
-void push_to_ast_list(volatile struct ast_list *list, AST_node *node)
+void push_to_ast_list(volatile AST_List *list, AST_node *node)
 {
     if (!list)
         return;
@@ -749,7 +752,7 @@ void push_to_ast_list(volatile struct ast_list *list, AST_node *node)
 AST_node *parse_variable_declaration(Parser *parser, int rec_lvl)
 {
     assert(parser);
-    struct token **list = parser->lexeme_list->list;
+    Token **list = parser->lexeme_list->list;
 
     // Sanity checks
     assert(get_keyword_type(list[parser->token_ptr]->ident) == LET);
@@ -774,7 +777,7 @@ AST_node *parse_variable_declaration(Parser *parser, int rec_lvl)
 AST_node *parse_while_loop(Parser *parser, int rec_lvl)
 {
     assert(parser);
-    struct token **list = parser->lexeme_list->list;
+    Token **list = parser->lexeme_list->list;
 
     // sanity checks
     assert(get_keyword_type(list[parser->token_ptr]->ident) == WHILE);
@@ -804,7 +807,7 @@ AST_node *parse_while_loop(Parser *parser, int rec_lvl)
 AST_node *parse_if_conditional(Parser *parser, int rec_lvl)
 {
     assert(parser);
-    struct token **list = parser->lexeme_list->list;
+    Token **list = parser->lexeme_list->list;
 
     // sanity checks
     assert(get_keyword_type(list[parser->token_ptr]->ident) == IF);
@@ -836,7 +839,7 @@ AST_node *parse_if_conditional(Parser *parser, int rec_lvl)
 AST_node *parse_loop_termination(Parser *parser, int rec_lvl)
 {
     assert(parser);
-    struct token **list = parser->lexeme_list->list;
+    Token **list = parser->lexeme_list->list;
 
     assert(get_keyword_type(list[parser->token_ptr]->ident) == BREAK);
     assert(list[parser->token_ptr + 1]->type == SEMI_COLON);
@@ -855,7 +858,7 @@ AST_node *parse_loop_termination(Parser *parser, int rec_lvl)
 AST_node *parse_loop_continuation(Parser *parser, int rec_lvl)
 {
     assert(parser);
-    struct token **list = parser->lexeme_list->list;
+    Token **list = parser->lexeme_list->list;
 
     assert(get_keyword_type(list[parser->token_ptr]->ident) == CONTINUE);
     assert(list[parser->token_ptr + 1]->type == SEMI_COLON);
@@ -874,7 +877,7 @@ AST_node *parse_loop_continuation(Parser *parser, int rec_lvl)
 AST_node *parse_return_expression(Parser *parser, int rec_lvl)
 {
     assert(parser);
-    struct token **list = parser->lexeme_list->list;
+    Token **list = parser->lexeme_list->list;
 
     assert(get_keyword_type(list[parser->token_ptr]->ident) == RETURN);
 
@@ -895,7 +898,7 @@ AST_node *parse_return_expression(Parser *parser, int rec_lvl)
 AST_node *parse_else_conditional(Parser *parser, int rec_lvl)
 {
     assert(parser);
-    struct token **list = parser->lexeme_list->list;
+    Token **list = parser->lexeme_list->list;
 
     // sanity checks
     assert(get_keyword_type(list[parser->token_ptr]->ident) == ELSE);
@@ -951,7 +954,7 @@ AST_node *parse_else_conditional(Parser *parser, int rec_lvl)
 AST_node *parse_func_declaration(Parser *parser, int rec_lvl)
 {
     assert(parser);
-    struct token **list = parser->lexeme_list->list;
+    Token **list = parser->lexeme_list->list;
 
     // sanity checks
     assert(get_keyword_type(list[parser->token_ptr]->ident) == FUNC);
@@ -967,7 +970,7 @@ AST_node *parse_func_declaration(Parser *parser, int rec_lvl)
     parser->token_ptr += 3;
 
     // parses function args
-    struct expression_node **args = parse_expressions_by_seperator(parser, COMMA, CLOSING_PARENTHESIS);
+    ExpressionNode **args = parse_expressions_by_seperator(parser, COMMA, CLOSING_PARENTHESIS);
     node->ast_data.func_args.func_prototype_args = args;
     node->ast_data.func_args.args_num = get_expression_list_length(args);
 
@@ -986,7 +989,7 @@ But not have corresponding identifer */
 AST_node *parse_inline_func(Parser *parser, int rec_lvl)
 {
     assert(parser);
-    struct token **list = parser->lexeme_list->list;
+    Token **list = parser->lexeme_list->list;
 
     // sanity checks
     assert(get_keyword_type(list[parser->token_ptr]->ident) == FUNC);
@@ -1001,7 +1004,7 @@ AST_node *parse_inline_func(Parser *parser, int rec_lvl)
     parser->token_ptr += 2;
 
     // parses function args
-    struct expression_node **args = parse_expressions_by_seperator(parser, COMMA, CLOSING_PARENTHESIS);
+    ExpressionNode **args = parse_expressions_by_seperator(parser, COMMA, CLOSING_PARENTHESIS);
     node->ast_data.func_args.func_prototype_args = args;
     node->ast_data.func_args.args_num = get_expression_list_length(args);
 
@@ -1019,11 +1022,11 @@ AST_node *parse_inline_func(Parser *parser, int rec_lvl)
 AST_node *parse_variable_assignment(Parser *parser, int rec_lvl)
 {
     assert(parser);
-    struct token **list = parser->lexeme_list->list;
+    Token **list = parser->lexeme_list->list;
 
     assert(is_lexeme_preliminary_expression_token(list[parser->token_ptr]));
 
-    struct expression_component *component = parse_expression_component(parser, NULL, 0);
+    ExpressionComponent *component = parse_expression_component(parser, NULL, 0);
 
     assert(list[parser->token_ptr]->type == SEMI_COLON || list[parser->token_ptr]->type == ASSIGNMENT_OP);
 
@@ -1049,7 +1052,7 @@ AST_node *parse_variable_assignment(Parser *parser, int rec_lvl)
 
 /* Recursively parses code block and returns a ast_node (abstract syntax tree node)*/
 /* Function will always terminate with the parser->token_ptr pointing on the end exp token + 1*/
-struct ast_list *parse_code_block(
+AST_List *parse_code_block(
     Parser *parser,
     AST_node *parent_block,
     int rec_lvl,
@@ -1057,7 +1060,7 @@ struct ast_list *parse_code_block(
     const int ends_of_block_length)
 {
     assert(parser);
-    struct token **list = parser->lexeme_list->list;
+    Token **list = parser->lexeme_list->list;
 
     if (is_lexeme_in_list(list[parser->token_ptr]->type, ends_of_block, ends_of_block_length))
     {
@@ -1065,7 +1068,7 @@ struct ast_list *parse_code_block(
         return NULL;
     }
 
-    struct ast_list *ast_list = malloc_ast_list();
+    AST_List *ast_list = malloc_ast_list();
 
     // loops until it encounters a end of block token
     while (!is_lexeme_in_list(list[parser->token_ptr]->type, ends_of_block, ends_of_block_length))

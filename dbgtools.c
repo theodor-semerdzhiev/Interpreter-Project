@@ -4,7 +4,7 @@
 #include "dbgtools.h"
 
 /* Prints out lexeme array list */
-void print_lexeme_arr_list(struct token_array_list *lexemes)
+void print_lexeme_arr_list(TokenList *lexemes)
 {
   printf("Length: %zu\n", lexemes->len);
 
@@ -155,7 +155,7 @@ static void print_repeated_string(char *str, int repetitions)
 }
 
 /* Prints out a human readable representation of a expression component */
-void print_expression_component(struct expression_component *component, char *buffer, int rec_lvl)
+void print_expression_component(ExpressionComponent *component, char *buffer, int rec_lvl)
 {
   if (!component)
     return;
@@ -208,7 +208,7 @@ void print_expression_component(struct expression_component *component, char *bu
   }
   // make sure that it recursively prints out code block
   //
-  case UNKNOWN_FUNC:
+  case INLINE_FUNC:
   {
     printf(" INLINE_FUNC -> Arguments:\n");
     for (int i = 0; i < component->meta_data.func_data.args_num; i++)
@@ -233,7 +233,7 @@ void print_expression_component(struct expression_component *component, char *bu
 }
 
 /* Prints out a human readable representation of an expression tree */
-void print_expression_tree(struct expression_node *root, char *buffer, int rec_lvl)
+void print_expression_tree(ExpressionNode *root, char *buffer, int rec_lvl)
 {
   print_repeated_string(buffer, rec_lvl);
 
@@ -364,7 +364,7 @@ void print_expression_tree(struct expression_node *root, char *buffer, int rec_l
 }
 
 /* Prints out a human readable representation of a abstract syntax node (struct ast_node) to sdtin */
-void print_ast_node(struct AST_node *node, char *buffer, int rec_lvl)
+void print_ast_node(AST_node *node, char *buffer, int rec_lvl)
 {
   print_repeated_string(buffer, rec_lvl);
   if (!node)
@@ -468,7 +468,7 @@ void print_ast_node(struct AST_node *node, char *buffer, int rec_lvl)
 }
 
 /* Prints out a human readable representation of a abstract syntax tree list (struct ast_list) */
-void print_ast_list(struct ast_list *list, char *buffer, int rec_lvl)
+void print_ast_list(AST_List *list, char *buffer, int rec_lvl)
 {
   if (!list)
   {
@@ -476,7 +476,7 @@ void print_ast_list(struct ast_list *list, char *buffer, int rec_lvl)
     return;
   }
 
-  struct AST_node *ptr = list->head;
+  AST_node *ptr = list->head;
   while (ptr)
   {
     print_ast_node(ptr, buffer, rec_lvl + 1);

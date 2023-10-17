@@ -1,14 +1,11 @@
 
 
-let factorial = func (n) {
+func num (n, 1000) {
     return n factorial(n 1 -) *;
-};
-
-func factorial(n, acc) {
-    if(n 0 ==) {return acc(n);}
-
-    return (n) factorial(n 1 -, func(n) {acc(n 1 +);}) * ;
 }
 
 
+inline(func (num) { return num 1 +});
+
+num(1,2);
 

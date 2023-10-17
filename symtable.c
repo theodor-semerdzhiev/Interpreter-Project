@@ -13,6 +13,7 @@ static Symbol *malloc_symbol(char *ident)
     Symbol *sym = malloc(sizeof(Symbol));
     sym->ident = ident;
     sym->next = NULL;
+    sym->nesting_lvl=0;
     return sym;
 }
 
@@ -31,7 +32,7 @@ static void *insert_symbol(struct SymbolChain *chain, Symbol *sym)
     }
 }
 
-/* Mallocs symbol table */
+/* Mallocs symbol table, inits the table to NULL */
 SymbolTable *malloc_symbol_table()
 {
     SymbolTable *symtable = malloc(sizeof(SymbolTable));
@@ -69,12 +70,14 @@ void free_sym_table(SymbolTable *symtable)
 }
 
 /* Adds symbol to symbol table */
-void add_sym_to_symtable(SymbolTable *symtable, const char *ident)
+void add_sym_to_symtable(SymbolTable *symtable, const char *ident, int nesting_lvl)
 {
     if(!symtable_has_sym(symtable, ident)) return;
 
     int index = hash(ident);
     Symbol *sym = malloc_symbol(ident);
+    sym->nesting_lvl=nesting_lvl;
+
     struct SymbolChain *chain = symtable->table[index % symtable->bucket_count];
 
     insert_symbol(chain, sym);
@@ -95,6 +98,22 @@ bool symtable_has_sym(SymbolTable *symtable, const char *ident)
     }
     return false;
 }
+
+/* Removes all symbols that have a smaller or equal nesting level */
+void remove_all_syms_above_nesting_lvl(SymbolTable *symtable, int nesting_lvl) {
+    for(int i=0; i < symtable->bucket_count; i++) {
+        Symbol *head = symtable->table[i]->head;
+        while(head) {
+            Symbol *tmp = head->next;
+            if(head->nesting_lvl >= nesting_lvl) {
+                remove_sym_from_symtable(symtable, head->ident);
+            } else {
+                head=tmp;
+            }
+        }
+    }
+}
+
 
 /* Removes symbol from table, return true if symbol was in table gets removes successfully, otherwise return false*/
 bool remove_sym_from_symtable(SymbolTable *symtable, const char *ident)

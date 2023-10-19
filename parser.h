@@ -1,6 +1,8 @@
+#ifndef PARSER
+#define PARSER
+
 #include <stdbool.h>
 #include "lexer.h"
-
 typedef struct Parser
 {
     int token_ptr;
@@ -101,7 +103,7 @@ typedef struct expression_node
     enum expression_token_type type;
 
     ExpressionComponent *component; // contains a the 'value' of the node
-    
+
     ExpressionNode *RHS;
     ExpressionNode *LHS;
 } ExpressionNode;
@@ -224,7 +226,7 @@ AST_node *parse_loop_termination(Parser *parser, int rec_lvl);
 AST_node *parse_loop_continuation(Parser *parser, int rec_lvl);
 AST_node *parse_func_declaration(Parser *parser, int rec_lvl);
 AST_node *parse_inline_func(Parser *parser, int rec_lvl);
-AST_node *parse_variable_assignment(Parser *parser, int rec_lvl);
+AST_node *parse_variable_assignment_or_exp_component(Parser *parser, int rec_lvl);
 
 AST_List *parse_code_block(
     Parser *parser,
@@ -232,3 +234,5 @@ AST_List *parse_code_block(
     int rec_lvl,
     enum token_type ends_of_exp[],
     const int ends_of_exp_length);
+
+#endif

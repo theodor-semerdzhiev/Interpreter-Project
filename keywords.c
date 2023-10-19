@@ -104,7 +104,7 @@ bool is_type_keyword(const char* token) {
 bool is_keyword(const char* token) {
   if(token == NULL) return false;
 
-  int index=hash(token) % keyword_table->nb_of_buckets;
+  unsigned int index=hash(token) % keyword_table->nb_of_buckets;
 
   struct keyword_linked_list *list = keyword_table->buckets[index];
   struct keyword *ptr = list->head;
@@ -136,7 +136,7 @@ enum keyword_type get_keyword_type(const char* token) {
 
 // Inserts new keyword into table 
 static void insert_keyword_to_table(char* keyword, enum keyword_type type) {
-  int index=hash(keyword) % keyword_table->nb_of_buckets;
+  unsigned int index=hash(keyword) % keyword_table->nb_of_buckets;
   
   struct keyword_linked_list *list = keyword_table->buckets[index];
   struct keyword *keyword_node = (struct keyword*)malloc(sizeof(struct keyword));
@@ -156,7 +156,7 @@ static void insert_keyword_to_table(char* keyword, enum keyword_type type) {
 
 // hash function: string -> int
 static unsigned int hash(const char* keywords) {
-  int hash=7; //prime number
+  unsigned int hash=7; //prime number
 
   for(int i=0; i < (int)strlen(keywords); i++) {
     hash = hash*31 + keywords[i];

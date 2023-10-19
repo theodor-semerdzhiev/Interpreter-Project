@@ -6,6 +6,13 @@
 #include "keywords.h"
 #include "parser.h"
 
+/* Skips all recurrent tokens */
+static void skip_recurrent_tokens(Parser *parser, enum token_type type) {
+    Token **list = parser->lexeme_list->list;
+    while(list[parser->token_ptr]->type == type)
+        parser->token_ptr++; 
+}
+
 /* Mallocs Parser struct */
 Parser *malloc_parser()
 {
@@ -319,6 +326,8 @@ ExpressionNode **parse_expressions_by_seperator(
 
             for (int i = 0; i < arg_count; i++)
                 new_arg_list[i] = args[i];
+            
+            free(args);
 
             args = new_arg_list;
         }
@@ -345,6 +354,8 @@ STRING_CONSTANT -> string
 LIST_CONSTANT -> list
 FUNC_CALL -> func call -> (arg1, ..., arg_n)
 LIST_INDEX -> [...]
+
+Note: This function does not check for a end of expression token, it knows when to end the recursion
 */
 ExpressionComponent *parse_expression_component(
     Parser *parser,
@@ -352,8 +363,9 @@ ExpressionComponent *parse_expression_component(
     int rec_lvl)
 {
     assert(parser);
-    Token **list = parser->lexeme_list->list;
     assert(rec_lvl >= 0);
+
+    Token **list = parser->lexeme_list->list;
 
     // Base cases
     if (list[parser->token_ptr]->type == END_OF_FILE)
@@ -451,7 +463,6 @@ ExpressionComponent *parse_expression_component(
     else
     {
         // TODO -> Invalid token error, handle this
-        free(component);
         return NULL;
     }
 
@@ -569,6 +580,7 @@ ExpressionNode *parse_expression(
         node->type = SHIFT_RIGHT;
         break;
     default:
+        printf("ERROR: LINE %d: Expected binary operator but got unknown token '%s'\n", list[parser->token_ptr]->line_num,list[parser->token_ptr]->ident);
         free_expression_tree(node);
         return LHS;
     }
@@ -770,6 +782,7 @@ AST_node *parse_variable_declaration(Parser *parser, int rec_lvl)
     enum token_type end_of_exp[] = {SEMI_COLON};
     node->ast_data.exp = parse_expression(parser, NULL, NULL, end_of_exp, 1);
 
+    skip_recurrent_tokens(parser, end_of_exp[0]);
     return node;
 }
 
@@ -850,6 +863,8 @@ AST_node *parse_loop_termination(Parser *parser, int rec_lvl)
     node->line_num = list[parser->token_ptr]->line_num;
 
     parser->token_ptr += 2;
+    
+    skip_recurrent_tokens(parser, SEMI_COLON);
 
     return node;
 }
@@ -869,6 +884,8 @@ AST_node *parse_loop_continuation(Parser *parser, int rec_lvl)
     node->line_num = list[parser->token_ptr]->line_num;
 
     parser->token_ptr += 2;
+
+    skip_recurrent_tokens(parser, SEMI_COLON);
 
     return node;
 }
@@ -890,6 +907,8 @@ AST_node *parse_return_expression(Parser *parser, int rec_lvl)
     enum token_type end_of_exp[] = {SEMI_COLON};
 
     node->ast_data.exp = parse_expression(parser, NULL, NULL, end_of_exp, 1);
+
+    skip_recurrent_tokens(parser, end_of_exp[0]);
 
     return node;
 }
@@ -950,7 +969,8 @@ AST_node *parse_else_conditional(Parser *parser, int rec_lvl)
     return NULL;
 }
 
-/* Creates AST node and parses function declaration block */
+/* Creates AST node and parses function declaration block
+If its a inline function, a expression component AST node will be returned */
 AST_node *parse_func_declaration(Parser *parser, int rec_lvl)
 {
     assert(parser);
@@ -958,6 +978,14 @@ AST_node *parse_func_declaration(Parser *parser, int rec_lvl)
 
     // sanity checks
     assert(get_keyword_type(list[parser->token_ptr]->ident) == FUNC);
+
+    // indicates inline function declaration
+    if(list[parser->token_ptr + 1]->type == OPEN_PARENTHESIS) {
+
+        return parse_variable_assignment_or_exp_component(parser, ++rec_lvl);
+    }
+
+
     assert(list[parser->token_ptr + 1]->type == IDENTIFIER);
     assert(list[parser->token_ptr + 2]->type == OPEN_PARENTHESIS);
 
@@ -980,6 +1008,7 @@ AST_node *parse_func_declaration(Parser *parser, int rec_lvl)
     parser->token_ptr++;
     node->body = parse_code_block(parser, node, rec_lvl + 1, end_of_block, 1);
 
+    
     return node;
 }
 
@@ -1019,7 +1048,7 @@ AST_node *parse_inline_func(Parser *parser, int rec_lvl)
 }
 
 /* Parses variable assignment or expression component (i.e function call) */
-AST_node *parse_variable_assignment(Parser *parser, int rec_lvl)
+AST_node *parse_variable_assignment_or_exp_component(Parser *parser, int rec_lvl)
 {
     assert(parser);
     Token **list = parser->lexeme_list->list;
@@ -1046,6 +1075,8 @@ AST_node *parse_variable_assignment(Parser *parser, int rec_lvl)
         enum token_type end_of_exp[] = {SEMI_COLON};
         node->ast_data.exp = parse_expression(parser, NULL, NULL, end_of_exp, 1);
     }
+
+    skip_recurrent_tokens(parser, SEMI_COLON);
 
     return node;
 }
@@ -1148,7 +1179,7 @@ AST_List *parse_code_block(
             // Grammar [EXPRESSION COMPONENT] -> [IDENTIFER][ARGUMENTS ...][END OF EXPRESSION]
             if (is_lexeme_preliminary_expression_token(list[parser->token_ptr]))
             {
-                AST_node *node = parse_variable_assignment(parser, rec_lvl);
+                AST_node *node = parse_variable_assignment_or_exp_component(parser, rec_lvl);
                 push_to_ast_list(ast_list, node);
             }
             else

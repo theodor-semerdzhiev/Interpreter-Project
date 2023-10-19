@@ -6,7 +6,9 @@ SRC_FILES = \
  	main.c \
  	lexer.c \
 	parser.c \
-	dbgtools.c 
+	dbgtools.c \
+	semanalysis.c \
+	symtable.c
 	
 OBJ_FILES = $(patsubst %.c, $(BUILD_DIR)/%.o, $(SRC_FILES))
 EXECUTABLE = main.out

@@ -1,3 +1,5 @@
+#include <stdlib.h>
+
 /* Lexeme type */
 enum token_type
 {

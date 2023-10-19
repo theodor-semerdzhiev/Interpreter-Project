@@ -1,8 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "./parser.h"
+// #include "./parser.h"
 #include "./keywords.h"
 #include "./dbgtools.h"
+#include "./semanalysis.h"
 
 int main(int argc, char *argv[])
 {
@@ -37,6 +38,15 @@ int main(int argc, char *argv[])
 
     ast = parse_code_block(parser, NULL, 0, end_of_program, 1);
     print_ast_list(ast, "  ", 0);
+
+    SemanticAnalyser *sem_analyser = malloc_semantic_analyser();
+    bool is_sem_valid = AST_list_has_consistent_semantics(sem_analyser, ast);
+    if(is_sem_valid) {
+      printf("Valid semantics\n");
+    } else {
+      printf("Invalid semantics\n");
+    }
+    free_semantic_analyser(sem_analyser);
   }
 
   if (tree)

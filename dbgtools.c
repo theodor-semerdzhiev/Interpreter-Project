@@ -437,6 +437,21 @@ void print_ast_node(AST_node *node, char *buffer, int rec_lvl)
 
     break;
   }
+
+  case INLINE_FUNCTION_DECLARATION:
+  {
+    printf("@ INLINE FUNCTION DECLARATION:\n");
+    print_repeated_string(buffer, rec_lvl);
+    printf("FUNCTION ARGS:\n");
+    for (int i = 0; i < node->ast_data.func_args.args_num; i++)
+    {
+      print_expression_tree(node->ast_data.func_args.func_prototype_args[i], buffer, rec_lvl + 1);
+    }
+    print_ast_list(node->body, buffer, rec_lvl + 1);
+
+    break;
+  }
+
   case RETURN_VAL:
   {
     printf("@ RETURN VAL: \n");

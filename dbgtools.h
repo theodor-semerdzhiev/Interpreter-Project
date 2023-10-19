@@ -1,3 +1,5 @@
+#include "parser.h"
+
 void print_lexeme_arr_list(TokenList *lexemes);
 
 void print_expression_component(ExpressionComponent *component, char *buffer, int rec_lvl);

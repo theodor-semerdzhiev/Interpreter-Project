@@ -1,10 +1,12 @@
-#include "parser.h"
+#include <stdbool.h>
+
+typedef struct symbol Symbol;
 
 typedef struct symbol
 {
     char *ident;
     int nesting_lvl;
-    struct symbol *next;
+    Symbol *next;
 } Symbol;
 
 struct SymbolChain
@@ -25,7 +27,7 @@ void free_sym_table(SymbolTable *symtable);
 void free_symbol_struct(Symbol *sym);
 SymbolTable *malloc_symbol_table();
 
-void add_sym_to_symtable(SymbolTable *symtable, const char *ident, int nesting_lvl);
+bool add_sym_to_symtable(SymbolTable *symtable, const char *ident, int nesting_lvl);
 
 bool symtable_has_sym(SymbolTable *symtable, const char *ident);
 

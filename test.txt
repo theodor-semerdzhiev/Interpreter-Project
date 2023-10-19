@@ -1,11 +1,27 @@
 
 
-func num (n, 1000) {
-    return n factorial(n 1 -) *;
+
+func unknown_func(inline_func) {
+    
+}
+
+let n11 = 100;
+
+unknown_func(func (n10, n2, n3, n4, n5, n6) {
+    while(n11 0 >) {
+        break;
+    }
+    continue;
+    return n11;
+}, 200 n11 *);
+
+if(n11 10 == ) {
+    return 10;
+}
+
+while(n11 0 >) {
+    break;
 }
 
 
-inline(func (num) { return num 1 +});
-
-num(1,2);
 

@@ -8,7 +8,8 @@ SRC_FILES = \
 	parser.c \
 	dbgtools.c \
 	semanalysis.c \
-	symtable.c
+	symtable.c \
+	memtracker.c
 	
 OBJ_FILES = $(patsubst %.c, $(BUILD_DIR)/%.o, $(SRC_FILES))
 EXECUTABLE = main.out

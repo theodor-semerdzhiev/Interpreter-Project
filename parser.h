@@ -3,12 +3,17 @@
 
 #include <stdbool.h>
 #include "lexer.h"
+#include "memtracker.h"
+
 typedef struct Parser
 {
     int token_ptr;
     LineList *lines;
     TokenList *lexeme_list;
+    MemoryTracker *memtracker;
     bool error_indicator;
+    char* file_name;
+
 } Parser;
 
 enum expression_token_type
@@ -185,10 +190,10 @@ bool is_lexeme_in_list(enum token_type type, enum token_type list[], const int l
 bool lexeme_lists_intersect(
     enum token_type list1[], const int list1_length, enum token_type list2[], const int list2_length);
 double compute_fractional_double(Token *whole, Token *frac);
-char *malloc_string_cpy(const char *str);
+char *malloc_string_cpy(Parser *parser,const char *str);
 
-ExpressionComponent *malloc_expression_component();
-ExpressionNode *malloc_expression_node();
+ExpressionComponent *malloc_expression_component(Parser *parser);
+ExpressionNode *malloc_expression_node(Parser *parser);
 void free_expression_tree(ExpressionNode *root);
 void free_expression_component(ExpressionComponent *component);
 
@@ -210,8 +215,8 @@ ExpressionNode *parse_expression(
     enum token_type ends_of_exp[],
     const int ends_of_exp_length);
 
-AST_node *malloc_ast_node();
-AST_List *malloc_ast_list();
+AST_node *malloc_ast_node(Parser *parser);
+AST_List *malloc_ast_list(Parser *parser);
 void free_ast_list(AST_List *list);
 void free_ast_node(AST_node *node);
 

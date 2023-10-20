@@ -19,8 +19,10 @@ Parser *malloc_parser()
     Parser *parser = malloc(sizeof(Parser));
     parser->error_indicator = false;
     parser->lexeme_list = NULL;
+    parser->memtracker=init_memtracker();
     parser->lines = NULL;
     parser->token_ptr = 0;
+    parser->file_name=NULL;
     return parser;
 }
 
@@ -32,6 +34,8 @@ void free_parser(Parser *parser)
 
     free_line_list(parser->lines);
     free_lexeme_arrlist(parser->lexeme_list);
+    free_memtracker_without_pointers(parser->memtracker);
+    free(parser->file_name);
     free(parser);
 }
 
@@ -78,10 +82,14 @@ bool lexeme_lists_intersect(
 }
 
 /* Mallocs copy of input string*/
-char *malloc_string_cpy(const char *str)
+char *malloc_string_cpy(Parser *parser, const char *str)
 {
     char *str_cpy = malloc(sizeof(char) * (strlen(str) + 1));
     strcpy(str_cpy, str);
+
+    if(parser)
+        push_to_memtracker(parser->memtracker,str_cpy, free);
+
     return str_cpy;
 }
 
@@ -95,23 +103,31 @@ double compute_fractional_double(Token *whole, Token *frac)
 }
 
 /* Mallocs expression component struct */
-ExpressionComponent *malloc_expression_component()
+ExpressionComponent *malloc_expression_component(Parser *parser)
 {
     ExpressionComponent *component = malloc(sizeof(ExpressionComponent));
     component->sub_component = NULL;
     component->top_component = NULL;
     component->type = -1;
+
+    if(parser)
+        push_to_memtracker(parser->memtracker, component, free);
+
     return component;
 }
 
 /* Mallocs malloc_exp_node setting all fields to default values */
-ExpressionNode *malloc_expression_node()
+ExpressionNode *malloc_expression_node(Parser *parser)
 {
     ExpressionNode *node = malloc(sizeof(ExpressionNode));
     node->LHS = NULL;
     node->RHS = NULL;
     node->component = NULL;
     node->type = -1;
+
+    if(parser)
+        push_to_memtracker(parser->memtracker, node, free);
+
     return node;
 }
 
@@ -292,7 +308,7 @@ void free_expression_tree(ExpressionNode *root)
     free(root);
 }
 
-#define DEFAULT_ARG_LIST_LENGTH 6
+#define DEFAULT_ARG_LIST_LENGTH 16
 
 // will parse individual expressions that are seperated by the seperator lexeme
 // end_of_exp is used to mark the end of the expressions sequence
@@ -307,6 +323,9 @@ ExpressionNode **parse_expressions_by_seperator(
     int arg_list_max_length = DEFAULT_ARG_LIST_LENGTH;
     int arg_count = 0;
     enum token_type seperators[] = {seperator, end_of_exp};
+    
+    // allows to update pointer if args is resized
+    MallocNode *args_pointer = push_to_memtracker(parser->memtracker, args, free);
 
     // iterates until end_of_exp lexeme is reached
     while (parser->lexeme_list->list[parser->token_ptr - 1]->type != end_of_exp)
@@ -329,6 +348,7 @@ ExpressionNode **parse_expressions_by_seperator(
             
             free(args);
 
+            args_pointer->ptr=new_arg_list;
             args = new_arg_list;
         }
     }
@@ -368,8 +388,11 @@ ExpressionComponent *parse_expression_component(
     Token **list = parser->lexeme_list->list;
 
     // Base cases
-    if (list[parser->token_ptr]->type == END_OF_FILE)
+    if (list[parser->token_ptr]->type == END_OF_FILE) {
+        parser->error_indicator=true;
+
         return parent;
+    }
 
     if (parent)
     {
@@ -394,7 +417,7 @@ ExpressionComponent *parse_expression_component(
     if (list[parser->token_ptr]->type == ATTRIBUTE_ARROW)
         parser->token_ptr++;
 
-    ExpressionComponent *component = malloc_expression_component();
+    ExpressionComponent *component = malloc_expression_component(parser);
 
     // Parse list constants
     if (rec_lvl == 0 && !parent && list[parser->token_ptr]->type == OPEN_SQUARE_BRACKETS)
@@ -430,7 +453,7 @@ ExpressionComponent *parse_expression_component(
     else if (list[parser->token_ptr]->type == STRING_LITERALS)
     {
         component->type = STRING_CONSTANT;
-        component->meta_data.string_literal = malloc_string_cpy(list[parser->token_ptr]->ident);
+        component->meta_data.string_literal = malloc_string_cpy(parser, list[parser->token_ptr]->ident);
         parser->token_ptr++;
 
         // some variable reference
@@ -438,7 +461,7 @@ ExpressionComponent *parse_expression_component(
     else if (list[parser->token_ptr]->type == IDENTIFIER)
     {
         component->type = VARIABLE;
-        component->meta_data.variable_reference = malloc_string_cpy(list[parser->token_ptr]->ident);
+        component->meta_data.variable_reference = malloc_string_cpy(parser, list[parser->token_ptr]->ident);
         parser->token_ptr++;
 
         // list index
@@ -454,6 +477,11 @@ ExpressionComponent *parse_expression_component(
     }
     else if (list[parser->token_ptr]->type == OPEN_PARENTHESIS)
     {
+        // SYNTAX ERROR: INVALID USE OF ARROW TOKEN
+        if(list[parser->token_ptr - 1]->type == ATTRIBUTE_ARROW) {
+            parser->error_indicator=true;
+        }
+
         component->type = FUNC_CALL;
         parser->token_ptr++;
         ExpressionNode **args = parse_expressions_by_seperator(parser, COMMA, CLOSING_PARENTHESIS);
@@ -463,6 +491,7 @@ ExpressionComponent *parse_expression_component(
     else
     {
         // TODO -> Invalid token error, handle this
+        parser->error_indicator=true;
         return NULL;
     }
 
@@ -485,8 +514,10 @@ ExpressionNode *parse_expression(
 
     Token **list = parser->lexeme_list->list;
 
-    if (list[parser->token_ptr]->type == END_OF_FILE)
+    if (list[parser->token_ptr]->type == END_OF_FILE) {
+        parser->error_indicator=true;
         return LHS;
+    }
 
     // Base case (meet end of expression token)
     if (is_lexeme_in_list(list[parser->token_ptr]->type, ends_of_exp, ends_of_exp_length))
@@ -508,7 +539,7 @@ ExpressionNode *parse_expression(
             return parse_expression(parser, LHS, sub_exp, ends_of_exp, ends_of_exp_length);
     }
 
-    ExpressionNode *node = malloc_expression_node();
+    ExpressionNode *node = malloc_expression_node(parser);
 
     if (is_lexeme_preliminary_expression_token(list[parser->token_ptr]))
     {
@@ -580,8 +611,9 @@ ExpressionNode *parse_expression(
         node->type = SHIFT_RIGHT;
         break;
     default:
-        printf("ERROR: LINE %d: Expected binary operator but got unknown token '%s'\n", list[parser->token_ptr]->line_num,list[parser->token_ptr]->ident);
-        free_expression_tree(node);
+        printf("ERROR: LINE %d: Expected binary operator but got unknown token '%s'\n", 
+        list[parser->token_ptr]->line_num,list[parser->token_ptr]->ident);
+        parser->error_indicator=true;
         return LHS;
     }
 
@@ -594,7 +626,7 @@ ExpressionNode *parse_expression(
 }
 
 /* Mallocs abstract syntac tree node */
-AST_node *malloc_ast_node()
+AST_node *malloc_ast_node(Parser *parser)
 {
     AST_node *node = malloc(sizeof(AST_node));
     node->body = NULL;
@@ -602,6 +634,10 @@ AST_node *malloc_ast_node()
     node->next = NULL;
     node->type = -1;
     node->line_num = -1;
+
+    if(parser)
+        push_to_memtracker(parser->memtracker, node, free);
+
     return node;
 }
 
@@ -707,13 +743,17 @@ void free_ast_node(AST_node *node)
 }
 
 /* Mallocs abstract syntax tree list */
-AST_List *malloc_ast_list()
+AST_List *malloc_ast_list(Parser *parser)
 {
     AST_List *list = malloc(sizeof(AST_List));
     list->head = NULL;
     list->parent_block = NULL;
     list->tail = NULL;
     list->length = 0;
+
+    if(parser)
+        push_to_memtracker(parser->memtracker, list, free);
+
     return list;
 }
 
@@ -770,12 +810,13 @@ AST_node *parse_variable_declaration(Parser *parser, int rec_lvl)
     assert(get_keyword_type(list[parser->token_ptr]->ident) == LET);
     assert(list[parser->token_ptr + 1]->type == IDENTIFIER && list[parser->token_ptr + 2]->type == ASSIGNMENT_OP);
 
-    AST_node *node = malloc_ast_node();
+    AST_node *node = malloc_ast_node(parser);
 
     node->type = VAR_DECLARATION;
     node->line_num = list[parser->token_ptr]->line_num;
+
     // gets the var name
-    node->identifier.declared_var = malloc_string_cpy(list[parser->token_ptr + 1]->ident);
+    node->identifier.declared_var = malloc_string_cpy(parser, list[parser->token_ptr + 1]->ident);
 
     // parses its assignment value (i.e an expression)
     parser->token_ptr += 3;
@@ -796,7 +837,7 @@ AST_node *parse_while_loop(Parser *parser, int rec_lvl)
     assert(get_keyword_type(list[parser->token_ptr]->ident) == WHILE);
     assert(list[parser->token_ptr + 1]->type == OPEN_PARENTHESIS);
 
-    AST_node *node = malloc_ast_node();
+    AST_node *node = malloc_ast_node(parser);
 
     node->type = WHILE_LOOP;
     node->line_num = list[parser->token_ptr]->line_num;
@@ -826,7 +867,7 @@ AST_node *parse_if_conditional(Parser *parser, int rec_lvl)
     assert(get_keyword_type(list[parser->token_ptr]->ident) == IF);
     assert(list[parser->token_ptr + 1]->type == OPEN_PARENTHESIS);
 
-    AST_node *node = malloc_ast_node();
+    AST_node *node = malloc_ast_node(parser);
 
     node->type = IF_CONDITIONAL;
     node->line_num = list[parser->token_ptr]->line_num;
@@ -857,7 +898,7 @@ AST_node *parse_loop_termination(Parser *parser, int rec_lvl)
     assert(get_keyword_type(list[parser->token_ptr]->ident) == BREAK);
     assert(list[parser->token_ptr + 1]->type == SEMI_COLON);
 
-    AST_node *node = malloc_ast_node();
+    AST_node *node = malloc_ast_node(parser);
 
     node->type = LOOP_TERMINATOR;
     node->line_num = list[parser->token_ptr]->line_num;
@@ -878,7 +919,7 @@ AST_node *parse_loop_continuation(Parser *parser, int rec_lvl)
     assert(get_keyword_type(list[parser->token_ptr]->ident) == CONTINUE);
     assert(list[parser->token_ptr + 1]->type == SEMI_COLON);
 
-    AST_node *node = malloc_ast_node();
+    AST_node *node = malloc_ast_node(parser);
 
     node->type = LOOP_CONTINUATION;
     node->line_num = list[parser->token_ptr]->line_num;
@@ -898,7 +939,7 @@ AST_node *parse_return_expression(Parser *parser, int rec_lvl)
 
     assert(get_keyword_type(list[parser->token_ptr]->ident) == RETURN);
 
-    AST_node *node = malloc_ast_node();
+    AST_node *node = malloc_ast_node(parser);
 
     node->type = RETURN_VAL;
     node->line_num = list[parser->token_ptr]->line_num;
@@ -926,7 +967,7 @@ AST_node *parse_else_conditional(Parser *parser, int rec_lvl)
     // else if block
     if (get_keyword_type(list[parser->token_ptr + 1]->ident) == IF)
     {
-        AST_node *node = malloc_ast_node();
+        AST_node *node = malloc_ast_node(parser);
 
         node->type = ELSE_IF_CONDITIONAL;
         node->line_num = list[parser->token_ptr]->line_num;
@@ -948,7 +989,7 @@ AST_node *parse_else_conditional(Parser *parser, int rec_lvl)
     }
     else if (list[parser->token_ptr + 1]->type == OPEN_CURLY_BRACKETS)
     {
-        AST_node *node = malloc_ast_node();
+        AST_node *node = malloc_ast_node(parser);
 
         node->type = ELSE_CONDITIONAL;
         node->line_num = list[parser->token_ptr]->line_num;
@@ -985,16 +1026,15 @@ AST_node *parse_func_declaration(Parser *parser, int rec_lvl)
         return parse_variable_assignment_or_exp_component(parser, ++rec_lvl);
     }
 
-
     assert(list[parser->token_ptr + 1]->type == IDENTIFIER);
     assert(list[parser->token_ptr + 2]->type == OPEN_PARENTHESIS);
 
-    AST_node *node = malloc_ast_node();
+    AST_node *node = malloc_ast_node(parser);
 
     node->type = FUNCTION_DECLARATION;
     node->line_num = list[parser->token_ptr]->line_num;
 
-    node->identifier.func_name = malloc_string_cpy(list[parser->token_ptr + 1]->ident);
+    node->identifier.func_name = malloc_string_cpy(parser, list[parser->token_ptr + 1]->ident);
     parser->token_ptr += 3;
 
     // parses function args
@@ -1008,7 +1048,6 @@ AST_node *parse_func_declaration(Parser *parser, int rec_lvl)
     parser->token_ptr++;
     node->body = parse_code_block(parser, node, rec_lvl + 1, end_of_block, 1);
 
-    
     return node;
 }
 
@@ -1024,7 +1063,7 @@ AST_node *parse_inline_func(Parser *parser, int rec_lvl)
     assert(get_keyword_type(list[parser->token_ptr]->ident) == FUNC);
     assert(list[parser->token_ptr + 1]->type == OPEN_PARENTHESIS);
 
-    AST_node *node = malloc_ast_node();
+    AST_node *node = malloc_ast_node(parser);
 
     node->type = INLINE_FUNCTION_DECLARATION;
     node->line_num = list[parser->token_ptr]->line_num;
@@ -1059,7 +1098,7 @@ AST_node *parse_variable_assignment_or_exp_component(Parser *parser, int rec_lvl
 
     assert(list[parser->token_ptr]->type == SEMI_COLON || list[parser->token_ptr]->type == ASSIGNMENT_OP);
 
-    AST_node *node = malloc_ast_node();
+    AST_node *node = malloc_ast_node(parser);
     node->identifier.expression_component = component;
     node->line_num = list[parser->token_ptr]->line_num;
 
@@ -1074,6 +1113,9 @@ AST_node *parse_variable_assignment_or_exp_component(Parser *parser, int rec_lvl
         parser->token_ptr++;
         enum token_type end_of_exp[] = {SEMI_COLON};
         node->ast_data.exp = parse_expression(parser, NULL, NULL, end_of_exp, 1);
+    } else {
+        // INVALID SYNTAX
+        parser->error_indicator=true;
     }
 
     skip_recurrent_tokens(parser, SEMI_COLON);
@@ -1099,7 +1141,13 @@ AST_List *parse_code_block(
         return NULL;
     }
 
-    AST_List *ast_list = malloc_ast_list();
+    // SYNTAX ERROR: invalid end of code block
+    if(list[parser->token_ptr]->type == END_OF_FILE) {
+        parser->error_indicator=true;
+        return NULL;
+    }
+
+    AST_List *ast_list = malloc_ast_list(parser);
 
     // loops until it encounters a end of block token
     while (!is_lexeme_in_list(list[parser->token_ptr]->type, ends_of_block, ends_of_block_length))
@@ -1185,8 +1233,8 @@ AST_List *parse_code_block(
             else
             {
                 // syntax error TODO
+                parser->error_indicator=true;
                 printf("BAD TOKEN AT Line: %d\n", list[parser->token_ptr]->line_num);
-                free_ast_list(ast_list);
                 return NULL;
             }
 

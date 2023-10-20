@@ -14,7 +14,7 @@ static unsigned int hash(const char *ident);
 static Symbol *malloc_symbol(const char *ident)
 {
     Symbol *sym = malloc(sizeof(Symbol));
-    sym->ident = malloc_string_cpy(ident);
+    sym->ident = malloc_string_cpy(NULL, ident);
     sym->next = NULL;
     sym->nesting_lvl=0;
     return sym;

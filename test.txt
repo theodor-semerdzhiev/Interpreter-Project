@@ -1,7 +1,13 @@
 func fib (n) {
+   func fib (n) {
+      func fib (n) {
+         return n;
+      }
+      return n;
+   }
    return n;
 }
 
-let bb = 10;
+
 
 

@@ -24,7 +24,6 @@ int main(int argc, char *argv[])
 
   print_lexeme_arr_list(lexemes);
 
-  struct expression_node *tree = NULL;
   struct ast_list *ast = NULL;
   Parser *parser = NULL;
 
@@ -35,25 +34,34 @@ int main(int argc, char *argv[])
     parser = malloc_parser();
     parser->lexeme_list = lexemes;
     parser->lines = list;
+    parser->file_name = malloc_string_cpy(NULL, "test.txt");
 
     ast = parse_code_block(parser, NULL, 0, end_of_program, 1);
-    print_ast_list(ast, "  ", 0);
 
-    SemanticAnalyser *sem_analyser = malloc_semantic_analyser();
-    bool is_sem_valid = AST_list_has_consistent_semantics(sem_analyser, ast);
-    if(is_sem_valid) {
-      printf("Valid semantics\n");
+    if(!parser->error_indicator) {
+      print_ast_list(ast, "  ", 0);
+
+      SemanticAnalyser *sem_analyser = malloc_semantic_analyser();
+      bool is_sem_valid = AST_list_has_consistent_semantics(sem_analyser, ast);
+
+      if(is_sem_valid) {
+        printf("Valid semantics\n");
+      } else {
+        printf("Invalid semantics\n");
+      }
+
+      free_semantic_analyser(sem_analyser);
+      
     } else {
-      printf("Invalid semantics\n");
+
+      clear_memtracker_pointers(parser->memtracker);
+      free_parser(parser);
+
+      return 1;
     }
-    free_semantic_analyser(sem_analyser);
   }
 
-  if (tree)
-    printf("%f\n", compute_exp(tree));
-
   free_ast_list(ast);
-  free_expression_tree(tree);
   free_parser(parser);
   free_keyword_table();
   return 0;

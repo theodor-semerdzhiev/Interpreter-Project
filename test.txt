@@ -1,27 +1,7 @@
-
-
-
-func unknown_func(inline_func) {
-    
+func fib (n) {
+   return n;
 }
 
-let n11 = 100;
-
-unknown_func(func (n10, n2, n3, n4, n5, n6) {
-    while(n11 0 >) {
-        break;
-    }
-    continue;
-    return n11;
-}, 200 n11 *);
-
-if(n11 10 == ) {
-    return 10;
-}
-
-while(n11 0 >) {
-    break;
-}
-
+let bb = 10;
 
 

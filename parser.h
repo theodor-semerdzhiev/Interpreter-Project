@@ -130,8 +130,18 @@ enum ast_node_type
 
     EXPRESSION_COMPONENT,
 
-    INLINE_FUNCTION_DECLARATION
+    INLINE_FUNCTION_DECLARATION,
+
+    OBJECT_DECLARATION
 };
+
+typedef enum access_modifer {
+    GLOBAL_ACCESS, // global keyword -- visible between files (can only be used in a global scope )
+    PRIVATE_ACCESS, // private keyword -- visible only within its object (field cannot be accessed via its object reference)
+    PUBLIC_ACCESS, // (no keyword) -- visible within its current scope, and via its object reference
+
+    DOES_NOT_APPLY // for ast nodes that do not have access modifiers
+} AccessModifier;
 
 /* Represents the high level representation of the abstract syntax tree */
 typedef struct AST_node
@@ -139,14 +149,23 @@ typedef struct AST_node
     // ast tree TYPE
     enum ast_node_type type;
 
+    /*
+    Only applies to:
+        - VAR_DECLARATION
+        - FUNCTION_DECLARATION
+        - OBJECT_DECLARATION
+    */
+    AccessModifier access; 
+
     int line_num;
 
     // represents LHS identifer (for var assignment or declaration) or function name
     // union is NULL if type is a INLINE_FUNCTION_DECLARATION
     union identifier
     {
-        char *declared_var;                        // used for variable declaration (let keyword)
-        char *func_name;                           // use for function declaration
+        char *declared_var;                // used for variable declaration (let keyword)
+        char *func_name;                   // use for function declaration
+        char *obj_name;                    // use for object declaration
         ExpressionComponent *expression_component; // used for variable assignment, function calls or just standalone expression components
     } identifier;
 
@@ -156,21 +175,29 @@ typedef struct AST_node
         // related expression (if, else if, loops, var assignment, var declaration, return)
         ExpressionNode *exp;
 
-        // list of function prototype args
+        // list of function prototype arguments
         struct func_args
         {
             ExpressionNode **func_prototype_args;
             int args_num;
         } func_args;
 
+        // list of object prototype arguments
+        struct object_args
+        {
+            ExpressionNode **object_prototype_args;
+            int args_num;
+        } obj_args;
+
     } ast_data;
 
-    /* Points to abstract syntax tree */
+    /* Points to the child code block*/
     AST_List *body;
 
     /* Used to traverse ast_list */
     AST_node *next;
     AST_node *prev;
+
 } AST_node;
 
 /* Top level data structure for ast*/
@@ -232,6 +259,7 @@ AST_node *parse_loop_termination(Parser *parser, int rec_lvl);
 AST_node *parse_loop_continuation(Parser *parser, int rec_lvl);
 AST_node *parse_func_declaration(Parser *parser, int rec_lvl);
 AST_node *parse_inline_func(Parser *parser, int rec_lvl);
+AST_node *parse_object_declaration(Parser *parser, int rec_lvl);
 AST_node *parse_variable_assignment_or_exp_component(Parser *parser, int rec_lvl);
 
 AST_List *parse_code_block(

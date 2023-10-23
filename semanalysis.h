@@ -4,7 +4,8 @@
 typedef enum scope_type
 {
     GLOBAL_SCOPE,
-    FUNCTION_SCOPE
+    FUNCTION_SCOPE,
+    OBJECT_SCOPE
 
 } Scope;
 

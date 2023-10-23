@@ -3,6 +3,20 @@
 #include "parser.h"
 #include "dbgtools.h"
 
+/* Converts AccessModifer to readable string */
+static char* access_modifer_to_string(AccessModifier access) {
+  switch(access) {
+    case PRIVATE_ACCESS:
+      return "Private Access";
+    case GLOBAL_ACCESS:
+      return "Global Access";
+    case PUBLIC_ACCESS:
+      return "Public Access";
+    case DOES_NOT_APPLY:
+      return "";
+  }
+}
+
 /* Prints out lexeme array list */
 void print_lexeme_arr_list(TokenList *lexemes)
 {
@@ -384,7 +398,9 @@ void print_ast_node(AST_node *node, char *buffer, int rec_lvl)
   {
   case VAR_DECLARATION:
   {
-    printf("@ VAR_DECLARATION: let %s =\n", node->identifier.declared_var);
+    printf("@ VAR_DECLARATION: %s \n", node->identifier.declared_var);
+    print_repeated_string(buffer, rec_lvl);
+    printf("ACCESS MODIFIER: %s \n", access_modifer_to_string(node->access));
     print_expression_tree(node->ast_data.exp, buffer, rec_lvl + 1);
     break;
   }
@@ -434,11 +450,28 @@ void print_ast_node(AST_node *node, char *buffer, int rec_lvl)
   case FUNCTION_DECLARATION:
   {
     printf("@ FUNCTION DECLARATION: func %s\n", node->identifier.func_name);
-    print_repeated_string(buffer, rec_lvl);
+    print_repeated_string(buffer, rec_lvl+1);
+    printf("ACCESS MODIFIER: %s \n", access_modifer_to_string(node->access));
+    print_repeated_string(buffer, rec_lvl+1);
     printf("FUNCTION ARGS:\n");
     for (int i = 0; i < node->ast_data.func_args.args_num; i++)
     {
       print_expression_tree(node->ast_data.func_args.func_prototype_args[i], buffer, rec_lvl + 1);
+    }
+    print_ast_list(node->body, buffer, rec_lvl + 1);
+
+    break;
+  }
+
+  case OBJECT_DECLARATION: {
+    printf("@ OBJECT DECLARATION: func %s\n", node->identifier.obj_name);
+    print_repeated_string(buffer, rec_lvl+1);
+    printf("ACCESS MODIFIER: %s \n", access_modifer_to_string(node->access));
+    print_repeated_string(buffer, rec_lvl+1);
+    printf("OBJECT ARGS:\n");
+    for (int i = 0; i < node->ast_data.obj_args.args_num; i++)
+    {
+      print_expression_tree(node->ast_data.obj_args.object_prototype_args[i], buffer, rec_lvl + 1);
     }
     print_ast_list(node->body, buffer, rec_lvl + 1);
 

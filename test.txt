@@ -1,20 +1,11 @@
 
+if(100) {
+    object Node(val, next) {
+        let val = val;
+        let next = next;
 
-# let List = Node(null);
-
-func print(string) {
-    return (string "hello" +) 10 +;
+        func increment(new_val) {
+            val = new_val;
+        }
+    }
 }
-
-func cb (n) {
-    return 100 100 * 20 / n -;
-}
-
-
-
-
-
-
-
-
-

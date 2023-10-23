@@ -1,12 +1,19 @@
-func fib (n) {
-   func fib (n) {
-      func fib (n) {
-         return n;
-      }
-      return n;
-   }
-   return n;
+
+
+let List = Node(null);
+
+func print(string) {
+    return (string "hello" +) 10 +;
 }
+
+func cb (n) {
+    return 100 100 * 20 / n -;
+}
+
+
+
+
+
 
 
 

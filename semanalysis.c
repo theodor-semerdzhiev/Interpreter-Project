@@ -8,7 +8,8 @@ static bool is_exp_component_terminal(enum expression_component_type type)
     return type == LIST_CONSTANT ||
            type == STRING_CONSTANT ||
            type == NUMERIC_CONSTANT ||
-           type == INLINE_FUNC;
+           type == INLINE_FUNC ||
+           type == NULL_CONSTANT;
 }
 
 /* Adds a function scopes parameters variables to symbol table */
@@ -107,6 +108,19 @@ bool expression_component_has_correct_semantics(SemanticAnalyser *sem_analyser, 
                 (node->top_component->type != IDENTIFIER || node->top_component->type != LIST_INDEX))
             {
                 // Invalid Syntax: [1,2,3,4,5,6,7,8]()
+                return false;
+            }
+
+            break;
+        }
+
+        // terminal component
+        case NULL_CONSTANT:
+        {
+            if (node->top_component &&
+                (node->top_component->type != IDENTIFIER || node->top_component->type != LIST_INDEX))
+            {
+                // Invalid Syntax: null->identifier...
                 return false;
             }
 
@@ -388,7 +402,6 @@ bool AST_list_has_consistent_semantics(SemanticAnalyser *sem_analyser, AST_List 
 
             sem_analyser->scope_type = this_scope;
             sem_analyser->nesting_lvl--;
-
 
             if (!tmp)
                 return false;

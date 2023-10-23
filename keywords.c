@@ -12,24 +12,6 @@ static void insert_keyword_to_table(char* keyword, enum keyword_type type);
 
 static struct keywords_table *keyword_table=NULL;
 
-/* Stores all keywords */
-char *keyword_list[] = {
-  "let",
-  "func",
-  "return",
-  "break",
-  "if",
-  "else",
-  "while",
-  "continue", 
-  "str",
-  "double",
-  "int",
-  "list",
-  "void",
-  "\0"
-};
-
 // Initializes keyword table
 void init_keyword_table() {
   keyword_table= (struct keywords_table*)malloc(sizeof(struct keywords_table));
@@ -53,8 +35,9 @@ void init_keyword_table() {
   insert_keyword_to_table("continue", CONTINUE);
   insert_keyword_to_table("str", STR);
   insert_keyword_to_table("number", NUMBER);
-  insert_keyword_to_table("void", VOID);
+  insert_keyword_to_table("null", _NULL);
   insert_keyword_to_table("list", LIST);
+
 
   
 }

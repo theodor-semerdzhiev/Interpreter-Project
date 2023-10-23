@@ -191,6 +191,13 @@ void print_expression_component(ExpressionComponent *component, char *buffer, in
     break;
   }
 
+  case NULL_CONSTANT:
+  {
+    printf(" NULL_CONSTANT -> null \n");
+
+    break;
+  }
+
   case LIST_INDEX:
   {
     printf(" LIST_INDEX -> \n");

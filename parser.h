@@ -43,7 +43,8 @@ enum expression_component_type
 {
     NUMERIC_CONSTANT,
     STRING_CONSTANT,
-    LIST_CONSTANT, // TODO
+    LIST_CONSTANT, 
+    NULL_CONSTANT,
     //////////////
     VARIABLE,
     LIST_INDEX,

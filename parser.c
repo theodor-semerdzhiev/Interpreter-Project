@@ -7,10 +7,11 @@
 #include "parser.h"
 
 /* Skips all recurrent tokens */
-static void skip_recurrent_tokens(Parser *parser, enum token_type type) {
+static void skip_recurrent_tokens(Parser *parser, enum token_type type)
+{
     Token **list = parser->lexeme_list->list;
-    while(list[parser->token_ptr]->type == type)
-        parser->token_ptr++; 
+    while (list[parser->token_ptr]->type == type)
+        parser->token_ptr++;
 }
 
 /* Mallocs Parser struct */
@@ -19,10 +20,10 @@ Parser *malloc_parser()
     Parser *parser = malloc(sizeof(Parser));
     parser->error_indicator = false;
     parser->lexeme_list = NULL;
-    parser->memtracker=init_memtracker();
+    parser->memtracker = init_memtracker();
     parser->lines = NULL;
     parser->token_ptr = 0;
-    parser->file_name=NULL;
+    parser->file_name = NULL;
     return parser;
 }
 
@@ -87,8 +88,8 @@ char *malloc_string_cpy(Parser *parser, const char *str)
     char *str_cpy = malloc(sizeof(char) * (strlen(str) + 1));
     strcpy(str_cpy, str);
 
-    if(parser)
-        push_to_memtracker(parser->memtracker,str_cpy, free);
+    if (parser)
+        push_to_memtracker(parser->memtracker, str_cpy, free);
 
     return str_cpy;
 }
@@ -110,7 +111,7 @@ ExpressionComponent *malloc_expression_component(Parser *parser)
     component->top_component = NULL;
     component->type = -1;
 
-    if(parser)
+    if (parser)
         push_to_memtracker(parser->memtracker, component, free);
 
     return component;
@@ -125,7 +126,7 @@ ExpressionNode *malloc_expression_node(Parser *parser)
     node->component = NULL;
     node->type = -1;
 
-    if(parser)
+    if (parser)
         push_to_memtracker(parser->memtracker, node, free);
 
     return node;
@@ -140,8 +141,12 @@ bool is_lexeme_preliminary_expression_token(Token *lexeme)
            lexeme->type == OPEN_SQUARE_BRACKETS ||
            lexeme->type == NUMERIC_LITERAL ||
            lexeme->type == STRING_LITERALS ||
-           (lexeme->type == KEYWORD &&
-            get_keyword_type(lexeme->ident) == FUNC);
+           (lexeme->type == KEYWORD && (
+                get_keyword_type(lexeme->ident) == FUNC ||
+                get_keyword_type(lexeme->ident) == _NULL
+                )
+            );
+           
 }
 
 double compute_exp(ExpressionNode *root)
@@ -323,7 +328,7 @@ ExpressionNode **parse_expressions_by_seperator(
     int arg_list_max_length = DEFAULT_ARG_LIST_LENGTH;
     int arg_count = 0;
     enum token_type seperators[] = {seperator, end_of_exp};
-    
+
     // allows to update pointer if args is resized
     MallocNode *args_pointer = push_to_memtracker(parser->memtracker, args, free);
 
@@ -345,10 +350,10 @@ ExpressionNode **parse_expressions_by_seperator(
 
             for (int i = 0; i < arg_count; i++)
                 new_arg_list[i] = args[i];
-            
+
             free(args);
 
-            args_pointer->ptr=new_arg_list;
+            args_pointer->ptr = new_arg_list;
             args = new_arg_list;
         }
     }
@@ -388,8 +393,9 @@ ExpressionComponent *parse_expression_component(
     Token **list = parser->lexeme_list->list;
 
     // Base cases
-    if (list[parser->token_ptr]->type == END_OF_FILE) {
-        parser->error_indicator=true;
+    if (list[parser->token_ptr]->type == END_OF_FILE)
+    {
+        parser->error_indicator = true;
 
         return parent;
     }
@@ -404,7 +410,8 @@ ExpressionComponent *parse_expression_component(
                 parent->type == STRING_CONSTANT ||
                 parent->type == LIST_CONSTANT ||
                 parent->type == VARIABLE ||
-                parent->type == INLINE_FUNC) &&
+                parent->type == INLINE_FUNC ||
+                parent->type == NULL_CONSTANT) &&
             list[parser->token_ptr]->type != OPEN_PARENTHESIS &&
             list[parser->token_ptr]->type != OPEN_SQUARE_BRACKETS &&
             list[parser->token_ptr]->type != ATTRIBUTE_ARROW)
@@ -419,8 +426,15 @@ ExpressionComponent *parse_expression_component(
 
     ExpressionComponent *component = malloc_expression_component(parser);
 
+    // void pointer (null pointer)
+    if (list[parser->token_ptr]->type == KEYWORD && get_keyword_type(list[parser->token_ptr]->ident) == _NULL)
+    {
+        component->type = NULL_CONSTANT;
+        parser->token_ptr++;
+    }
+
     // Parse list constants
-    if (rec_lvl == 0 && !parent && list[parser->token_ptr]->type == OPEN_SQUARE_BRACKETS)
+    else if (rec_lvl == 0 && !parent && list[parser->token_ptr]->type == OPEN_SQUARE_BRACKETS)
     {
         component->type = LIST_CONSTANT;
         parser->token_ptr++;
@@ -478,8 +492,9 @@ ExpressionComponent *parse_expression_component(
     else if (list[parser->token_ptr]->type == OPEN_PARENTHESIS)
     {
         // SYNTAX ERROR: INVALID USE OF ARROW TOKEN
-        if(list[parser->token_ptr - 1]->type == ATTRIBUTE_ARROW) {
-            parser->error_indicator=true;
+        if (list[parser->token_ptr - 1]->type == ATTRIBUTE_ARROW)
+        {
+            parser->error_indicator = true;
         }
 
         component->type = FUNC_CALL;
@@ -491,13 +506,13 @@ ExpressionComponent *parse_expression_component(
     else
     {
         // TODO -> Invalid token error, handle this
-        parser->error_indicator=true;
+        parser->error_indicator = true;
         return NULL;
     }
 
     component->sub_component = parent;
-    if(parent)
-        parent->top_component=component;
+    if (parent)
+        parent->top_component = component;
 
     return parse_expression_component(parser, component, ++rec_lvl);
 }
@@ -514,8 +529,9 @@ ExpressionNode *parse_expression(
 
     Token **list = parser->lexeme_list->list;
 
-    if (list[parser->token_ptr]->type == END_OF_FILE) {
-        parser->error_indicator=true;
+    if (list[parser->token_ptr]->type == END_OF_FILE)
+    {
+        parser->error_indicator = true;
         return LHS;
     }
 
@@ -611,9 +627,9 @@ ExpressionNode *parse_expression(
         node->type = SHIFT_RIGHT;
         break;
     default:
-        printf("ERROR: LINE %d: Expected binary operator but got unknown token '%s'\n", 
-        list[parser->token_ptr]->line_num,list[parser->token_ptr]->ident);
-        parser->error_indicator=true;
+        printf("ERROR: LINE %d: Expected binary operator but got unknown token '%s'\n",
+               list[parser->token_ptr]->line_num, list[parser->token_ptr]->ident);
+        parser->error_indicator = true;
         return LHS;
     }
 
@@ -635,7 +651,7 @@ AST_node *malloc_ast_node(Parser *parser)
     node->type = -1;
     node->line_num = -1;
 
-    if(parser)
+    if (parser)
         push_to_memtracker(parser->memtracker, node, free);
 
     return node;
@@ -751,7 +767,7 @@ AST_List *malloc_ast_list(Parser *parser)
     list->tail = NULL;
     list->length = 0;
 
-    if(parser)
+    if (parser)
         push_to_memtracker(parser->memtracker, list, free);
 
     return list;
@@ -904,7 +920,7 @@ AST_node *parse_loop_termination(Parser *parser, int rec_lvl)
     node->line_num = list[parser->token_ptr]->line_num;
 
     parser->token_ptr += 2;
-    
+
     skip_recurrent_tokens(parser, SEMI_COLON);
 
     return node;
@@ -1021,7 +1037,8 @@ AST_node *parse_func_declaration(Parser *parser, int rec_lvl)
     assert(get_keyword_type(list[parser->token_ptr]->ident) == FUNC);
 
     // indicates inline function declaration
-    if(list[parser->token_ptr + 1]->type == OPEN_PARENTHESIS) {
+    if (list[parser->token_ptr + 1]->type == OPEN_PARENTHESIS)
+    {
 
         return parse_variable_assignment_or_exp_component(parser, ++rec_lvl);
     }
@@ -1113,9 +1130,11 @@ AST_node *parse_variable_assignment_or_exp_component(Parser *parser, int rec_lvl
         parser->token_ptr++;
         enum token_type end_of_exp[] = {SEMI_COLON};
         node->ast_data.exp = parse_expression(parser, NULL, NULL, end_of_exp, 1);
-    } else {
+    }
+    else
+    {
         // INVALID SYNTAX
-        parser->error_indicator=true;
+        parser->error_indicator = true;
     }
 
     skip_recurrent_tokens(parser, SEMI_COLON);
@@ -1142,8 +1161,9 @@ AST_List *parse_code_block(
     }
 
     // SYNTAX ERROR: invalid end of code block
-    if(list[parser->token_ptr]->type == END_OF_FILE) {
-        parser->error_indicator=true;
+    if (list[parser->token_ptr]->type == END_OF_FILE)
+    {
+        parser->error_indicator = true;
         return NULL;
     }
 
@@ -1233,7 +1253,7 @@ AST_List *parse_code_block(
             else
             {
                 // syntax error TODO
-                parser->error_indicator=true;
+                parser->error_indicator = true;
                 printf("BAD TOKEN AT Line: %d\n", list[parser->token_ptr]->line_num);
                 return NULL;
             }

@@ -1,6 +1,6 @@
 
 
-let List = Node(null);
+# let List = Node(null);
 
 func print(string) {
     return (string "hello" +) 10 +;

@@ -25,7 +25,8 @@ static void add_function_declaration_args_to_symtable(SemanticAnalyser *sem_anal
         add_sym_to_symtable(
         sem_analyser->symtable, 
         args[i]->component->meta_data.variable_reference,
-        sem_analyser->nesting_lvl);
+        sem_analyser->nesting_lvl,
+        SYMBOL_TYPE_VARIABLE);
     }
 }
 
@@ -281,7 +282,8 @@ bool AST_list_has_consistent_semantics(SemanticAnalyser *sem_analyser, AST_List 
             add_sym_to_symtable(
                 sem_analyser->symtable,
                 node->identifier.declared_var,
-                sem_analyser->nesting_lvl);
+                sem_analyser->nesting_lvl,
+                SYMBOL_TYPE_VARIABLE);
             
             break;
         }
@@ -387,7 +389,8 @@ bool AST_list_has_consistent_semantics(SemanticAnalyser *sem_analyser, AST_List 
             add_sym_to_symtable(
                 sem_analyser->symtable,
                 node->identifier.func_name,
-                sem_analyser->nesting_lvl);
+                sem_analyser->nesting_lvl,
+                SYMBOL_TYPE_FUNCTION);
 
             sem_analyser->nesting_lvl++;
             Scope this_scope = sem_analyser->scope_type;

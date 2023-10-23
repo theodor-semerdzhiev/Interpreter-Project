@@ -87,13 +87,18 @@ void free_sym_table(SymbolTable *symtable)
 /* Adds symbol to symbol table, 
 - returns true if it was added successfully
 - return false if the same Symbol is already in the table */
-bool add_sym_to_symtable(SymbolTable *symtable, const char *ident, int nesting_lvl)
+bool add_sym_to_symtable(
+    SymbolTable *symtable, 
+    const char *ident, 
+    int nesting_lvl,
+    SymbolType symtype)
 {
     if(symtable_has_sym(symtable, ident)) return false;
 
     unsigned int index = hash(ident);
     Symbol *sym = malloc_symbol(ident);
     sym->nesting_lvl=nesting_lvl;
+    sym->type = symtype;
 
     SymbolChain *chain = symtable->table[index % symtable->bucket_count];
 

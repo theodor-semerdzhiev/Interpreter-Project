@@ -208,6 +208,8 @@ void parse_line_into_lexemes(
     {
       clear_token_buffer_into_lexeme_arrlist(
           buffer, buffer_ptr, lexeme_arrlist, UNDEFINED, line_struct->line_number);
+      buffer_ptr = 0;
+
     }
 
     switch (line[i])

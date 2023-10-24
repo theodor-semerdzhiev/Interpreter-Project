@@ -1,11 +1,27 @@
-
-if(100) {
-    object Node(val, next) {
-        let val = val;
-        let next = next;
-
-        func increment(new_val) {
-            val = new_val;
-        }
+object List(head_) {
+    object Node(val_) {
+        let val = val_;
+        let next = null;
     }
+
+    let head = head_;
+    let tail = null;
+    let length = 0;
+
+    func push(val) {
+        if(head null ==) {
+            head=Node(val);
+            tail=head;   
+        } else {
+            tail->next = Node(val);
+            tail = tail->next;
+        }
+
+        length = length 1 +;
+    }
+
+    let test = Node(20);
 }
+
+
+

@@ -23,5 +23,5 @@ void free_semantic_analyser(SemanticAnalyser *sem_analyser);
 bool exp_has_correct_semantics(SemanticAnalyser *sem_analyser, ExpressionNode *root);
 bool expression_component_has_correct_semantics(SemanticAnalyser *sem_analyser, ExpressionComponent *node);
 bool var_assignment_has_correct_semantics(SemanticAnalyser *sem_analyser, AST_node *node);
-bool func_declaration_arg_semantics(SemanticAnalyser *sem_analyser, AST_node *node);
+bool check_argument_semantics(SemanticAnalyser *sem_analyser, AST_node *node);
 bool AST_list_has_consistent_semantics(SemanticAnalyser *sem_analyser, AST_List *ast_list);

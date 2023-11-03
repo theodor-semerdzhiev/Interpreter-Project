@@ -6,44 +6,47 @@
 #include "keywords.h"
 #include "parser.h"
 
-
 /* Parses access modifer, ["private" | "global"] [KEYWORD] */
-static AccessModifier parse_access_modifer(Parser *parser,  enum keyword_type next_keyword) {
+static AccessModifier parse_access_modifer(Parser *parser, enum keyword_type next_keyword)
+{
     assert(parser);
 
     Token **list = parser->lexeme_list->list;
-    if(list[parser->token_ptr]->type != KEYWORD) {
-        parser->error_indicator=true;
+    if (list[parser->token_ptr]->type != KEYWORD)
+    {
+        parser->error_indicator = true;
         printf("ERROR LINE %d: Expected keyword\n", list[parser->token_ptr]->line_num);
         return DOES_NOT_APPLY;
     }
 
-    if(list[parser->token_ptr]->type == KEYWORD && 
-    get_keyword_type(list[parser->token_ptr]->ident) != next_keyword) {
+    if (list[parser->token_ptr]->type == KEYWORD &&
+        get_keyword_type(list[parser->token_ptr]->ident) != next_keyword)
+    {
 
-        switch(get_keyword_type(list[parser->token_ptr]->ident)) {
-            case GLOBAL_KEYWORD: 
-                parser->token_ptr++;
-                return GLOBAL_ACCESS;
-            
-            case PRIVATE_KEYWORD: 
-                parser->token_ptr++;
-                return PRIVATE_ACCESS;
+        switch (get_keyword_type(list[parser->token_ptr]->ident))
+        {
+        case GLOBAL_KEYWORD:
+            parser->token_ptr++;
+            return GLOBAL_ACCESS;
 
-            default: {
-                int line_number=list[parser->token_ptr]->line_num;
-                printf("ERROR LINE %d: Expected access modifier but got '%s'", 
-                line_number, 
-                get_keyword_string(next_keyword));
-                parser->token_ptr++;
-                parser->error_indicator=true;
-                return DOES_NOT_APPLY;
-            }
+        case PRIVATE_KEYWORD:
+            parser->token_ptr++;
+            return PRIVATE_ACCESS;
+
+        default:
+        {
+            int line_number = list[parser->token_ptr]->line_num;
+            printf("ERROR LINE %d: Expected access modifier but got '%s'",
+                   line_number,
+                   get_keyword_string(next_keyword));
+            parser->token_ptr++;
+            parser->error_indicator = true;
+            return DOES_NOT_APPLY;
+        }
         }
     }
 
     return PUBLIC_ACCESS;
-
 }
 
 /* Skips all recurrent tokens */
@@ -74,7 +77,7 @@ void free_parser(Parser *parser)
         return;
 
     free_line_list(parser->lines);
-    free_lexeme_arrlist(parser->lexeme_list);
+    free_token_list(parser->lexeme_list);
     free_memtracker_without_pointers(parser->memtracker);
     free(parser->file_name);
     free(parser);
@@ -164,6 +167,7 @@ ExpressionNode *malloc_expression_node(Parser *parser)
     node->LHS = NULL;
     node->RHS = NULL;
     node->component = NULL;
+    node->negation=false;
     node->type = -1;
 
     if (parser)
@@ -305,7 +309,8 @@ void free_expression_component(ExpressionComponent *component)
         free(component);
         return;
     }
-    case NULL_CONSTANT: {
+    case NULL_CONSTANT:
+    {
         free(component);
         return;
     }
@@ -465,6 +470,7 @@ ExpressionComponent *parse_expression_component(
         parser->token_ptr++;
 
     ExpressionComponent *component = malloc_expression_component(parser);
+    component->line_num = list[parser->token_ptr]->line_num;
 
     // void pointer (null pointer)
     if (list[parser->token_ptr]->type == KEYWORD && get_keyword_type(list[parser->token_ptr]->ident) == NULL_KEYWORD)
@@ -582,12 +588,21 @@ ExpressionNode *parse_expression(
         return LHS;
     }
 
+    bool is_exp_negated = false;
+
+    // handles negation operator (i.e '!')
+    if(list[parser->token_ptr]->type == LOGICAL_NOT_OP) {
+        is_exp_negated=true;
+        parser->token_ptr++;
+    }
+
     // Handles and Computes sub expressions
     if (list[parser->token_ptr]->type == OPEN_PARENTHESIS)
     {
         parser->token_ptr++;
         enum token_type end_of_exp[] = {CLOSING_PARENTHESIS};
         ExpressionNode *sub_exp = parse_expression(parser, NULL, NULL, end_of_exp, 1);
+        sub_exp->negation=is_exp_negated ^ sub_exp->negation;
 
         if (!LHS)
             return parse_expression(parser, sub_exp, RHS, ends_of_exp, ends_of_exp_length);
@@ -596,7 +611,8 @@ ExpressionNode *parse_expression(
     }
 
     ExpressionNode *node = malloc_expression_node(parser);
-
+    node->negation=is_exp_negated;
+    //checks if we encountered a expression component
     if (is_lexeme_preliminary_expression_token(list[parser->token_ptr]))
     {
 
@@ -882,7 +898,7 @@ AST_node *parse_variable_declaration(Parser *parser, int rec_lvl)
     assert(list[parser->token_ptr + 1]->type == IDENTIFIER && list[parser->token_ptr + 2]->type == ASSIGNMENT_OP);
 
     AST_node *node = malloc_ast_node(parser);
-    node->access=access_modifier;
+    node->access = access_modifier;
     node->type = VAR_DECLARATION;
     node->line_num = list[parser->token_ptr]->line_num;
 
@@ -1098,7 +1114,7 @@ AST_node *parse_func_declaration(Parser *parser, int rec_lvl)
     assert(list[parser->token_ptr + 2]->type == OPEN_PARENTHESIS);
 
     AST_node *node = malloc_ast_node(parser);
-    node->access=access_modifier;
+    node->access = access_modifier;
     node->type = FUNCTION_DECLARATION;
     node->line_num = list[parser->token_ptr]->line_num;
 
@@ -1154,7 +1170,8 @@ AST_node *parse_inline_func(Parser *parser, int rec_lvl)
 }
 
 /* Parses Object declaration */
-AST_node *parse_object_declaration(Parser *parser, int rec_lvl) {
+AST_node *parse_object_declaration(Parser *parser, int rec_lvl)
+{
     assert(parser);
     Token **list = parser->lexeme_list->list;
 
@@ -1165,10 +1182,10 @@ AST_node *parse_object_declaration(Parser *parser, int rec_lvl) {
     assert(list[parser->token_ptr + 2]->type == OPEN_PARENTHESIS);
 
     AST_node *node = malloc_ast_node(parser);
-    node->access=access_modifier;
+    node->access = access_modifier;
     node->type = OBJECT_DECLARATION;
     node->line_num = list[parser->token_ptr]->line_num;
-    node->identifier.obj_name = malloc_string_cpy(parser, list[parser->token_ptr+1]->ident);
+    node->identifier.obj_name = malloc_string_cpy(parser, list[parser->token_ptr + 1]->ident);
 
     parser->token_ptr += 3;
 
@@ -1217,7 +1234,7 @@ AST_node *parse_variable_assignment_or_exp_component(Parser *parser, int rec_lvl
     else
     {
         // INVALID SYNTAX
-        // TODO 
+        // TODO
         parser->error_indicator = true;
     }
 
@@ -1256,7 +1273,8 @@ AST_List *parse_code_block(
     // loops until it encounters a end of block token
     while (!is_lexeme_in_list(list[parser->token_ptr]->type, ends_of_block, ends_of_block_length))
     {
-        if(parser->error_indicator) {
+        if (parser->error_indicator)
+        {
             break;
         }
 
@@ -1266,7 +1284,7 @@ AST_List *parse_code_block(
         // variable declaration
         case LET_KEYWORD:
         {
-            let_keyword:; // label
+        let_keyword:; // label
 
             AST_node *node = parse_variable_declaration(parser, rec_lvl);
             push_to_ast_list(ast_list, node);
@@ -1315,7 +1333,7 @@ AST_List *parse_code_block(
         // return
         case RETURN_KEYWORD:
         {
-            
+
             AST_node *node = parse_return_expression(parser, rec_lvl);
             push_to_ast_list(ast_list, node);
             break;
@@ -1324,7 +1342,7 @@ AST_List *parse_code_block(
         // function declaration
         case FUNC_KEYWORD:
         {
-            func_keyword:; // label
+        func_keyword:; // label
 
             AST_node *node = parse_func_declaration(parser, rec_lvl);
             push_to_ast_list(ast_list, node);
@@ -1332,8 +1350,9 @@ AST_List *parse_code_block(
         }
 
         // TODO
-        case OBJECT_KEYWORD: {
-            object_keyword:;
+        case OBJECT_KEYWORD:
+        {
+        object_keyword:;
 
             AST_node *node = parse_object_declaration(parser, rec_lvl);
             push_to_ast_list(ast_list, node);
@@ -1342,27 +1361,29 @@ AST_List *parse_code_block(
 
         // handles access modifiers
         case GLOBAL_KEYWORD:
-        case PRIVATE_KEYWORD: {
-            if(list[parser->token_ptr+1]->type == KEYWORD) {
-                switch(get_keyword_type(list[parser->token_ptr+1]->ident)) {
-                    case FUNC_KEYWORD: 
-                        goto func_keyword;
-                    case LET_KEYWORD:
-                        goto let_keyword;
-                    case OBJECT_KEYWORD:
-                        goto object_keyword;
-                    default:
-                        break;
+        case PRIVATE_KEYWORD:
+        {
+            if (list[parser->token_ptr + 1]->type == KEYWORD)
+            {
+                switch (get_keyword_type(list[parser->token_ptr + 1]->ident))
+                {
+                case FUNC_KEYWORD:
+                    goto func_keyword;
+                case LET_KEYWORD:
+                    goto let_keyword;
+                case OBJECT_KEYWORD:
+                    goto object_keyword;
+                default:
+                    break;
                 }
             }
-            printf("[%s] ERROR LINE %d: Invalid use of access modifier \n", 
-            parser->file_name, 
-            list[parser->token_ptr]->line_num);
+            printf("[%s] ERROR LINE %d: Invalid use of access modifier \n",
+                   parser->file_name,
+                   list[parser->token_ptr]->line_num);
 
-            parser->error_indicator=true;
+            parser->error_indicator = true;
             break;
         }
-
 
         default:
         {

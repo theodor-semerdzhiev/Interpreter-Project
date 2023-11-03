@@ -1,27 +1,2 @@
-object List(head_) {
-    object Node(val_) {
-        let val = val_;
-        let next = null;
-    }
 
-    let head = head_;
-    let tail = null;
-    let length = 0;
-
-    func push(val) {
-        if(head null ==) {
-            head=Node(val);
-            tail=head;   
-        } else {
-            tail->next = Node(val);
-            tail = tail->next;
-        }
-
-        length = length 1 +;
-    }
-
-    let test = Node(20);
-}
-
-
-
+let string = !(!(! (20 20 *)));

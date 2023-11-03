@@ -66,6 +66,8 @@ typedef struct expression_component
     ExpressionComponent *sub_component;
     ExpressionComponent *top_component;
 
+    int line_num;
+
     // all the data in this union is mutually exclusive
     union data
     {
@@ -107,6 +109,7 @@ typedef struct expression_component
 typedef struct expression_node
 {
     enum expression_token_type type;
+    bool negation; // wether it as a ! op in front
 
     ExpressionComponent *component; // contains a the 'value' of the node
 

@@ -13,16 +13,12 @@ int main(int argc, char *argv[])
 
     if (file_contents == NULL)
     {
-      printf("Could not open %s\n", argv[1]);
-      return 1;
+        printf("Could not open %s\n", argv[1]);
+        return 1;
     }
 
-    // LineList *list = tokenize_string_by_newline(file_contents);
-
-    // TokenList *tokens = create_token_list(list);
-
     Lexer *lexer = malloc_lexer();
-    TokenList *tokens = _parse_line_into_tokens(lexer, file_contents);
+    TokenList *tokens = tokenize_str(lexer, file_contents);
     print_token_list(tokens);
 
     free(file_contents);
@@ -45,11 +41,11 @@ int main(int argc, char *argv[])
 
         if (is_sem_valid)
         {
-          printf("Valid semantics\n");
+            printf("Valid semantics\n");
         }
         else
         {
-          printf("Invalid semantics\n");
+            printf("Invalid semantics\n");
         }
 
         free_semantic_analyser(sem_analyser);
@@ -62,7 +58,6 @@ int main(int argc, char *argv[])
 
         return 1;
     }
-
 
     free_ast_list(ast);
     free_parser(parser);

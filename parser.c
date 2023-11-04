@@ -64,7 +64,6 @@ Parser *malloc_parser()
     parser->error_indicator = false;
     parser->lexeme_list = NULL;
     parser->memtracker = init_memtracker();
-    parser->lines = NULL;
     parser->token_ptr = 0;
     parser->file_name = NULL;
     return parser;
@@ -76,7 +75,6 @@ void free_parser(Parser *parser)
     if (!parser)
         return;
 
-    free_line_list(parser->lines);
     free_token_list(parser->lexeme_list);
     free_memtracker_without_pointers(parser->memtracker);
     free(parser->file_name);

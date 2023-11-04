@@ -8,7 +8,6 @@
 typedef struct Parser
 {
     int token_ptr;
-    LineList *lines;
     TokenList *lexeme_list;
     MemoryTracker *memtracker;
     bool error_indicator;

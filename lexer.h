@@ -76,22 +76,6 @@ typedef struct token_array_list
 } TokenList;
 /////////////////////////////////
 
-/* Defines a single line */
-struct line_construct
-{
-    char *line;
-    int line_number;
-};
-
-/* Defined a list of lines */
-typedef struct line_list
-{
-    struct line_construct **list;
-    size_t length;  // elements in list
-    int max_length; // max allocated memory for list
-
-    int max_line_len; // the length of the longest string in list
-} LineList;
 
 // TODO
 /* Top Level struct for lexer */
@@ -99,30 +83,24 @@ typedef struct lexer
 {
     char *buffer;
     int buffer_size; // max size of buffer
-    int buffer_ptr; // current pointer to buffer
+    int buffer_ptr;  // current pointer to buffer
 
-    int text_ptr; // pointer to string getting tokenized bt lexer
+    int text_ptr; // pointer to string getting tokenized by lexer
 
-    int cur_line;
+    int cur_line; //
 
 } Lexer;
 
-/* New Lexing interface */
+/* Main lexing logic */
 Lexer *malloc_lexer();
 void free_lexer(Lexer *lexer);
-TokenList *_parse_line_into_tokens(Lexer *lexer, char *file_contents);
+TokenList *tokenize_str(Lexer *lexer, char *file_contents);
 TokenList *cpy_token_list(TokenList *list);
-
-/* Main lexing logic */
-
-
-void parse_line_into_lexemes(TokenList *lexeme_arrlist, struct line_construct *line_struct);
-
 TokenList *malloc_token_list();
 
 /**********************/
 
-/* Lexeme array list */
+/* Token array list */
 
 void push_token(
     TokenList *arr,
@@ -132,23 +110,13 @@ void push_token(
 
 void free_token_list(TokenList *arr);
 void print_token_list(TokenList *lexemes);
-TokenList *create_token_list(LineList *lines);
 Token *malloc_token_struct(
     enum token_type type,
     char *ident,
     int line_num);
 /*************************************/
 
-/* Line array list */
-void add_line_to_line_list(LineList *list, struct line_construct *line);
-void print_line_list(LineList *list);
-void free_line_list(LineList *list);
-struct line_construct *malloc_line_struct(char *line, int line_nb);
-/***************************************/
-
 /* Miscellaneous */
-
-LineList *tokenize_string_by_newline(char *buffer);
 char *get_file_contents(const char *f_name);
 char *malloc_substring(char *g, int start, int end);
 /****************************************/

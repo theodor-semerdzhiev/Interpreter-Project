@@ -87,7 +87,10 @@ typedef struct lexer
 
     int text_ptr; // pointer to string getting tokenized by lexer
 
-    int cur_line; //
+    int prev_pos;
+
+    int cur_line; // tracks current line
+    int cur_pos; // tracks current position on said line
 
 } Lexer;
 
@@ -106,14 +109,16 @@ void push_token(
     TokenList *arr,
     enum token_type type,
     char *ident,
-    int line_num);
+    int line_num,
+    int line_pos);
 
 void free_token_list(TokenList *arr);
 void print_token_list(TokenList *lexemes);
 Token *malloc_token_struct(
     enum token_type type,
     char *ident,
-    int line_num);
+    int line_num,
+    int line_pos);
 /*************************************/
 
 /* Miscellaneous */

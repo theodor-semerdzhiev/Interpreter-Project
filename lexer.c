@@ -43,61 +43,79 @@ static enum token_type get_special_token_type(Lexer *lexer, char *string)
     {
     case '.':
         lexer->text_ptr++;
+        lexer->cur_pos++;
         return DOT;
     case ';':
         lexer->text_ptr++;
+        lexer->cur_pos++;
         return SEMI_COLON;
     case ',':
         lexer->text_ptr++;
+        lexer->cur_pos++;
         return COMMA;
     case ':':
         lexer->text_ptr++;
+        lexer->cur_pos++;
         return COLON;
     case '{':
         lexer->text_ptr++;
+        lexer->cur_pos++;
         return OPEN_CURLY_BRACKETS;
     case '}':
         lexer->text_ptr++;
+        lexer->cur_pos++;
         return CLOSING_CURLY_BRACKETS;
     case '(':
         lexer->text_ptr++;
+        lexer->cur_pos++;
         return OPEN_PARENTHESIS;
     case ')':
         lexer->text_ptr++;
+        lexer->cur_pos++;
         return CLOSING_PARENTHESIS;
     case '[':
         lexer->text_ptr++;
+        lexer->cur_pos++;
         return OPEN_SQUARE_BRACKETS;
     case ']':
         lexer->text_ptr++;
+        lexer->cur_pos++;
         return CLOSING_SQUARE_BRACKETS;
     case '*':
         lexer->text_ptr++;
+        lexer->cur_pos++;
         return MULT_OP;
     case '/':
         lexer->text_ptr++;
+        lexer->cur_pos++;
         return DIV_OP;
     case '+':
         lexer->text_ptr++;
+        lexer->cur_pos++;
         return PLUS_OP;
     case '%':
         lexer->text_ptr++;
+        lexer->cur_pos++;
         return MOD_OP;
     case '^':
         lexer->text_ptr++;
+        lexer->cur_pos++;
         return BITWISE_XOR_OP;
     case '!':
         lexer->text_ptr++;
+        lexer->cur_pos++;
         return LOGICAL_NOT_OP;
 
     // - ->
     case '-':
     {
         lexer->text_ptr++;
+        lexer->cur_pos++;
         switch (second)
         {
         case '>':
             lexer->text_ptr++;
+            lexer->cur_pos++;
             return ATTRIBUTE_ARROW;
         default:
             return MINUS_OP;
@@ -107,10 +125,12 @@ static enum token_type get_special_token_type(Lexer *lexer, char *string)
     case '=':
     {
         lexer->text_ptr++;
+        lexer->cur_pos++;
         switch (second)
         {
         case '=':
             lexer->text_ptr++;
+            lexer->cur_pos++;
             return EQUAL_TO_OP;
         default:
             return ASSIGNMENT_OP;
@@ -120,13 +140,16 @@ static enum token_type get_special_token_type(Lexer *lexer, char *string)
     case '>':
     {
         lexer->text_ptr++;
+        lexer->cur_pos++;
         switch (second)
         {
         case '>':
             lexer->text_ptr++;
+            lexer->cur_pos++;
             return SHIFT_RIGHT_OP;
         case '=':
             lexer->text_ptr++;
+            lexer->cur_pos++;
             return GREATER_EQUAL_OP;
         default:
             return GREATER_THAN_OP;
@@ -136,13 +159,16 @@ static enum token_type get_special_token_type(Lexer *lexer, char *string)
     case '<':
     {
         lexer->text_ptr++;
+        lexer->cur_pos++;
         switch (second)
         {
         case '<':
             lexer->text_ptr++;
+            lexer->cur_pos++;
             return SHIFT_LEFT_OP;
         case '=':
             lexer->text_ptr++;
+            lexer->cur_pos++;
             return LESSER_EQUAL_OP;
         default:
             return LESSER_THAN_OP;
@@ -152,10 +178,12 @@ static enum token_type get_special_token_type(Lexer *lexer, char *string)
     case '&':
     {
         lexer->text_ptr++;
+        lexer->cur_pos++;
         switch (second)
         {
         case '&':
             lexer->text_ptr++;
+            lexer->cur_pos++;
             return LOGICAL_AND_OP;
         default:
             return BITWISE_AND_OP;
@@ -165,10 +193,12 @@ static enum token_type get_special_token_type(Lexer *lexer, char *string)
     case '|':
     {
         lexer->text_ptr++;
+        lexer->cur_pos++;
         switch (second)
         {
         case '|':
             lexer->text_ptr++;
+            lexer->cur_pos++;
             return LOGICAL_OR_OP;
         default:
             return BITWISE_OR_OP;
@@ -184,7 +214,13 @@ static enum token_type get_special_token_type(Lexer *lexer, char *string)
 static void push_char_to_buffer(Lexer *lexer, char c)
 {
     lexer->buffer[lexer->buffer_ptr] = c;
+    lexer->cur_pos++;
+    
+    if(lexer->buffer_ptr == 0) 
+        lexer->prev_pos=lexer->cur_pos;
+    
     lexer->buffer_ptr++;
+
 
     // resizes buffer
     if (lexer->buffer_ptr == lexer->buffer_size)
@@ -203,8 +239,11 @@ static void push_char_to_buffer(Lexer *lexer, char c)
 
     lexer->buffer[lexer->buffer_ptr] = '\0';
 
-    if (c == '\n')
+    if (c == '\n') {
         lexer->cur_line++;
+        lexer->prev_pos=0;
+        lexer->cur_pos=0;
+    }
 }
 
 /* Resets buffer_ptr to 0 */
@@ -223,8 +262,9 @@ static void clear_buffer(Lexer *lexer, TokenList *list)
     lexer->buffer[lexer->buffer_ptr] = '\0';
     char *str = malloc(sizeof(char) * (strlen(lexer->buffer) + 1));
     strcpy(str, lexer->buffer);
-    push_token(list, UNDEFINED, str, lexer->cur_line);
+    push_token(list, UNDEFINED, str, lexer->cur_line, lexer->prev_pos);
     reset_buffer(lexer);
+    lexer->prev_pos=lexer->cur_pos;
 }
 
 /* Creates new token list thats a copy */
@@ -239,7 +279,8 @@ TokenList *cpy_token_list(TokenList *list)
         new_list->list[i] = malloc_token_struct(
             list->list[i]->type,
             list->list[i]->ident,
-            list->list[i]->line_num);
+            list->list[i]->line_num,
+            list->list[i]->line_pos);
     }
 
     return new_list;
@@ -251,7 +292,7 @@ TokenList *tokenize_str(Lexer *lexer, char *file_contents)
     TokenList *list = malloc_token_list();
 
     char *buffer = lexer->buffer;
-    lexer->buffer_ptr = 0;
+    reset_buffer(lexer);
 
     while (file_contents[lexer->text_ptr] != '\0')
     {
@@ -261,7 +302,9 @@ TokenList *tokenize_str(Lexer *lexer, char *file_contents)
         if (type != UNDEFINED)
         {
             clear_buffer(lexer, list);
-            push_token(list, type, NULL, lexer->cur_line);
+            lexer->prev_pos=lexer->cur_pos;
+            push_token(list, type, NULL, lexer->cur_line, lexer->prev_pos);
+            
             continue;
         }
 
@@ -282,7 +325,7 @@ TokenList *tokenize_str(Lexer *lexer, char *file_contents)
             char *literal = malloc(sizeof(char) * lexer->buffer_ptr + 1);
             strcpy(literal, buffer);
 
-            push_token(list, STRING_LITERALS, literal, lexer->cur_line);
+            push_token(list, STRING_LITERALS, literal, lexer->cur_line, lexer->prev_pos);
             reset_buffer(lexer);
 
             if (file_contents[lexer->text_ptr] == '\0')
@@ -304,6 +347,7 @@ TokenList *tokenize_str(Lexer *lexer, char *file_contents)
                 lexer->text_ptr++;
             }
 
+            lexer->prev_pos=lexer->cur_pos;
             reset_buffer(lexer);
 
             continue;
@@ -316,12 +360,15 @@ TokenList *tokenize_str(Lexer *lexer, char *file_contents)
         lexer->text_ptr++;
     }
 
-    push_token(list, END_OF_FILE, NULL, lexer->cur_line);
+    clear_buffer(lexer, list);
+
+    push_token(list, END_OF_FILE, NULL, lexer->cur_line, lexer->prev_pos);
 
     return list;
 }
 
 #define DEFAULT_LEXER_BUFFER_SIZE 100
+
 /* Mallocs lexer */
 Lexer *malloc_lexer()
 {
@@ -331,6 +378,8 @@ Lexer *malloc_lexer()
     lexer->buffer_ptr = 0;
     lexer->text_ptr = 0;
     lexer->cur_line = 1;
+    lexer->cur_pos=0;
+    lexer->prev_pos=0;
     return lexer;
 }
 
@@ -361,14 +410,16 @@ TokenList *malloc_token_list()
 Token *malloc_token_struct(
     enum token_type type,
     char *ident,
-    int line_num)
+    int line_num,
+    int line_pos)
 {
 
-    Token *lexeme = (Token *)malloc(sizeof(Token));
-    lexeme->ident = ident;
-    lexeme->line_num = line_num;
-    lexeme->type = type;
-    return lexeme;
+    Token *token = (Token *)malloc(sizeof(Token));
+    token->ident = ident;
+    token->line_num = line_num;
+    token->type = type;
+    token->line_pos=line_pos;
+    return token;
 }
 
 /* frees lexeme array list */
@@ -391,7 +442,8 @@ void push_token(
     TokenList *arr,
     enum token_type type,
     char *ident,
-    int line_num)
+    int line_num,
+    int line_pos)
 {
     // Checks the type of token
     if (type == UNDEFINED && ident)
@@ -407,7 +459,8 @@ void push_token(
     Token *token = (Token *)malloc_token_struct(
         type,
         ident,
-        line_num);
+        line_num,
+        line_pos);
 
     arr->list[arr->len] = token;
     arr->len++;

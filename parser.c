@@ -582,6 +582,13 @@ ExpressionNode *parse_expression(
     // Base case (meet end of expression token)
     if (is_lexeme_in_list(list[parser->token_ptr]->type, ends_of_exp, ends_of_exp_length))
     {
+        // ONLY LHS should be non-NULL when expression ends
+        // If not, an operator is missing
+        if(LHS && RHS) {
+            parser->error_indicator=true;
+            printf("Expected operator\n");
+        }
+
         parser->token_ptr++;
         return LHS;
     }
@@ -681,8 +688,10 @@ ExpressionNode *parse_expression(
         node->type = SHIFT_RIGHT;
         break;
     default:
-        printf("ERROR: LINE %d: Expected binary operator but got unknown token '%s'\n",
-               list[parser->token_ptr]->line_num, list[parser->token_ptr]->ident);
+        printf("ERROR: LINE [%d:%d] Expected binary operator but got unknown token '%s'\n",
+               list[parser->token_ptr]->line_num, 
+               list[parser->token_ptr]->line_pos,
+               list[parser->token_ptr]->ident);
         parser->error_indicator = true;
         return LHS;
     }

@@ -22,6 +22,7 @@ int main(int argc, char *argv[])
     print_token_list(tokens);
 
     free(file_contents);
+    free_lexer(lexer);
 
     enum token_type end_of_program[] = {END_OF_FILE};
 
@@ -55,14 +56,12 @@ int main(int argc, char *argv[])
 
         clear_memtracker_pointers(parser->memtracker);
         free_parser(parser);
-
+        
         return 1;
     }
 
     free_ast_list(ast);
     free_parser(parser);
-    // free_line_list(list);
-    free_lexer(lexer);
     free_keyword_table();
     return 0;
 }

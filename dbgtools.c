@@ -18,19 +18,19 @@ static char* access_modifer_to_string(AccessModifier access) {
 }
 
 /* Prints out lexeme array list */
-void print_token_list(TokenList *lexemes)
+void print_token_list(TokenList *token_list)
 {
-  printf("Length: %zu\n", lexemes->len);
+  printf("Length: %zu\n", token_list->len);
 
-  for (int i = 0; i < (int)lexemes->len; i++)
+  for (int i = 0; i < (int)token_list->len; i++)
   {
     char str[2];
-    str[0] = lexemes->list[i]->type;
+    str[0] = token_list->list[i]->type;
     str[1] = '\0';
 
     char *type_in_str;
 
-    switch (lexemes->list[i]->type)
+    switch (token_list->list[i]->type)
     {
     case UNDEFINED:
       type_in_str = "UNDEFINED";
@@ -150,11 +150,12 @@ void print_token_list(TokenList *lexemes)
       type_in_str = "IDENTIFIER";
       break;
     }
-    printf("Index: %d [Line %d] Type: %s     ident:%s\n",
+    printf("Index: %d [Line %d:%d] Type: %s     ident:%s\n",
            i,
-           lexemes->list[i]->line_num,
+           token_list->list[i]->line_num,
+           token_list->list[i]->line_pos,
            type_in_str,
-           lexemes->list[i]->ident);
+           token_list->list[i]->ident);
   }
 }
 

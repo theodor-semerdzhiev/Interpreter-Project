@@ -15,6 +15,7 @@
 //     "->",                                                    // attribute arrow
 //     "-", "=", "*", "/", "+", "%", ">>", "<<", "&", "|", "^", // binary operators
 //     "&&", "||", "!", ">", "<", ">=", "<=", "==",             // logical operators
+//     "#"                                                      // comment
 
 /* Checks if string is a number, string must not have whitespace */
 static bool is_token_numeric(char *token)
@@ -29,6 +30,139 @@ static bool is_token_numeric(char *token)
             return false;
     }
     return true;
+}
+
+/* Mallocs string for token */
+static char* token_to_str(enum token_type type) {
+    char* type_in_str=NULL;;
+
+    switch (type)
+    {
+    case UNDEFINED:
+      type_in_str = "UNDEFINED";
+      break;
+    case WHITESPACE:
+      type_in_str = "WHITESPACE";
+      break;
+    case HASHTAG:
+      type_in_str = "'#'";
+      break;
+    case DOT:
+      type_in_str = "'.'";
+      break;
+    case SEMI_COLON:
+      type_in_str = "';'";
+      break;
+    case QUOTES:
+      type_in_str = "\"";
+      break;
+    case COMMA:
+      type_in_str = "','";
+      break;
+    case OPEN_CURLY_BRACKETS:
+      type_in_str = "'{'";
+      break;
+    case CLOSING_CURLY_BRACKETS:
+      type_in_str = "'}'";
+      break;
+    case OPEN_PARENTHESIS:
+      type_in_str = "'('";
+      break;
+    case CLOSING_PARENTHESIS:
+      type_in_str = "')'";
+      break;
+    case OPEN_SQUARE_BRACKETS:
+      type_in_str = "'['";
+      break;
+    case CLOSING_SQUARE_BRACKETS:
+      type_in_str = "']'";
+      break;
+    case ASSIGNMENT_OP:
+      type_in_str = "'='";
+      break;
+    case MULT_OP:
+      type_in_str = "'*'";
+      break;
+    case DIV_OP:
+      type_in_str = "'/'";
+      break;
+    case PLUS_OP:
+      type_in_str = "'+'";
+      break;
+    case MINUS_OP:
+      type_in_str = "'-'";
+      break;
+    case MOD_OP:
+      type_in_str = "'%'";
+      break;
+    case SHIFT_LEFT_OP:
+      type_in_str = "'<<'";
+      break;
+    case SHIFT_RIGHT_OP:
+      type_in_str = "'>>";
+      break;
+    case BITWISE_AND_OP:
+      type_in_str = "'&";
+      break;
+    case BITWISE_OR_OP:
+      type_in_str = "'|'";
+      break;
+    case BITWISE_XOR_OP:
+      type_in_str = "'^'";
+      break;
+    case COLON:
+      type_in_str = "':'";
+      break;
+    case ATTRIBUTE_ARROW:
+      type_in_str = "'->'";
+      break;
+    case LOGICAL_AND_OP:
+      type_in_str = "'&&'";
+      break;
+    case LOGICAL_OR_OP:
+      type_in_str = "'||'";
+      break;
+    case LOGICAL_NOT_OP:
+      type_in_str = "'!'";
+      break;
+    case GREATER_THAN_OP:
+      type_in_str = "'>'";
+      break;
+    case LESSER_THAN_OP:
+      type_in_str = "'<'";
+      break;
+    case GREATER_EQUAL_OP:
+      type_in_str = "'>='";
+      break;
+    case LESSER_EQUAL_OP:
+      type_in_str = "'<='";
+      break;
+    case EQUAL_TO_OP:
+      type_in_str = "'=='";
+      break;
+    case END_OF_FILE:
+      type_in_str = "END_OF_FILE";
+      break;
+    case KEYWORD:
+      type_in_str = "KEYWORD";
+      break;
+    case STRING_LITERALS:
+      type_in_str = "STRING LITERALS";
+      break;
+    case NUMERIC_LITERAL:
+      type_in_str = "NUMERIC_LITERAL";
+      break;
+    case IDENTIFIER:
+      type_in_str = "IDENTIFIER";
+      break;
+    }
+
+    assert(type_in_str);
+
+    char* malloced_str = malloc(sizeof(char)*4);
+    strcpy(malloced_str,type_in_str);
+
+    return malloced_str;
 }
 
 /* Returns the special token pointed to the lexer,
@@ -276,9 +410,13 @@ TokenList *cpy_token_list(TokenList *list)
 
     for (int i = 0; i < (int)new_list->len; i++)
     {
+        // copies string
+        char* str_cpy = malloc(sizeof(char) * strlen(list->list[i]->ident) + 1);
+        strcpy(str_cpy, list->list[i]->ident);
+
         new_list->list[i] = malloc_token_struct(
             list->list[i]->type,
-            list->list[i]->ident,
+            str_cpy,
             list->list[i]->line_num,
             list->list[i]->line_pos);
     }
@@ -303,7 +441,7 @@ TokenList *tokenize_str(Lexer *lexer, char *file_contents)
         {
             clear_buffer(lexer, list);
             lexer->prev_pos=lexer->cur_pos;
-            push_token(list, type, NULL, lexer->cur_line, lexer->prev_pos);
+            push_token(list, type, token_to_str(type), lexer->cur_line, lexer->prev_pos);
             
             continue;
         }
@@ -318,8 +456,13 @@ TokenList *tokenize_str(Lexer *lexer, char *file_contents)
                 file_contents[lexer->text_ptr] != '"' &&
                 file_contents[lexer->text_ptr] != '\0')
             {
-                push_char_to_buffer(lexer, file_contents[lexer->text_ptr]);
-                lexer->text_ptr++;
+                // handles character negation 
+                if(file_contents[lexer->text_ptr] == '\\') {
+                    push_char_to_buffer(lexer, file_contents[++lexer->text_ptr]);
+                    lexer->text_ptr++;
+                } else {
+                    push_char_to_buffer(lexer, file_contents[lexer->text_ptr++]);
+                }
             }
 
             char *literal = malloc(sizeof(char) * lexer->buffer_ptr + 1);
@@ -359,13 +502,11 @@ TokenList *tokenize_str(Lexer *lexer, char *file_contents)
                 lexer->text_ptr++;
             }
 
+            // pushes '/n' (to update fields within the lexer struct)
             push_char_to_buffer(lexer,file_contents[lexer->text_ptr]);
-
 
             lexer->prev_pos=lexer->cur_pos;
             reset_buffer(lexer);
-            lexer->text_ptr++;
-            continue;
         }
         else
         {

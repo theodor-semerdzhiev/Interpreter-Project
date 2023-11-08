@@ -2,6 +2,7 @@
 #define PARSER
 
 #include <stdbool.h>
+#include <setjmp.h>
 #include "lexer.h"
 #include "memtracker.h"
 
@@ -9,10 +10,13 @@ typedef struct Parser
 {
     int token_ptr;
     TokenList *lexeme_list;
-    MemoryTracker *memtracker;
+
+    MemoryTracker *memtracker; // keeps track of mallocs
+
     bool error_indicator;
     char* file_name;
 
+    jmp_buf *error_handler; // 
 } Parser;
 
 enum expression_token_type

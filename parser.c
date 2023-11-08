@@ -2,9 +2,16 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <stdio.h>
+#include <setjmp.h>
 #include <math.h>
 #include "keywords.h"
 #include "parser.h"
+
+/* Makes a long jump and returns to before to when the parsing function was called */
+static void stop_parsing(Parser *parser) {
+    parser->error_indicator=true;
+    longjmp(*parser->error_handler, 1);
+}
 
 /* Parses access modifer, ["private" | "global"] [KEYWORD] */
 static AccessModifier parse_access_modifer(Parser *parser, enum keyword_type next_keyword)
@@ -684,7 +691,7 @@ ExpressionNode *parse_expression(
     case SHIFT_RIGHT_OP:
         node->type = SHIFT_RIGHT;
         break;
-        
+
     case LOGICAL_NOT_OP:
     default:
         printf("ERROR: LINE [%d:%d] Expected binary operator but got unknown token '%s'\n",
@@ -854,6 +861,7 @@ void free_ast_list(AST_List *list)
 {
     if (!list)
         return;
+
     AST_node *ptr = list->head;
 
     // frees all ast_nodes in list
@@ -1258,6 +1266,7 @@ AST_List *parse_code_block(
     enum token_type ends_of_block[],
     const int ends_of_block_length)
 {
+   
     assert(parser);
     Token **list = parser->lexeme_list->list;
 

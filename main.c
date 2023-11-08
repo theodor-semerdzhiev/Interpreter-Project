@@ -1,67 +1,106 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <setjmp.h>
+#include <assert.h>
+
 // #include "./parser.h"
 #include "./keywords.h"
 #include "./dbgtools.h"
 #include "./semanalysis.h"
 
-int main(int argc, char *argv[])
-{
-    init_keyword_table();
 
-    char *file_contents = get_file_contents("test.txt");
-
-    if (file_contents == NULL)
-    {
-        printf("Could not open %s\n", argv[1]);
-        return 1;
-    }
+/* Abstracts lexing for a given file */
+TokenList* tokenize_file(char* file_contents) {
 
     Lexer *lexer = malloc_lexer();
     TokenList *tokens = tokenize_str(lexer, file_contents);
-    print_token_list(tokens);
-
-    free(file_contents);
     free_lexer(lexer);
 
-    enum token_type end_of_program[] = {END_OF_FILE};
+    return tokens;
+}
+
+/* performs cleanup operations in case of parsing error */
+static void parser_error_cleanup(Parser *parser) {
+    // frees all memory malloced during parsing
+    clear_memtracker_pointers(parser->memtracker);
+    free_parser(parser);
+}
+
+/* Abstracts file parsing, if an error occurs function returns NULL */
+AST_List *parse_file(char* filename) {
+
+    char *file_contents = get_file_contents(filename);
+    if (!file_contents)
+    {
+        printf("Could not open %s\n", filename);
+        return NULL;
+    }
+
+    TokenList* tokens = tokenize_file(file_contents);
+    free(file_contents);
+
+    print_token_list(tokens);
+    
+    jmp_buf before_parsing;
 
     Parser *parser = malloc_parser();
     parser->lexeme_list = tokens;
     // parser->lines = list;
-    parser->file_name = malloc_string_cpy(NULL, "test.txt");
+    parser->file_name = malloc_string_cpy(NULL, filename);
 
+    int error_return = setjmp(before_parsing);
+    parser->error_handler=&before_parsing; 
+
+    // if an error is detected, long jump is performed and if statement is called 
+    if(error_return != 0) {
+        assert(parser->error_indicator);
+        parser_error_cleanup(parser);
+        return NULL;
+    }
+
+    enum token_type end_of_program[] = {END_OF_FILE};
     AST_List *ast = parse_code_block(parser, NULL, 0, end_of_program, 1);
 
-    if (!parser->error_indicator)
+    if(parser->error_indicator) 
     {
-        print_ast_list(ast, "  ", 0);
+        parser_error_cleanup(parser);
+        return NULL;
+    }
+    
+    print_ast_list(ast, "  ", 0);
 
-        SemanticAnalyser *sem_analyser = malloc_semantic_analyser();
-        bool is_sem_valid = AST_list_has_consistent_semantics(sem_analyser, ast);
+    SemanticAnalyser *sem_analyser = malloc_semantic_analyser();
+    bool is_sem_valid = AST_list_has_consistent_semantics(sem_analyser, ast);
 
-        if (is_sem_valid)
-        {
-            printf("Valid semantics\n");
-        }
-        else
-        {
-            printf("Invalid semantics\n");
-        }
-
-        free_semantic_analyser(sem_analyser);
+    if (is_sem_valid)
+    {
+        printf("Valid semantics\n");
     }
     else
     {
-
-        clear_memtracker_pointers(parser->memtracker);
-        free_parser(parser);
-        
-        return 1;
+        printf("Invalid semantics\n");
     }
 
-    free_ast_list(ast);
+    free_semantic_analyser(sem_analyser);
+
     free_parser(parser);
+    return ast;
+}
+
+
+/* MAIN PROGRAM LOGIC */
+
+int return_code=0;
+
+int main(int argc, char *argv[])
+{
+    init_keyword_table();
+
+    AST_List *ast = parse_file("test.txt");
+    if(!ast) return_code=1;
+
+    free_ast_list(ast);
     free_keyword_table();
-    return 0;
+    
+    return return_code;
 }

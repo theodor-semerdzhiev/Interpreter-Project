@@ -596,8 +596,8 @@ ExpressionNode *parse_expression(
     bool is_exp_negated = false;
 
     // handles negation operator (i.e '!')
-    if(list[parser->token_ptr]->type == LOGICAL_NOT_OP) {
-        is_exp_negated=true;
+    while(list[parser->token_ptr]->type == LOGICAL_NOT_OP) {
+        is_exp_negated=!is_exp_negated;
         parser->token_ptr++;
     }
 
@@ -669,9 +669,6 @@ ExpressionNode *parse_expression(
     case LOGICAL_OR_OP:
         node->type = LOGICAL_OR;
         break;
-    case LOGICAL_NOT_OP:
-        node->type = LOGICAL_NOT;
-        break;
     case BITWISE_AND_OP:
         node->type = BITWISE_AND;
         break;
@@ -687,6 +684,8 @@ ExpressionNode *parse_expression(
     case SHIFT_RIGHT_OP:
         node->type = SHIFT_RIGHT;
         break;
+        
+    case LOGICAL_NOT_OP:
     default:
         printf("ERROR: LINE [%d:%d] Expected binary operator but got unknown token '%s'\n",
                list[parser->token_ptr]->line_num, 

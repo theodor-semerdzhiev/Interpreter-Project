@@ -524,9 +524,6 @@ bool AST_list_has_consistent_semantics(SemanticAnalyser *sem_analyzer, AST_List 
                 return false;
 
             break;
-            
-
-            break;
         }
 
         case INLINE_FUNCTION_DECLARATION:

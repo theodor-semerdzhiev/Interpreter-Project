@@ -469,7 +469,7 @@ void print_ast_node(AST_node *node, char *buffer, int rec_lvl)
     }
 
     case OBJECT_DECLARATION: {
-        printf("@ OBJECT DECLARATION: func %s\n", node->identifier.obj_name);
+        printf("@ OBJECT DECLARATION: object %s\n", node->identifier.obj_name);
         print_repeated_string(buffer, rec_lvl+1);
         printf("ACCESS MODIFIER: %s \n", access_modifer_to_string(node->access));
         print_repeated_string(buffer, rec_lvl+1);

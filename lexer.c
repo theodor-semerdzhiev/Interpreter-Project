@@ -352,6 +352,21 @@ TokenList *tokenize_str(Lexer *lexer, char *file_contents)
 
             continue;
         }
+        // handles comments
+        else if(file_contents[lexer->text_ptr] == '#') {
+            while(file_contents[lexer->text_ptr] != '\n') {
+                push_char_to_buffer(lexer,file_contents[lexer->text_ptr]);
+                lexer->text_ptr++;
+            }
+
+            push_char_to_buffer(lexer,file_contents[lexer->text_ptr]);
+
+
+            lexer->prev_pos=lexer->cur_pos;
+            reset_buffer(lexer);
+            lexer->text_ptr++;
+            continue;
+        }
         else
         {
             push_char_to_buffer(lexer, file_contents[lexer->text_ptr]);

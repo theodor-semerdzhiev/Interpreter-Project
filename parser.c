@@ -6,10 +6,12 @@
 #include <math.h>
 #include "keywords.h"
 #include "parser.h"
+#include "errors.h"
 
-/* Makes a long jump and returns to before to when the parsing function was called */
-static void stop_parsing(Parser *parser) {
-    parser->error_indicator=true;
+/* Makes a long jump and returns to when the parsing function was called */
+static void stop_parsing(Parser *parser)
+{
+    parser->error_indicator = true;
     longjmp(*parser->error_handler, 1);
 }
 
@@ -85,6 +87,12 @@ void free_parser(Parser *parser)
     free_token_list(parser->lexeme_list);
     free_memtracker_without_pointers(parser->memtracker);
     free(parser->file_name);
+
+    for(int i=0; i < parser->lines.line_count; i++) 
+        free(parser->lines.lines[i]);
+    
+    free(parser->lines.lines);
+
     free(parser);
 }
 
@@ -143,10 +151,12 @@ char *malloc_string_cpy(Parser *parser, const char *str)
 }
 
 /* Computes fractional number (whole: integer part, frac: fractional part)*/
+/* TODO: Fix issue where identifer is too long */
 double compute_fractional_double(Token *whole, Token *frac)
 {
     assert(whole->type == NUMERIC_LITERAL && frac->type == NUMERIC_LITERAL);
     double lhs = (double)atoi(whole->ident);
+
     double fraction = (double)atoi(frac->ident) / (pow(10, strlen(frac->ident)));
     return lhs + fraction;
 }
@@ -172,7 +182,7 @@ ExpressionNode *malloc_expression_node(Parser *parser)
     node->LHS = NULL;
     node->RHS = NULL;
     node->component = NULL;
-    node->negation=false;
+    node->negation = false;
     node->type = -1;
 
     if (parser)
@@ -184,7 +194,7 @@ ExpressionNode *malloc_expression_node(Parser *parser)
 /* Checks wether lexeme_type is a valid beginning of expression component,
 Is also valid for func keyword (inline functions syntax)
 */
-bool is_lexeme_preliminary_expression_token(Token *lexeme)
+bool is_preliminary_expression_token(Token *lexeme)
 {
     return lexeme->type == IDENTIFIER ||
            lexeme->type == OPEN_SQUARE_BRACKETS ||
@@ -196,7 +206,6 @@ bool is_lexeme_preliminary_expression_token(Token *lexeme)
 
 double compute_exp(ExpressionNode *root)
 {
-
     /* Base cases (except for LIST_INDEX) */
     if (root->component)
     {
@@ -556,8 +565,9 @@ ExpressionComponent *parse_expression_component(
     }
     else
     {
-        // TODO -> Invalid token error, handle this
         parser->error_indicator = true;
+        print_invalid_token_err(parser);
+        stop_parsing(parser);
         return NULL;
     }
 
@@ -591,9 +601,11 @@ ExpressionNode *parse_expression(
     {
         // ONLY LHS should be non-NULL when expression ends
         // If not, an operator is missing
-        if(LHS && RHS) {
-            parser->error_indicator=true;
-            printf("Expected operator\n");
+        if (LHS && RHS)
+        {
+            parser->error_indicator = true;
+            print_missing_operator_err(parser);
+            stop_parsing(parser);
         }
 
         parser->token_ptr++;
@@ -603,8 +615,9 @@ ExpressionNode *parse_expression(
     bool is_exp_negated = false;
 
     // handles negation operator (i.e '!')
-    while(list[parser->token_ptr]->type == LOGICAL_NOT_OP) {
-        is_exp_negated=!is_exp_negated;
+    while (list[parser->token_ptr]->type == LOGICAL_NOT_OP)
+    {
+        is_exp_negated = !is_exp_negated;
         parser->token_ptr++;
     }
 
@@ -614,7 +627,7 @@ ExpressionNode *parse_expression(
         parser->token_ptr++;
         enum token_type end_of_exp[] = {CLOSING_PARENTHESIS};
         ExpressionNode *sub_exp = parse_expression(parser, NULL, NULL, end_of_exp, 1);
-        sub_exp->negation=is_exp_negated ^ sub_exp->negation;
+        sub_exp->negation = is_exp_negated ^ sub_exp->negation;
 
         if (!LHS)
             return parse_expression(parser, sub_exp, RHS, ends_of_exp, ends_of_exp_length);
@@ -623,9 +636,9 @@ ExpressionNode *parse_expression(
     }
 
     ExpressionNode *node = malloc_expression_node(parser);
-    node->negation=is_exp_negated;
-    //checks if we encountered a expression component
-    if (is_lexeme_preliminary_expression_token(list[parser->token_ptr]))
+    node->negation = is_exp_negated;
+    // checks if we encountered a expression component
+    if (is_preliminary_expression_token(list[parser->token_ptr]))
     {
 
         node->component = parse_expression_component(parser, NULL, 0);
@@ -635,6 +648,13 @@ ExpressionNode *parse_expression(
             return parse_expression(parser, node, RHS, ends_of_exp, ends_of_exp_length);
         else
             return parse_expression(parser, LHS, node, ends_of_exp, ends_of_exp_length);
+    }
+
+    // operator must have two sub trees 
+    if(!LHS || !RHS) {
+        parser->error_indicator = true;
+        print_missing_exp_component_err(parser);
+        stop_parsing(parser);
     }
 
     // Handles ALL math/bitwise/logical operators
@@ -693,13 +713,11 @@ ExpressionNode *parse_expression(
         break;
 
     case LOGICAL_NOT_OP:
-    default:
-        printf("ERROR: LINE [%d:%d] Expected binary operator but got unknown token '%s'\n",
-               list[parser->token_ptr]->line_num, 
-               list[parser->token_ptr]->line_pos,
-               list[parser->token_ptr]->ident);
+    default: {
+        print_missing_operator_err(parser);
         parser->error_indicator = true;
         return LHS;
+        }
     }
 
     node->LHS = LHS;
@@ -1099,7 +1117,8 @@ AST_node *parse_else_conditional(Parser *parser, int rec_lvl)
     else
     {
         // bad syntax should not happen
-        printf("Wrong syntax for else conditional at line: %d\n", list[parser->token_ptr]->line_num);
+        printf("Wrong syntax for else conditional at line: %d\n",
+               list[parser->token_ptr]->line_num);
         return NULL;
     }
 
@@ -1203,12 +1222,12 @@ AST_node *parse_object_declaration(Parser *parser, int rec_lvl)
 
     parser->token_ptr += 3;
 
-    // parses function args
+    // parses object args
     ExpressionNode **args = parse_expressions_by_seperator(parser, COMMA, CLOSING_PARENTHESIS);
     node->ast_data.obj_args.object_prototype_args = args;
     node->ast_data.obj_args.args_num = get_expression_list_length(args);
 
-    // parses function inner code block
+    // parses object inner code block
     assert(list[parser->token_ptr]->type == OPEN_CURLY_BRACKETS);
     enum token_type end_of_block[] = {CLOSING_CURLY_BRACKETS};
     parser->token_ptr++;
@@ -1223,7 +1242,7 @@ AST_node *parse_variable_assignment_or_exp_component(Parser *parser, int rec_lvl
     assert(parser);
     Token **list = parser->lexeme_list->list;
 
-    assert(is_lexeme_preliminary_expression_token(list[parser->token_ptr]));
+    assert(is_preliminary_expression_token(list[parser->token_ptr]));
 
     ExpressionComponent *component = parse_expression_component(parser, NULL, 0);
 
@@ -1266,7 +1285,7 @@ AST_List *parse_code_block(
     enum token_type ends_of_block[],
     const int ends_of_block_length)
 {
-   
+
     assert(parser);
     Token **list = parser->lexeme_list->list;
 
@@ -1407,7 +1426,7 @@ AST_List *parse_code_block(
             // Grammar: [EXPRESSION COMPONENT] [ASSIGNMENT OP] [EXPRESSION][END OF EXPRESSION]
             // OR parses function calls
             // Grammar [EXPRESSION COMPONENT] -> [IDENTIFER][ARGUMENTS ...][END OF EXPRESSION]
-            if (is_lexeme_preliminary_expression_token(list[parser->token_ptr]))
+            if (is_preliminary_expression_token(list[parser->token_ptr]))
             {
                 AST_node *node = parse_variable_assignment_or_exp_component(parser, rec_lvl);
                 push_to_ast_list(ast_list, node);

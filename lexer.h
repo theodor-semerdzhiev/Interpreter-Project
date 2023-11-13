@@ -123,5 +123,6 @@ Token *malloc_token_struct(
 
 /* Miscellaneous */
 char *get_file_contents(const char *f_name);
+char** tokenize_str_by_seperators(const char* input, const char sep, int *line_count);
 char *malloc_substring(char *g, int start, int end);
 /****************************************/

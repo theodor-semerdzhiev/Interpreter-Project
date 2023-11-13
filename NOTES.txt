@@ -1,0 +1,5 @@
+
+IDEAS for implementing file linking (i.e imports)
+
+1- Compile each file individually into a intermediate representation
+2- For each unknown 

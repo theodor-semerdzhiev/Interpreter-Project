@@ -11,10 +11,11 @@ typedef struct SymbolChain SymbolChain;
 static unsigned int hash(const char *ident);
 
 /* Mallocs symbol struct */
-static Symbol *malloc_symbol(const char *ident)
+static Symbol *malloc_symbol(const char *ident, const char *filename)
 {
     Symbol *sym = malloc(sizeof(Symbol));
     sym->ident = malloc_string_cpy(NULL, ident);
+    sym->filename = malloc_string_cpy(NULL, filename);
     sym->next = NULL;
     sym->nesting_lvl=0;
     return sym;
@@ -61,6 +62,7 @@ SymbolTable *malloc_symbol_table()
 void free_symbol_struct(Symbol *sym)
 {
     free(sym->ident);
+    free(sym->filename);
     free(sym);
 }
 
@@ -90,13 +92,18 @@ void free_sym_table(SymbolTable *symtable)
 bool add_sym_to_symtable(
     SymbolTable *symtable, 
     const char *ident, 
+    const char *filename,
     int nesting_lvl,
     SymbolType symtype)
 {
-    if(symtable_has_sym(symtable, ident)) return false;
+    // if symbol already exists
+    // it gets replaced
+    if(symtable_has_sym(symtable, ident)) {
+        remove_sym_from_symtable(symtable, ident);
+    }
 
     unsigned int index = hash(ident);
-    Symbol *sym = malloc_symbol(ident);
+    Symbol *sym = malloc_symbol(ident, filename);
     sym->nesting_lvl=nesting_lvl;
     sym->type = symtype;
 

@@ -6,6 +6,7 @@
 #include "lexer.h"
 #include "memtracker.h"
 
+/* Top Level Object for Parser State */
 typedef struct Parser
 {
     int token_ptr;
@@ -14,9 +15,14 @@ typedef struct Parser
     MemoryTracker *memtracker; // keeps track of mallocs
 
     bool error_indicator;
-    char* file_name;
+    char *file_name;
 
-    jmp_buf *error_handler; // 
+    struct Lines {
+        char** lines;
+        int line_count;
+    } lines;
+
+    jmp_buf *error_handler; //
 } Parser;
 
 enum expression_token_type
@@ -46,7 +52,7 @@ enum expression_component_type
 {
     NUMERIC_CONSTANT,
     STRING_CONSTANT,
-    LIST_CONSTANT, 
+    LIST_CONSTANT,
     NULL_CONSTANT,
     //////////////
     VARIABLE,
@@ -141,10 +147,11 @@ enum ast_node_type
     OBJECT_DECLARATION
 };
 
-typedef enum access_modifer {
-    GLOBAL_ACCESS, // global keyword -- visible between files (can only be used in a global scope )
+typedef enum access_modifer
+{
+    GLOBAL_ACCESS,  // global keyword -- visible between files (can only be used in a global scope )
     PRIVATE_ACCESS, // private keyword -- visible only within its object (field cannot be accessed via its object reference)
-    PUBLIC_ACCESS, // (no keyword) -- visible within its current scope, and via its object reference
+    PUBLIC_ACCESS,  // (no keyword) -- visible within its current scope, and via its object reference
 
     DOES_NOT_APPLY // for ast nodes that do not have access modifiers
 } AccessModifier;
@@ -161,7 +168,7 @@ typedef struct AST_node
         - FUNCTION_DECLARATION
         - OBJECT_DECLARATION
     */
-    AccessModifier access; 
+    AccessModifier access;
 
     int line_num;
 
@@ -169,9 +176,9 @@ typedef struct AST_node
     // union is NULL if type is a INLINE_FUNCTION_DECLARATION
     union identifier
     {
-        char *declared_var;                // used for variable declaration (let keyword)
-        char *func_name;                   // use for function declaration
-        char *obj_name;                    // use for object declaration
+        char *declared_var;                        // used for variable declaration (let keyword)
+        char *func_name;                           // use for function declaration
+        char *obj_name;                            // use for object declaration
         ExpressionComponent *expression_component; // used for variable assignment, function calls or just standalone expression components
     } identifier;
 
@@ -224,14 +231,14 @@ bool is_lexeme_in_list(enum token_type type, enum token_type list[], const int l
 bool lexeme_lists_intersect(
     enum token_type list1[], const int list1_length, enum token_type list2[], const int list2_length);
 double compute_fractional_double(Token *whole, Token *frac);
-char *malloc_string_cpy(Parser *parser,const char *str);
+char *malloc_string_cpy(Parser *parser, const char *str);
 
 ExpressionComponent *malloc_expression_component(Parser *parser);
 ExpressionNode *malloc_expression_node(Parser *parser);
 void free_expression_tree(ExpressionNode *root);
 void free_expression_component(ExpressionComponent *component);
 
-bool is_lexeme_preliminary_expression_token(Token *lexeme);
+bool is_preliminary_expression_token(Token *lexeme);
 
 double compute_exp(ExpressionNode *root);
 

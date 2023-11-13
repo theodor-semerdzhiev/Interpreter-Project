@@ -74,18 +74,20 @@ static void add_argument_declarations_to_symtable(SemanticAnalyser *sem_analyzer
         add_sym_to_symtable(
             sem_analyzer->symtable,
             args[i]->component->meta_data.variable_reference,
+            sem_analyzer->filename,
             sem_analyzer->nesting_lvl,
             SYMBOL_TYPE_VARIABLE);
     }
 }
 
 /* Mallocs semantic analyser struct */
-SemanticAnalyser *malloc_semantic_analyser()
+SemanticAnalyser *malloc_semantic_analyser(const char *filename)
 {
     SemanticAnalyser *sem_analyser = malloc(sizeof(SemanticAnalyser));
     sem_analyser->is_in_loop = false;
     sem_analyser->nesting_lvl = 0;
     sem_analyser->scope_type = GLOBAL_SCOPE;
+    sem_analyser->filename=malloc_string_cpy(NULL, filename);
     sem_analyser->symtable = malloc_symbol_table();
     return sem_analyser;
 }
@@ -94,6 +96,7 @@ SemanticAnalyser *malloc_semantic_analyser()
 void free_semantic_analyser(SemanticAnalyser *sem_analyser)
 {
     free_sym_table(sem_analyser->symtable);
+    free(sem_analyser->filename);
     free(sem_analyser);
 }
 
@@ -312,6 +315,40 @@ bool check_argument_semantics(SemanticAnalyser *sem_analyser, AST_node *node)
     return true;
 }
 
+/* Iterates through AST and adds object and function declarations to symtable */
+static void forward_declare_obj_func(SemanticAnalyser *sem_analyzer, AST_List *ast_list) {
+    if(!ast_list) return;
+    
+    AST_node *node = ast_list->head;
+    while(node) {
+        switch(node->type) {
+            case OBJECT_DECLARATION:
+                add_sym_to_symtable(
+                    sem_analyzer->symtable,
+                    node->identifier.func_name,
+                    sem_analyzer->filename,
+                    sem_analyzer->nesting_lvl,
+                    SYMBOL_TYPE_OBJECT
+                );
+                break;
+            case FUNCTION_DECLARATION:
+                add_sym_to_symtable(
+                    sem_analyzer->symtable,
+                    node->identifier.obj_name,
+                    sem_analyzer->filename,
+                    sem_analyzer->nesting_lvl,
+                    SYMBOL_TYPE_FUNCTION
+                );
+                break;
+
+            default: 
+                break;
+        }
+        
+        node=node->next;
+    }
+}
+
 /* Checks that AST list has consistent semantics
 - All variable references are valid
 - Function declarations are valid
@@ -323,6 +360,8 @@ bool AST_list_has_consistent_semantics(SemanticAnalyser *sem_analyzer, AST_List 
         return true;
 
     AST_node *node = ast_list->head;
+
+    forward_declare_obj_func(sem_analyzer, ast_list);
 
     while (node)
     {
@@ -348,6 +387,7 @@ bool AST_list_has_consistent_semantics(SemanticAnalyser *sem_analyzer, AST_List 
             add_sym_to_symtable(
                 sem_analyzer->symtable,
                 node->identifier.declared_var,
+                sem_analyzer->filename,
                 sem_analyzer->nesting_lvl,
                 SYMBOL_TYPE_VARIABLE);
 
@@ -462,6 +502,7 @@ bool AST_list_has_consistent_semantics(SemanticAnalyser *sem_analyzer, AST_List 
             add_sym_to_symtable(
                 sem_analyzer->symtable,
                 node->identifier.func_name,
+                sem_analyzer->filename,
                 sem_analyzer->nesting_lvl,
                 SYMBOL_TYPE_FUNCTION);
 
@@ -498,6 +539,7 @@ bool AST_list_has_consistent_semantics(SemanticAnalyser *sem_analyzer, AST_List 
             add_sym_to_symtable(
                 sem_analyzer->symtable,
                 node->identifier.obj_name,
+                sem_analyzer->filename,
                 sem_analyzer->nesting_lvl,
                 SYMBOL_TYPE_OBJECT);
             
@@ -600,7 +642,9 @@ bool AST_list_has_consistent_semantics(SemanticAnalyser *sem_analyzer, AST_List 
         node = node->next;
     }
 
-    remove_all_syms_above_nesting_lvl(sem_analyzer->symtable, sem_analyzer->nesting_lvl);
+    // we only clear symtable if its nested, top level declarations are kept 
+    if(sem_analyzer->nesting_lvl > 0)
+        remove_all_syms_above_nesting_lvl(sem_analyzer->symtable, sem_analyzer->nesting_lvl);
 
     return true;
 }

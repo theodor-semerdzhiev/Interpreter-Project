@@ -37,7 +37,6 @@ AST_List *parse_file(char* filename) {
     }
 
     TokenList* tokens = tokenize_file(file_contents);
-    free(file_contents);
 
     print_token_list(tokens);
     
@@ -45,8 +44,11 @@ AST_List *parse_file(char* filename) {
 
     Parser *parser = malloc_parser();
     parser->lexeme_list = tokens;
-    // parser->lines = list;
+    parser->lines.lines = 
+    tokenize_str_by_seperators(file_contents, '\n', &parser->lines.line_count);
     parser->file_name = malloc_string_cpy(NULL, filename);
+
+    free(file_contents);
 
     int error_return = setjmp(before_parsing);
     parser->error_handler=&before_parsing; 
@@ -69,7 +71,7 @@ AST_List *parse_file(char* filename) {
     
     print_ast_list(ast, "  ", 0);
 
-    SemanticAnalyser *sem_analyser = malloc_semantic_analyser();
+    SemanticAnalyser *sem_analyser = malloc_semantic_analyser(filename);
     bool is_sem_valid = AST_list_has_consistent_semantics(sem_analyser, ast);
 
     if (is_sem_valid)

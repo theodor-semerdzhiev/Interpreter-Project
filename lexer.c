@@ -45,100 +45,100 @@ static char* token_to_str(enum token_type type) {
       type_in_str = "WHITESPACE";
       break;
     case HASHTAG:
-      type_in_str = "'#'";
+      type_in_str = "#";
       break;
     case DOT:
-      type_in_str = "'.'";
+      type_in_str = ".";
       break;
     case SEMI_COLON:
-      type_in_str = "';'";
+      type_in_str = ";";
       break;
     case QUOTES:
       type_in_str = "\"";
       break;
     case COMMA:
-      type_in_str = "','";
+      type_in_str = ",";
       break;
     case OPEN_CURLY_BRACKETS:
-      type_in_str = "'{'";
+      type_in_str = "{";
       break;
     case CLOSING_CURLY_BRACKETS:
-      type_in_str = "'}'";
+      type_in_str = "}";
       break;
     case OPEN_PARENTHESIS:
-      type_in_str = "'('";
+      type_in_str = "(";
       break;
     case CLOSING_PARENTHESIS:
-      type_in_str = "')'";
+      type_in_str = ")";
       break;
     case OPEN_SQUARE_BRACKETS:
-      type_in_str = "'['";
+      type_in_str = "[";
       break;
     case CLOSING_SQUARE_BRACKETS:
-      type_in_str = "']'";
+      type_in_str = "]";
       break;
     case ASSIGNMENT_OP:
-      type_in_str = "'='";
+      type_in_str = "=";
       break;
     case MULT_OP:
-      type_in_str = "'*'";
+      type_in_str = "*";
       break;
     case DIV_OP:
-      type_in_str = "'/'";
+      type_in_str = "/";
       break;
     case PLUS_OP:
-      type_in_str = "'+'";
+      type_in_str = "+";
       break;
     case MINUS_OP:
-      type_in_str = "'-'";
+      type_in_str = "-";
       break;
     case MOD_OP:
-      type_in_str = "'%'";
+      type_in_str = "%";
       break;
     case SHIFT_LEFT_OP:
-      type_in_str = "'<<'";
+      type_in_str = "<<";
       break;
     case SHIFT_RIGHT_OP:
-      type_in_str = "'>>";
+      type_in_str = ">>";
       break;
     case BITWISE_AND_OP:
-      type_in_str = "'&";
+      type_in_str = "&";
       break;
     case BITWISE_OR_OP:
-      type_in_str = "'|'";
+      type_in_str = "|";
       break;
     case BITWISE_XOR_OP:
-      type_in_str = "'^'";
+      type_in_str = "^";
       break;
     case COLON:
-      type_in_str = "':'";
+      type_in_str = ":";
       break;
     case ATTRIBUTE_ARROW:
-      type_in_str = "'->'";
+      type_in_str = "->";
       break;
     case LOGICAL_AND_OP:
-      type_in_str = "'&&'";
+      type_in_str = "&&";
       break;
     case LOGICAL_OR_OP:
-      type_in_str = "'||'";
+      type_in_str = "||";
       break;
     case LOGICAL_NOT_OP:
-      type_in_str = "'!'";
+      type_in_str = "!";
       break;
     case GREATER_THAN_OP:
-      type_in_str = "'>'";
+      type_in_str = ">";
       break;
     case LESSER_THAN_OP:
-      type_in_str = "'<'";
+      type_in_str = "<";
       break;
     case GREATER_EQUAL_OP:
-      type_in_str = "'>='";
+      type_in_str = ">=";
       break;
     case LESSER_EQUAL_OP:
-      type_in_str = "'<='";
+      type_in_str = "<=";
       break;
     case EQUAL_TO_OP:
-      type_in_str = "'=='";
+      type_in_str = "==";
       break;
     case END_OF_FILE:
       type_in_str = "END_OF_FILE";
@@ -633,6 +633,43 @@ void push_token(
         arr->list = new_list;
         arr->max_len *= 2;
     }
+}
+
+/* Tokenize string by a set of seperators */
+char** tokenize_str_by_seperators(const char* input, const char sep, int *count) {
+    int i, j, len = strlen(input);
+    int numSeparators = 0;
+
+    for (i = 0; i < len; i++) {
+        if (input[i] == sep) {
+            numSeparators++;
+        }
+    }
+
+    char **result = (char **)malloc((numSeparators + 2) * sizeof(char *));  // +2 to include the last substring
+    *count = 0;
+
+    int start = 0;
+    int end = 0;
+
+    // Iterate through the string to separate it
+    for (i = 0; i <= len; i++) {
+        if (input[i] == sep || input[i] == '\0') {
+            result[*count] = (char *)malloc((i - start + 1) * sizeof(char));
+
+            // Copy the substring to the result array
+            for (j = start; j < i; j++) {
+                result[*count][j - start] = input[j];
+            }
+
+            result[*count][j - start] = '\0';
+
+            start = i + 1;
+            (*count)++;
+        }
+    }
+
+    return result;
 }
 
 /* Mallocs a substring from a base string */

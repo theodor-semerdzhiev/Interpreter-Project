@@ -1,22 +1,10 @@
-# test object
-object test() {
-    func fizzbuzz(n) { 
-        if(((n 3 %) 0 ==) ((n 5 %) 0 ==) &&) {
-            return "FizzBuzz";
-        } else if((n 3 %) 0 ==) {
-            return "Fizz";
 
-        # test
-        } else if ((!n 5 %) 0 ==) {
-            return "\Buzz\\";
-        } else {
-            return 0;
-        }
-    }
+func A() {
+    return B();
 }
 
+func B() {
+    return A();
+}
 
-
-
-
-
+let B = 10  * ;

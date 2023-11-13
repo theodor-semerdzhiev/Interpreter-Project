@@ -16,9 +16,11 @@ typedef struct SemanticAnalyser
     bool is_in_loop;
     int nesting_lvl;
 
+    char *filename;
+
 } SemanticAnalyser;
 
-SemanticAnalyser *malloc_semantic_analyser();
+SemanticAnalyser *malloc_semantic_analyser(const char *filename);
 void free_semantic_analyser(SemanticAnalyser *sem_analyser);
 bool exp_has_correct_semantics(SemanticAnalyser *sem_analyser, ExpressionNode *root);
 bool expression_component_has_correct_semantics(SemanticAnalyser *sem_analyser, ExpressionComponent *node);

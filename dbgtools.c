@@ -196,9 +196,10 @@ void print_expression_component(ExpressionComponent *component, char *buffer, in
 
     case LIST_CONSTANT:
     {
-        printf(" LIST_CONSTANT -> \n");
+        printf(" LIST_CONSTANT -> %s \n", 
+        !component->meta_data.list_const.list_length? "Empty": "");
         for (int i = 0; i < component->meta_data.list_const.list_length; i++)
-        print_expression_tree(component->meta_data.list_const.list_elements[i], buffer, rec_lvl + 1);
+            print_expression_tree(component->meta_data.list_const.list_elements[i], buffer, rec_lvl + 1);
 
         break;
     }

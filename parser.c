@@ -24,7 +24,8 @@ static AccessModifier parse_access_modifer(Parser *parser, enum keyword_type nex
     if (list[parser->token_ptr]->type != KEYWORD)
     {
         parser->error_indicator = true;
-        printf("ERROR LINE %d: Expected keyword\n", list[parser->token_ptr]->line_num);
+        print_expected_token_err(parser, "Access Modifer", true);
+        stop_parsing(parser);
         return DOES_NOT_APPLY;
     }
 
@@ -44,12 +45,9 @@ static AccessModifier parse_access_modifer(Parser *parser, enum keyword_type nex
 
         default:
         {
-            int line_number = list[parser->token_ptr]->line_num;
-            printf("ERROR LINE %d: Expected access modifier but got '%s'",
-                   line_number,
-                   get_keyword_string(next_keyword));
-            parser->token_ptr++;
             parser->error_indicator = true;
+            print_expected_token_err(parser, "Access Modifer", true);
+            stop_parsing(parser);
             return DOES_NOT_APPLY;
         }
         }
@@ -926,8 +924,21 @@ AST_node *parse_variable_declaration(Parser *parser, int rec_lvl)
 
     AccessModifier access_modifier = parse_access_modifer(parser, LET_KEYWORD);
 
-    assert(get_keyword_type(list[parser->token_ptr]->ident) == LET_KEYWORD);
-    assert(list[parser->token_ptr + 1]->type == IDENTIFIER && list[parser->token_ptr + 2]->type == ASSIGNMENT_OP);
+    //checks for identifier
+    if(list[parser->token_ptr + 1]->type != IDENTIFIER) {
+        parser->token_ptr++;
+        print_expected_token_err(parser,"Identifier",false);
+        stop_parsing(parser);
+        return NULL;
+    } 
+    
+    //checks for assignment operator
+    if(list[parser->token_ptr + 2]->type != ASSIGNMENT_OP) {
+        parser->token_ptr+=2;
+        print_expected_token_err(parser, "Assignment Operator ('=')", false);
+        stop_parsing(parser);
+        return NULL;
+    }
 
     AST_node *node = malloc_ast_node(parser);
     node->access = access_modifier;
@@ -954,7 +965,14 @@ AST_node *parse_while_loop(Parser *parser, int rec_lvl)
 
     // sanity checks
     assert(get_keyword_type(list[parser->token_ptr]->ident) == WHILE_KEYWORD);
-    assert(list[parser->token_ptr + 1]->type == OPEN_PARENTHESIS);
+    
+    // checks for parenthesis 
+    if(list[parser->token_ptr + 1]->type != OPEN_PARENTHESIS) {
+        parser->token_ptr+=1;
+        print_expected_token_err(parser, "Open Parenthesis ('(')", false);
+        stop_parsing(parser);
+        return NULL;
+    }
 
     AST_node *node = malloc_ast_node(parser);
 
@@ -984,7 +1002,14 @@ AST_node *parse_if_conditional(Parser *parser, int rec_lvl)
 
     // sanity checks
     assert(get_keyword_type(list[parser->token_ptr]->ident) == IF_KEYWORD);
-    assert(list[parser->token_ptr + 1]->type == OPEN_PARENTHESIS);
+
+    // checks for parenthesis
+    if(list[parser->token_ptr + 1]->type != OPEN_PARENTHESIS) {
+        parser->token_ptr+=1;
+        print_expected_token_err(parser, "Open Parenthesis ('(')", false);
+        stop_parsing(parser);
+        return NULL;
+    }
 
     AST_node *node = malloc_ast_node(parser);
 
@@ -1015,8 +1040,7 @@ AST_node *parse_loop_termination(Parser *parser, int rec_lvl)
     Token **list = parser->lexeme_list->list;
 
     assert(get_keyword_type(list[parser->token_ptr]->ident) == BREAK_KEYWORD);
-    assert(list[parser->token_ptr + 1]->type == SEMI_COLON);
-
+    
     AST_node *node = malloc_ast_node(parser);
 
     node->type = LOOP_TERMINATOR;
@@ -1036,7 +1060,14 @@ AST_node *parse_loop_continuation(Parser *parser, int rec_lvl)
     Token **list = parser->lexeme_list->list;
 
     assert(get_keyword_type(list[parser->token_ptr]->ident) == CONTINUE_KEYWORD);
-    assert(list[parser->token_ptr + 1]->type == SEMI_COLON);
+
+    // checks for parenthesis 
+    if(list[parser->token_ptr + 1]->type != OPEN_PARENTHESIS) {
+        parser->token_ptr+=1;
+        print_expected_token_err(parser, "Semicolon (';')", false);
+        stop_parsing(parser);
+        return NULL;
+    }
 
     AST_node *node = malloc_ast_node(parser);
     node->type = LOOP_CONTINUATION;
@@ -1076,7 +1107,15 @@ AST_node *parse_else_conditional(Parser *parser, int rec_lvl)
 
     // sanity checks
     assert(get_keyword_type(list[parser->token_ptr]->ident) == ELSE_KEYWORD);
-    assert(get_keyword_type(list[parser->token_ptr + 1]->ident) == IF_KEYWORD || list[parser->token_ptr + 1]->type == OPEN_CURLY_BRACKETS);
+
+    if(get_keyword_type(list[parser->token_ptr + 1]->ident) != IF_KEYWORD &&
+        list[parser->token_ptr + 1]->type != OPEN_CURLY_BRACKETS) {
+
+        parser->token_ptr+=1;
+        print_expected_token_err(parser, "Open Parenthesis ('(')", false);
+        stop_parsing(parser);
+        return NULL;
+    }
 
     // else if block
     if (get_keyword_type(list[parser->token_ptr + 1]->ident) == IF_KEYWORD)
@@ -1086,8 +1125,15 @@ AST_node *parse_else_conditional(Parser *parser, int rec_lvl)
         node->type = ELSE_IF_CONDITIONAL;
         node->line_num = list[parser->token_ptr]->line_num;
 
+        // Makes sure opening parenthesis
+        if(list[parser->token_ptr + 2]->type != OPEN_PARENTHESIS) {
+            parser->token_ptr+=2;
+            print_expected_token_err(parser, "Open Parenthesis ('(')", false);
+            stop_parsing(parser);
+            return NULL;
+        }
+
         // parse conditional expression
-        assert(list[parser->token_ptr + 2]->type == OPEN_PARENTHESIS);
         enum token_type end_of_exp[] = {CLOSING_PARENTHESIS};
         parser->token_ptr += 3;
         node->ast_data.exp = parse_expression(parser, NULL, NULL, end_of_exp, 1);
@@ -1113,13 +1159,6 @@ AST_node *parse_else_conditional(Parser *parser, int rec_lvl)
         node->body = parse_code_block(parser, node, rec_lvl + 1, end_of_block, 1);
 
         return node;
-    }
-    else
-    {
-        // bad syntax should not happen
-        printf("Wrong syntax for else conditional at line: %d\n",
-               list[parser->token_ptr]->line_num);
-        return NULL;
     }
 
     return NULL;

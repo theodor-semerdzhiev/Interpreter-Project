@@ -7,4 +7,9 @@ func B() {
     return A();
 }
 
-let B = 10  * ;
+
+if(num) {
+
+} else {
+    num
+}

@@ -927,7 +927,7 @@ AST_node *parse_variable_declaration(Parser *parser, int rec_lvl)
     //checks for identifier
     if(list[parser->token_ptr + 1]->type != IDENTIFIER) {
         parser->token_ptr++;
-        print_expected_token_err(parser,"Identifier",false);
+        print_expected_token_err(parser,"Variable Declaration Identifier",false);
         stop_parsing(parser);
         return NULL;
     } 
@@ -1172,6 +1172,7 @@ AST_node *parse_func_declaration(Parser *parser, int rec_lvl)
     Token **list = parser->lexeme_list->list;
 
     AccessModifier access_modifier = parse_access_modifer(parser, FUNC_KEYWORD);
+
     // sanity checks
     assert(get_keyword_type(list[parser->token_ptr]->ident) == FUNC_KEYWORD);
 
@@ -1182,8 +1183,21 @@ AST_node *parse_func_declaration(Parser *parser, int rec_lvl)
         return parse_variable_assignment_or_exp_component(parser, ++rec_lvl);
     }
 
-    assert(list[parser->token_ptr + 1]->type == IDENTIFIER);
-    assert(list[parser->token_ptr + 2]->type == OPEN_PARENTHESIS);
+    //checks for identifier
+    if(list[parser->token_ptr + 1]->type != IDENTIFIER) {
+        parser->token_ptr++;
+        print_expected_token_err(parser,"Function Declaration Identifier",false);
+        stop_parsing(parser);
+        return NULL;
+    } 
+    
+    //checks for open parenthesis 
+    if(list[parser->token_ptr + 2]->type != OPEN_PARENTHESIS) {
+        parser->token_ptr+=2;
+        print_expected_token_err(parser, "Open Parenthesis ('(')", false);
+        stop_parsing(parser);
+        return NULL;
+    }
 
     AST_node *node = malloc_ast_node(parser);
     node->access = access_modifier;
@@ -1217,7 +1231,14 @@ AST_node *parse_inline_func(Parser *parser, int rec_lvl)
 
     // sanity checks
     assert(get_keyword_type(list[parser->token_ptr]->ident) == FUNC_KEYWORD);
-    assert(list[parser->token_ptr + 1]->type == OPEN_PARENTHESIS);
+    
+    //checks for open parenthesis 
+    if(list[parser->token_ptr + 1]->type != OPEN_PARENTHESIS) {
+        parser->token_ptr++;
+        print_expected_token_err(parser, "Open Parenthesis ('(')", false);
+        stop_parsing(parser);
+        return NULL;
+    }
 
     AST_node *node = malloc_ast_node(parser);
 
@@ -1250,8 +1271,22 @@ AST_node *parse_object_declaration(Parser *parser, int rec_lvl)
     AccessModifier access_modifier = parse_access_modifer(parser, OBJECT_KEYWORD);
     // sanity checks
     assert(get_keyword_type(list[parser->token_ptr]->ident) == OBJECT_KEYWORD);
-    assert(list[parser->token_ptr + 1]->type == IDENTIFIER);
-    assert(list[parser->token_ptr + 2]->type == OPEN_PARENTHESIS);
+    
+    //checks for identifier
+    if(list[parser->token_ptr + 1]->type != IDENTIFIER) {
+        parser->token_ptr++;
+        print_expected_token_err(parser,"Object Declaration Identifier",false);
+        stop_parsing(parser);
+        return NULL;
+    } 
+    
+    //checks for open parenthesis 
+    if(list[parser->token_ptr + 2]->type != OPEN_PARENTHESIS) {
+        parser->token_ptr+=2;
+        print_expected_token_err(parser, "Open Parenthesis ('(')", false);
+        stop_parsing(parser);
+        return NULL;
+    }
 
     AST_node *node = malloc_ast_node(parser);
     node->access = access_modifier;
@@ -1284,8 +1319,15 @@ AST_node *parse_variable_assignment_or_exp_component(Parser *parser, int rec_lvl
     assert(is_preliminary_expression_token(list[parser->token_ptr]));
 
     ExpressionComponent *component = parse_expression_component(parser, NULL, 0);
+    
+    // Checks for open parenthesis 
+    if(list[parser->token_ptr]->type != SEMI_COLON &&
+        list[parser->token_ptr]->type != ASSIGNMENT_OP) {
 
-    assert(list[parser->token_ptr]->type == SEMI_COLON || list[parser->token_ptr]->type == ASSIGNMENT_OP);
+        print_expected_token_err(parser, "Semicolon (';') or Assignment Operator ('=')", false);
+        stop_parsing(parser);
+        return NULL;
+    }
 
     AST_node *node = malloc_ast_node(parser);
     node->identifier.expression_component = component;
@@ -1302,12 +1344,6 @@ AST_node *parse_variable_assignment_or_exp_component(Parser *parser, int rec_lvl
         parser->token_ptr++;
         enum token_type end_of_exp[] = {SEMI_COLON};
         node->ast_data.exp = parse_expression(parser, NULL, NULL, end_of_exp, 1);
-    }
-    else
-    {
-        // INVALID SYNTAX
-        // TODO
-        parser->error_indicator = true;
     }
 
     skip_recurrent_tokens(parser, SEMI_COLON);
@@ -1450,11 +1486,9 @@ AST_List *parse_code_block(
                     break;
                 }
             }
-            printf("[%s] ERROR LINE %d: Invalid use of access modifier \n",
-                   parser->file_name,
-                   list[parser->token_ptr]->line_num);
-
             parser->error_indicator = true;
+            print_invalid_access_modifer_err(parser, list[parser->token_ptr]->ident);
+            stop_parsing(parser);
             break;
         }
 

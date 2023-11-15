@@ -8,8 +8,17 @@ func B() {
 }
 
 
-if(num) {
+if(num[10] -> call()) {
 
 } else {
-    num
+    num= 100 10 *; 
+    while(num) {
+        num = num 1 +;
+    }
+
+}
+
+func function(num, num1 10 / 20, num2) {
+    return %;
+
 }

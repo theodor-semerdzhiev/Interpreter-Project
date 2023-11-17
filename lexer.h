@@ -1,5 +1,8 @@
 #include <stdlib.h>
 
+#ifndef LEXER
+#define LEXER
+
 /* Lexeme type */
 enum token_type
 {
@@ -125,4 +128,7 @@ Token *malloc_token_struct(
 char *get_file_contents(const char *f_name);
 char** tokenize_str_by_seperators(const char* input, const char sep, int *line_count);
 char *malloc_substring(char *g, int start, int end);
+char** cpy_2D_string_arr(char** strs, int strs_length);
 /****************************************/
+
+#endif

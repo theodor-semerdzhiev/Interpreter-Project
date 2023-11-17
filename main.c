@@ -71,7 +71,8 @@ AST_List *parse_file(char* filename) {
     
     print_ast_list(ast, "  ", 0);
 
-    SemanticAnalyser *sem_analyser = malloc_semantic_analyser(filename);
+    SemanticAnalyser *sem_analyser = malloc_semantic_analyser(filename, parser->lines.lines, parser->lines.line_count);
+
     bool is_sem_valid = AST_list_has_consistent_semantics(sem_analyser, ast);
 
     if (is_sem_valid)
@@ -84,7 +85,6 @@ AST_List *parse_file(char* filename) {
     }
 
     free_semantic_analyser(sem_analyser);
-
     free_parser(parser);
     return ast;
 }

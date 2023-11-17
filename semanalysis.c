@@ -1,6 +1,8 @@
 #include <stdbool.h>
+#include <stdio.h>
 #include <assert.h>
 #include "semanalysis.h"
+#include "lexer.h"
 
 static bool is_access_modifier_valid(SemanticAnalyser *sem_analyzer, AST_node *node)
 {
@@ -35,16 +37,19 @@ static bool is_exp_component_terminal(enum expression_component_type type)
 }
 
 /* Checks that OBJECT block only contains variable, function, or object declarations */
-static bool is_obj_block_valid(SemanticAnalyser* sem_anaylzer, AST_node *node) {
+static bool is_obj_block_valid(SemanticAnalyser *sem_anaylzer, AST_node *node)
+{
     assert(node->type == OBJECT_DECLARATION);
     AST_node *head = node->body->head;
-    while(head) {
-        if(head->type != VAR_DECLARATION && 
+    while (head)
+    {
+        if (head->type != VAR_DECLARATION &&
             head->type != FUNCTION_DECLARATION &&
-            head->type != OBJECT_DECLARATION) {
-                return false;
+            head->type != OBJECT_DECLARATION)
+        {
+            return false;
         }
-        head=head->next;
+        head = head->next;
     }
     return true;
 }
@@ -52,19 +57,22 @@ static bool is_obj_block_valid(SemanticAnalyser* sem_anaylzer, AST_node *node) {
 /* Adds a function scopes parameters variables to symbol table */
 static void add_argument_declarations_to_symtable(SemanticAnalyser *sem_analyzer, AST_node *node)
 {
-    assert(node->type == FUNCTION_DECLARATION || 
-    node->type == INLINE_FUNCTION_DECLARATION ||
-    node->type == OBJECT_DECLARATION);
+    assert(node->type == FUNCTION_DECLARATION ||
+           node->type == INLINE_FUNCTION_DECLARATION ||
+           node->type == OBJECT_DECLARATION);
 
     int args_count;
-    ExpressionNode ** args;
+    ExpressionNode **args;
 
-    if(node->type == FUNCTION_DECLARATION || node->type == INLINE_FUNCTION_DECLARATION) {
-        args_count=node->ast_data.func_args.args_num;
-        args=node->ast_data.func_args.func_prototype_args;
-    } else {
-        args_count=node->ast_data.obj_args.args_num;
-        args=node->ast_data.obj_args.object_prototype_args;
+    if (node->type == FUNCTION_DECLARATION || node->type == INLINE_FUNCTION_DECLARATION)
+    {
+        args_count = node->ast_data.func_args.args_num;
+        args = node->ast_data.func_args.func_prototype_args;
+    }
+    else
+    {
+        args_count = node->ast_data.obj_args.args_num;
+        args = node->ast_data.obj_args.object_prototype_args;
     }
 
     for (int i = 0; i < args_count; i++)
@@ -81,14 +89,16 @@ static void add_argument_declarations_to_symtable(SemanticAnalyser *sem_analyzer
 }
 
 /* Mallocs semantic analyser struct */
-SemanticAnalyser *malloc_semantic_analyser(const char *filename)
+SemanticAnalyser *malloc_semantic_analyser(const char *filename, const char **lines, const int line_num)
 {
     SemanticAnalyser *sem_analyser = malloc(sizeof(SemanticAnalyser));
     sem_analyser->is_in_loop = false;
     sem_analyser->nesting_lvl = 0;
     sem_analyser->scope_type = GLOBAL_SCOPE;
-    sem_analyser->filename=malloc_string_cpy(NULL, filename);
+    sem_analyser->filename = malloc_string_cpy(NULL, filename);
     sem_analyser->symtable = malloc_symbol_table();
+    sem_analyser->lines.line_count = line_num;
+    sem_analyser->lines.lines = cpy_2D_string_arr(lines, line_num);
     return sem_analyser;
 }
 
@@ -97,6 +107,12 @@ void free_semantic_analyser(SemanticAnalyser *sem_analyser)
 {
     free_sym_table(sem_analyser->symtable);
     free(sem_analyser->filename);
+
+    for(int i=0; i < sem_analyser->lines.line_count; i++) {
+        free(sem_analyser->lines.lines[i]);
+    }
+
+    free(sem_analyser->lines.lines);
     free(sem_analyser);
 }
 
@@ -188,9 +204,10 @@ bool expression_component_has_correct_semantics(SemanticAnalyser *sem_analyzer, 
                 return false;
             }
             if (!node->sub_component &&
-                !symtable_has_sym(sem_analyzer->symtable, node->meta_data.variable_reference)) {
+                !symtable_has_sym(sem_analyzer->symtable, node->meta_data.variable_reference))
+            {
 
-                // num -> ... (num must be a defined visible variable)    
+                // num -> ... (num must be a defined visible variable)
                 return false;
             }
 
@@ -288,25 +305,28 @@ bool var_assignment_has_correct_semantics(SemanticAnalyser *sem_analyser, AST_no
 bool check_argument_semantics(SemanticAnalyser *sem_analyser, AST_node *node)
 {
     assert(
-        node->type == FUNCTION_DECLARATION || 
+        node->type == FUNCTION_DECLARATION ||
         node->type == INLINE_FUNCTION_DECLARATION ||
         node->type == OBJECT_DECLARATION);
 
     int args_count;
-    ExpressionNode ** args;
+    ExpressionNode **args;
 
-    if(node->type == FUNCTION_DECLARATION || node->type == INLINE_FUNCTION_DECLARATION) {
-        args_count=node->ast_data.func_args.args_num;
-        args=node->ast_data.func_args.func_prototype_args;
-    } else {
-        args_count=node->ast_data.obj_args.args_num;
-        args=node->ast_data.obj_args.object_prototype_args;
+    if (node->type == FUNCTION_DECLARATION || node->type == INLINE_FUNCTION_DECLARATION)
+    {
+        args_count = node->ast_data.func_args.args_num;
+        args = node->ast_data.func_args.func_prototype_args;
+    }
+    else
+    {
+        args_count = node->ast_data.obj_args.args_num;
+        args = node->ast_data.obj_args.object_prototype_args;
     }
 
     for (int i = 0; i < args_count; i++)
     {
         // invalid argument (must be a single variable), i.e func sum(n0,n1)
-        if (args[i]->type != VALUE || args[i]->component->type != VARIABLE) 
+        if (args[i]->type != VALUE || args[i]->component->type != VARIABLE)
         {
             return false;
         }
@@ -316,36 +336,38 @@ bool check_argument_semantics(SemanticAnalyser *sem_analyser, AST_node *node)
 }
 
 /* Iterates through AST and adds object and function declarations to symtable */
-static void forward_declare_obj_func(SemanticAnalyser *sem_analyzer, AST_List *ast_list) {
-    if(!ast_list) return;
-    
-    AST_node *node = ast_list->head;
-    while(node) {
-        switch(node->type) {
-            case OBJECT_DECLARATION:
-                add_sym_to_symtable(
-                    sem_analyzer->symtable,
-                    node->identifier.func_name,
-                    sem_analyzer->filename,
-                    sem_analyzer->nesting_lvl,
-                    SYMBOL_TYPE_OBJECT
-                );
-                break;
-            case FUNCTION_DECLARATION:
-                add_sym_to_symtable(
-                    sem_analyzer->symtable,
-                    node->identifier.obj_name,
-                    sem_analyzer->filename,
-                    sem_analyzer->nesting_lvl,
-                    SYMBOL_TYPE_FUNCTION
-                );
-                break;
+static void forward_declare_obj_func(SemanticAnalyser *sem_analyzer, AST_List *ast_list)
+{
+    if (!ast_list)
+        return;
 
-            default: 
-                break;
+    AST_node *node = ast_list->head;
+    while (node)
+    {
+        switch (node->type)
+        {
+        case OBJECT_DECLARATION:
+            add_sym_to_symtable(
+                sem_analyzer->symtable,
+                node->identifier.func_name,
+                sem_analyzer->filename,
+                sem_analyzer->nesting_lvl,
+                SYMBOL_TYPE_OBJECT);
+            break;
+        case FUNCTION_DECLARATION:
+            add_sym_to_symtable(
+                sem_analyzer->symtable,
+                node->identifier.obj_name,
+                sem_analyzer->filename,
+                sem_analyzer->nesting_lvl,
+                SYMBOL_TYPE_FUNCTION);
+            break;
+
+        default:
+            break;
         }
-        
-        node=node->next;
+
+        node = node->next;
     }
 }
 
@@ -542,8 +564,9 @@ bool AST_list_has_consistent_semantics(SemanticAnalyser *sem_analyzer, AST_List 
                 sem_analyzer->filename,
                 sem_analyzer->nesting_lvl,
                 SYMBOL_TYPE_OBJECT);
-            
-            if(!is_obj_block_valid(sem_analyzer, node)) {
+
+            if (!is_obj_block_valid(sem_analyzer, node))
+            {
                 return false;
             }
 
@@ -554,9 +577,9 @@ bool AST_list_has_consistent_semantics(SemanticAnalyser *sem_analyzer, AST_List 
             add_argument_declarations_to_symtable(sem_analyzer, node);
 
             sem_analyzer->scope_type = OBJECT_SCOPE;
-            
+
             bool tmp = AST_list_has_consistent_semantics(sem_analyzer, node->body);
-            
+
             remove_all_syms_above_nesting_lvl(sem_analyzer->symtable, sem_analyzer->nesting_lvl);
 
             sem_analyzer->scope_type = this_scope;
@@ -642,8 +665,8 @@ bool AST_list_has_consistent_semantics(SemanticAnalyser *sem_analyzer, AST_List 
         node = node->next;
     }
 
-    // we only clear symtable if its nested, top level declarations are kept 
-    if(sem_analyzer->nesting_lvl > 0)
+    // we only clear symtable if its nested, top level declarations are kept
+    if (sem_analyzer->nesting_lvl > 0)
         remove_all_syms_above_nesting_lvl(sem_analyzer->symtable, sem_analyzer->nesting_lvl);
 
     return true;

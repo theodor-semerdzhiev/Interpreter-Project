@@ -24,7 +24,7 @@ static AccessModifier parse_access_modifer(Parser *parser, enum keyword_type nex
     if (list[parser->token_ptr]->type != KEYWORD)
     {
         parser->error_indicator = true;
-        print_expected_token_err(parser, "Access Modifer", true);
+        print_expected_token_err(parser, "Access Modifer", true, NULL);
         stop_parsing(parser);
         return DOES_NOT_APPLY;
     }
@@ -46,7 +46,7 @@ static AccessModifier parse_access_modifer(Parser *parser, enum keyword_type nex
         default:
         {
             parser->error_indicator = true;
-            print_expected_token_err(parser, "Access Modifer", true);
+            print_expected_token_err(parser, "Access Modifer", true, NULL);
             stop_parsing(parser);
             return DOES_NOT_APPLY;
         }
@@ -86,9 +86,9 @@ void free_parser(Parser *parser)
     free_memtracker_without_pointers(parser->memtracker);
     free(parser->file_name);
 
-    for(int i=0; i < parser->lines.line_count; i++) 
+    for (int i = 0; i < parser->lines.line_count; i++)
         free(parser->lines.lines[i]);
-    
+
     free(parser->lines.lines);
 
     free(parser);
@@ -200,95 +200,6 @@ bool is_preliminary_expression_token(Token *lexeme)
            lexeme->type == STRING_LITERALS ||
            (lexeme->type == KEYWORD && (get_keyword_type(lexeme->ident) == FUNC_KEYWORD ||
                                         get_keyword_type(lexeme->ident) == NULL_KEYWORD));
-}
-
-double compute_exp(ExpressionNode *root)
-{
-    /* Base cases (except for LIST_INDEX) */
-    if (root->component)
-    {
-        switch (root->component->type)
-        {
-        case LIST_CONSTANT:
-        {
-            double result = 0.0;
-            for (int i = 0; i < root->component->meta_data.list_const.list_length; i++)
-            {
-                result += compute_exp(root->component->meta_data.list_const.list_elements[i]);
-            }
-            return result;
-        }
-        case NUMERIC_CONSTANT:
-            return root->component->meta_data.numeric_const;
-        case STRING_CONSTANT:
-            return strlen(root->component->meta_data.string_literal);
-        case VARIABLE:
-            return 10.0;
-        case FUNC_CALL:
-            return 20.0;
-
-        // recursive call
-        case LIST_INDEX:
-            return compute_exp(root->component->meta_data.list_index);
-
-        default:
-            break;
-        }
-    }
-    switch (root->type)
-    {
-    /* Expression operators, i.e recursive calls  */
-    case MULT:
-        return compute_exp(root->LHS) * compute_exp(root->RHS);
-    case DIV:
-        return compute_exp(root->LHS) / compute_exp(root->RHS);
-    case PLUS:
-        return compute_exp(root->LHS) + compute_exp(root->RHS);
-    case MINUS:
-        return compute_exp(root->LHS) - compute_exp(root->RHS);
-    case MOD:
-    {
-        double lhs_d = compute_exp(root->LHS);
-        double rhs_d = compute_exp(root->RHS);
-        return lhs_d - floor(lhs_d / rhs_d) * rhs_d;
-    }
-
-    /* boolean operators */
-    case LOGICAL_AND:
-        return (int)compute_exp(root->LHS) && (int)compute_exp(root->RHS);
-    case LOGICAL_OR:
-        return (int)compute_exp(root->LHS) || (int)compute_exp(root->RHS);
-    case EQUAL_TO:
-    {
-        double lhs = compute_exp(root->LHS);
-        double rhs = compute_exp(root->RHS);
-
-        return (int)(lhs == rhs);
-    }
-    case GREATER_THAN:
-        return (int)(compute_exp(root->LHS) > compute_exp(root->RHS));
-    case GREATER_EQUAL:
-        return (int)(compute_exp(root->LHS) >= compute_exp(root->RHS));
-    case LESSER_THAN:
-        return (int)(compute_exp(root->LHS) < compute_exp(root->RHS));
-    case LESSER_EQUAL:
-        return (int)(compute_exp(root->LHS) <= compute_exp(root->RHS));
-
-    /* Bitwise operators */
-    case BITWISE_AND:
-        return (int)compute_exp(root->LHS) & (int)compute_exp(root->RHS);
-    case BITWISE_OR:
-        return (int)compute_exp(root->LHS) | (int)compute_exp(root->RHS);
-    case SHIFT_LEFT:
-        return (int)compute_exp(root->LHS) << (int)compute_exp(root->RHS);
-    case SHIFT_RIGHT:
-        return (int)compute_exp(root->LHS) >> (int)compute_exp(root->RHS);
-    case BITWISE_XOR:
-        return (int)compute_exp(root->LHS) ^ (int)compute_exp(root->RHS);
-
-    default:
-        return 0.0;
-    }
 }
 
 /* Recursively frees expression component struct */
@@ -452,8 +363,8 @@ ExpressionComponent *parse_expression_component(
     // Base cases
     if (list[parser->token_ptr]->type == END_OF_FILE)
     {
-        parser->error_indicator = true;
-
+        print_unexpected_end_of_file_err(parser, NULL);
+        stop_parsing(parser);
         return parent;
     }
 
@@ -491,7 +402,7 @@ ExpressionComponent *parse_expression_component(
         parser->token_ptr++;
     }
 
-    // Parse list constants
+    // Parse list constants (Cannot have parent component)
     else if (rec_lvl == 0 && !parent && list[parser->token_ptr]->type == OPEN_SQUARE_BRACKETS)
     {
         component->type = LIST_CONSTANT;
@@ -501,13 +412,14 @@ ExpressionComponent *parse_expression_component(
         component->meta_data.list_const.list_length = get_expression_list_length(elements);
     }
 
-    // Parses inline declared functions
-    else if (get_keyword_type(list[parser->token_ptr]->ident) == FUNC_KEYWORD)
+    // Parses inline declared functions (Cannot have parent component)
+    else if (rec_lvl == 0 && !parent && get_keyword_type(list[parser->token_ptr]->ident) == FUNC_KEYWORD)
     {
         component->type = INLINE_FUNC;
         component->meta_data.inline_func = parse_inline_func(parser, rec_lvl);
     }
-    else if (list[parser->token_ptr]->type == NUMERIC_LITERAL)
+    // numeric constants (Cannot have parent component)
+    else if (rec_lvl == 0 && !parent && list[parser->token_ptr]->type == NUMERIC_LITERAL)
     {
         component->type = NUMERIC_CONSTANT;
         if (is_numeric_const_fractional(parser, parser->token_ptr))
@@ -520,25 +432,26 @@ ExpressionComponent *parse_expression_component(
             component->meta_data.numeric_const = (double)atoi(list[parser->token_ptr]->ident);
         }
         parser->token_ptr++;
-        // strings
     }
-    else if (list[parser->token_ptr]->type == STRING_LITERALS)
+    // string constants (Cannot have parent component)
+    else if (rec_lvl == 0 && !parent && list[parser->token_ptr]->type == STRING_LITERALS)
     {
         component->type = STRING_CONSTANT;
         component->meta_data.string_literal = malloc_string_cpy(parser, list[parser->token_ptr]->ident);
         parser->token_ptr++;
 
-        // some variable reference
     }
+    // some variable reference
     else if (list[parser->token_ptr]->type == IDENTIFIER)
     {
         component->type = VARIABLE;
         component->meta_data.variable_reference = malloc_string_cpy(parser, list[parser->token_ptr]->ident);
         parser->token_ptr++;
-
-        // list index
     }
-    else if (list[parser->token_ptr]->type == OPEN_SQUARE_BRACKETS)
+    // list index (Cannot have been preceded by an attribute arrow)
+    else if (list[parser->token_ptr]->type == OPEN_SQUARE_BRACKETS && 
+             parser->token_ptr > 0 &&
+             list[parser->token_ptr - 1]->type != ATTRIBUTE_ARROW)
     {
         component->type = LIST_INDEX;
         parser->token_ptr++;
@@ -562,9 +475,34 @@ ExpressionComponent *parse_expression_component(
         component->meta_data.func_data.args_num = get_expression_list_length(args);
     }
     else
-    {
-        parser->error_indicator = true;
-        print_invalid_token_err(parser);
+    {   
+        // gives a tailored error messages
+        switch(list[parser->token_ptr]->type) {
+            case OPEN_SQUARE_BRACKETS:
+                print_invalid_expression_component(parser, 
+                "Statically defined list cannot have parent component (i.e '->')\n"
+                "Proper Syntax: [e1, e2, ... ] -> ...");
+                break;
+            case NUMERIC_LITERAL:
+                print_invalid_expression_component(parser, 
+                "Numeric constant cannot have parent component (i.e '->')");
+                break;
+            case STRING_LITERALS:
+                print_invalid_expression_component(parser, 
+                "Statically defined String cannot have parent component (i.e '->')\n"
+                "Proper Syntax: \"abcde ... \" -> ... ");
+                break;
+            case FUNC_KEYWORD:
+                print_invalid_expression_component(parser, 
+                "Function/Inline Function cannot have parent component (i.e '->')\n"
+                "Proper Syntax:\n"
+                "func ( ... ) { ... } -> ...\n"
+                "func function ( ... ) { ... } -> ...");
+                break;
+            default:
+                print_invalid_token_err(parser, "An expression component was expected");
+        }
+        
         stop_parsing(parser);
         return NULL;
     }
@@ -590,7 +528,8 @@ ExpressionNode *parse_expression(
 
     if (list[parser->token_ptr]->type == END_OF_FILE)
     {
-        parser->error_indicator = true;
+        print_unexpected_end_of_file_err(parser, NULL);
+        stop_parsing(parser);
         return LHS;
     }
 
@@ -602,7 +541,7 @@ ExpressionNode *parse_expression(
         if (LHS && RHS)
         {
             parser->error_indicator = true;
-            print_missing_operator_err(parser);
+            print_missing_operator_err(parser, NULL);
             stop_parsing(parser);
         }
 
@@ -648,10 +587,12 @@ ExpressionNode *parse_expression(
             return parse_expression(parser, LHS, node, ends_of_exp, ends_of_exp_length);
     }
 
-    // operator must have two sub trees 
-    if(!LHS || !RHS) {
+    // operator must have two sub trees
+    if (!LHS || !RHS)
+    {
         parser->error_indicator = true;
-        print_missing_exp_component_err(parser);
+        print_missing_exp_component_err(parser,
+                                        "Make sure to have two expression components before applying operator");
         stop_parsing(parser);
     }
 
@@ -711,11 +652,12 @@ ExpressionNode *parse_expression(
         break;
 
     case LOGICAL_NOT_OP:
-    default: {
-        print_missing_operator_err(parser);
+    default:
+    {
+        print_missing_operator_err(parser, NULL);
         parser->error_indicator = true;
         return LHS;
-        }
+    }
     }
 
     node->LHS = LHS;
@@ -924,18 +866,22 @@ AST_node *parse_variable_declaration(Parser *parser, int rec_lvl)
 
     AccessModifier access_modifier = parse_access_modifer(parser, LET_KEYWORD);
 
-    //checks for identifier
-    if(list[parser->token_ptr + 1]->type != IDENTIFIER) {
+    // checks for identifier
+    if (list[parser->token_ptr + 1]->type != IDENTIFIER)
+    {
         parser->token_ptr++;
-        print_expected_token_err(parser,"Variable Declaration Identifier",false);
+        print_expected_token_err(parser, "Variable Declaration Identifier", false,
+                                 "Proper Syntax: let variable = ...");
         stop_parsing(parser);
         return NULL;
-    } 
-    
-    //checks for assignment operator
-    if(list[parser->token_ptr + 2]->type != ASSIGNMENT_OP) {
-        parser->token_ptr+=2;
-        print_expected_token_err(parser, "Assignment Operator ('=')", false);
+    }
+
+    // checks for assignment operator
+    if (list[parser->token_ptr + 2]->type != ASSIGNMENT_OP)
+    {
+        parser->token_ptr += 2;
+        print_expected_token_err(parser, "Assignment Operator ('=')", false,
+                                 "Proper Syntax: let variable = ...");
         stop_parsing(parser);
         return NULL;
     }
@@ -965,11 +911,13 @@ AST_node *parse_while_loop(Parser *parser, int rec_lvl)
 
     // sanity checks
     assert(get_keyword_type(list[parser->token_ptr]->ident) == WHILE_KEYWORD);
-    
-    // checks for parenthesis 
-    if(list[parser->token_ptr + 1]->type != OPEN_PARENTHESIS) {
-        parser->token_ptr+=1;
-        print_expected_token_err(parser, "Open Parenthesis ('(')", false);
+
+    // checks for parenthesis
+    if (list[parser->token_ptr + 1]->type != OPEN_PARENTHESIS)
+    {
+        parser->token_ptr += 1;
+        print_expected_token_err(parser, "Open Parenthesis ('(')", false,
+                                 "Proper Syntax: while (...)");
         stop_parsing(parser);
         return NULL;
     }
@@ -985,8 +933,16 @@ AST_node *parse_while_loop(Parser *parser, int rec_lvl)
     enum token_type end_of_exp[] = {CLOSING_PARENTHESIS};
     node->ast_data.exp = parse_expression(parser, NULL, NULL, end_of_exp, 1);
 
+    // checks for open curly brackets
+    if (list[parser->token_ptr]->type != OPEN_CURLY_BRACKETS)
+    {
+        print_expected_token_err(parser, "Open Curly Brackets ('{')", false,
+                                 "Proper Syntax: while (...) { ... }");
+        stop_parsing(parser);
+        return NULL;
+    }
+
     // recursively parses inner code block
-    assert(list[parser->token_ptr]->type == OPEN_CURLY_BRACKETS);
     parser->token_ptr++;
     enum token_type end_of_block[] = {CLOSING_CURLY_BRACKETS};
     node->body = parse_code_block(parser, node, rec_lvl + 1, end_of_block, 1);
@@ -1004,9 +960,11 @@ AST_node *parse_if_conditional(Parser *parser, int rec_lvl)
     assert(get_keyword_type(list[parser->token_ptr]->ident) == IF_KEYWORD);
 
     // checks for parenthesis
-    if(list[parser->token_ptr + 1]->type != OPEN_PARENTHESIS) {
-        parser->token_ptr+=1;
-        print_expected_token_err(parser, "Open Parenthesis ('(')", false);
+    if (list[parser->token_ptr + 1]->type != OPEN_PARENTHESIS)
+    {
+        parser->token_ptr += 1;
+        print_expected_token_err(parser, "Open Parenthesis ('(')", false,
+                                 "Proper Syntax: if (...) { ... }");
         stop_parsing(parser);
         return NULL;
     }
@@ -1022,7 +980,14 @@ AST_node *parse_if_conditional(Parser *parser, int rec_lvl)
     enum token_type end_of_exp[] = {CLOSING_PARENTHESIS};
     node->ast_data.exp = parse_expression(parser, NULL, NULL, end_of_exp, 1);
 
-    assert(list[parser->token_ptr]->type == OPEN_CURLY_BRACKETS);
+    // checks for open curly brackets
+    if (list[parser->token_ptr]->type != OPEN_CURLY_BRACKETS)
+    {
+        print_expected_token_err(parser, "Open Curly Brackets ('{')", false,
+                                 "Proper Syntax: if (...) { ... }");
+        stop_parsing(parser);
+        return NULL;
+    }
 
     parser->token_ptr++;
 
@@ -1040,7 +1005,15 @@ AST_node *parse_loop_termination(Parser *parser, int rec_lvl)
     Token **list = parser->lexeme_list->list;
 
     assert(get_keyword_type(list[parser->token_ptr]->ident) == BREAK_KEYWORD);
-    
+
+    // checks syntax
+    if(list[parser->token_ptr+1]->type != SEMI_COLON) {
+        print_expected_token_err(parser, "Semicolon (';')", false, 
+        "Proper Syntax: break; \nbreak keyword is always standalone");
+        stop_parsing(parser);
+        return NULL;
+    }
+
     AST_node *node = malloc_ast_node(parser);
 
     node->type = LOOP_TERMINATOR;
@@ -1061,10 +1034,12 @@ AST_node *parse_loop_continuation(Parser *parser, int rec_lvl)
 
     assert(get_keyword_type(list[parser->token_ptr]->ident) == CONTINUE_KEYWORD);
 
-    // checks for parenthesis 
-    if(list[parser->token_ptr + 1]->type != OPEN_PARENTHESIS) {
-        parser->token_ptr+=1;
-        print_expected_token_err(parser, "Semicolon (';')", false);
+    // checks for parenthesis
+    if (list[parser->token_ptr + 1]->type != SEMI_COLON)
+    {
+        parser->token_ptr += 1;
+        print_expected_token_err(parser, "Semicolon (';')", false,
+                                 "Proper Syntax: continue; \ncontinue Keyword is always standalone");
         stop_parsing(parser);
         return NULL;
     }
@@ -1108,15 +1083,6 @@ AST_node *parse_else_conditional(Parser *parser, int rec_lvl)
     // sanity checks
     assert(get_keyword_type(list[parser->token_ptr]->ident) == ELSE_KEYWORD);
 
-    if(get_keyword_type(list[parser->token_ptr + 1]->ident) != IF_KEYWORD &&
-        list[parser->token_ptr + 1]->type != OPEN_CURLY_BRACKETS) {
-
-        parser->token_ptr+=1;
-        print_expected_token_err(parser, "Open Parenthesis ('(')", false);
-        stop_parsing(parser);
-        return NULL;
-    }
-
     // else if block
     if (get_keyword_type(list[parser->token_ptr + 1]->ident) == IF_KEYWORD)
     {
@@ -1126,9 +1092,11 @@ AST_node *parse_else_conditional(Parser *parser, int rec_lvl)
         node->line_num = list[parser->token_ptr]->line_num;
 
         // Makes sure opening parenthesis
-        if(list[parser->token_ptr + 2]->type != OPEN_PARENTHESIS) {
-            parser->token_ptr+=2;
-            print_expected_token_err(parser, "Open Parenthesis ('(')", false);
+        if (list[parser->token_ptr + 2]->type != OPEN_PARENTHESIS)
+        {
+            parser->token_ptr += 2;
+            print_expected_token_err(parser, "Open Parenthesis ('(')", false,
+                                     "Proper Syntax: else if (...) { ... } ");
             stop_parsing(parser);
             return NULL;
         }
@@ -1138,8 +1106,15 @@ AST_node *parse_else_conditional(Parser *parser, int rec_lvl)
         parser->token_ptr += 3;
         node->ast_data.exp = parse_expression(parser, NULL, NULL, end_of_exp, 1);
 
+        // checks for open curly brackets
+        if (list[parser->token_ptr]->type != OPEN_CURLY_BRACKETS)
+        {
+            print_expected_token_err(parser, "Open Curly Brackets ('{')", false,
+                                    "Proper Syntax: else if (...) { ... }");
+            stop_parsing(parser);
+            return NULL;
+        }
         // recursively parses inner code block
-        assert(list[parser->token_ptr]->type == OPEN_CURLY_BRACKETS);
         parser->token_ptr++;
         enum token_type end_of_block[] = {CLOSING_CURLY_BRACKETS};
         node->body = parse_code_block(parser, node, rec_lvl + 1, end_of_block, 1);
@@ -1159,6 +1134,14 @@ AST_node *parse_else_conditional(Parser *parser, int rec_lvl)
         node->body = parse_code_block(parser, node, rec_lvl + 1, end_of_block, 1);
 
         return node;
+
+    // syntax error
+    } else {
+        parser->token_ptr += 1;
+        print_expected_token_err(parser, "Open Curly Brackets ('{')", false,
+                                 "Proper Syntax: else { ... } ");
+        stop_parsing(parser);
+        return NULL;
     }
 
     return NULL;
@@ -1180,21 +1163,25 @@ AST_node *parse_func_declaration(Parser *parser, int rec_lvl)
     if (list[parser->token_ptr + 1]->type == OPEN_PARENTHESIS)
     {
 
-        return parse_variable_assignment_or_exp_component(parser, ++rec_lvl);
+        return parse_variable_assignment_exp_func_component(parser, ++rec_lvl);
     }
 
-    //checks for identifier
-    if(list[parser->token_ptr + 1]->type != IDENTIFIER) {
+    // checks for identifier
+    if (list[parser->token_ptr + 1]->type != IDENTIFIER)
+    {
         parser->token_ptr++;
-        print_expected_token_err(parser,"Function Declaration Identifier",false);
+        print_expected_token_err(parser, "Function Declaration Identifier", false,
+                                 "Proper Syntax: func function ( ... ) { ... }");
         stop_parsing(parser);
         return NULL;
-    } 
-    
-    //checks for open parenthesis 
-    if(list[parser->token_ptr + 2]->type != OPEN_PARENTHESIS) {
-        parser->token_ptr+=2;
-        print_expected_token_err(parser, "Open Parenthesis ('(')", false);
+    }
+
+    // checks for open parenthesis
+    if (list[parser->token_ptr + 2]->type != OPEN_PARENTHESIS)
+    {
+        parser->token_ptr += 2;
+        print_expected_token_err(parser, "Open Parenthesis ('(')", false,
+                                 "Proper Syntax: func function ( ... ) { ... }");
         stop_parsing(parser);
         return NULL;
     }
@@ -1212,8 +1199,16 @@ AST_node *parse_func_declaration(Parser *parser, int rec_lvl)
     node->ast_data.func_args.func_prototype_args = args;
     node->ast_data.func_args.args_num = get_expression_list_length(args);
 
+    // checks for open parenthesis
+    if (list[parser->token_ptr]->type != OPEN_CURLY_BRACKETS)
+    {
+        print_expected_token_err(parser, "Open Curly Brackets ('{')", false,
+                                 "Proper Syntax: func function ( ... ) { ... }");
+        stop_parsing(parser);
+        return NULL;
+    }
+
     // parses function inner code block
-    assert(list[parser->token_ptr]->type == OPEN_CURLY_BRACKETS);
     enum token_type end_of_block[] = {CLOSING_CURLY_BRACKETS};
     parser->token_ptr++;
     node->body = parse_code_block(parser, node, rec_lvl + 1, end_of_block, 1);
@@ -1231,11 +1226,13 @@ AST_node *parse_inline_func(Parser *parser, int rec_lvl)
 
     // sanity checks
     assert(get_keyword_type(list[parser->token_ptr]->ident) == FUNC_KEYWORD);
-    
-    //checks for open parenthesis 
-    if(list[parser->token_ptr + 1]->type != OPEN_PARENTHESIS) {
+
+    // checks for open parenthesis
+    if (list[parser->token_ptr + 1]->type != OPEN_PARENTHESIS)
+    {
         parser->token_ptr++;
-        print_expected_token_err(parser, "Open Parenthesis ('(')", false);
+        print_expected_token_err(parser, "Open Parenthesis ('(')", false,
+                                 "Did you mean an inline function?\nProper Syntax: func ( ... ) { ... }");
         stop_parsing(parser);
         return NULL;
     }
@@ -1253,8 +1250,16 @@ AST_node *parse_inline_func(Parser *parser, int rec_lvl)
     node->ast_data.func_args.func_prototype_args = args;
     node->ast_data.func_args.args_num = get_expression_list_length(args);
 
+    // checks for open parenthesis
+    if (list[parser->token_ptr]->type != OPEN_CURLY_BRACKETS)
+    {
+        print_expected_token_err(parser, "Open Curly Brackets ('{')", false,
+                                 "Proper Syntax: func ( ... ) { ... }");
+        stop_parsing(parser);
+        return NULL;
+    }
+
     // parses function inner code block
-    assert(list[parser->token_ptr]->type == OPEN_CURLY_BRACKETS);
     enum token_type end_of_block[] = {CLOSING_CURLY_BRACKETS};
     parser->token_ptr++;
     node->body = parse_code_block(parser, node, rec_lvl + 1, end_of_block, 1);
@@ -1271,19 +1276,23 @@ AST_node *parse_object_declaration(Parser *parser, int rec_lvl)
     AccessModifier access_modifier = parse_access_modifer(parser, OBJECT_KEYWORD);
     // sanity checks
     assert(get_keyword_type(list[parser->token_ptr]->ident) == OBJECT_KEYWORD);
-    
-    //checks for identifier
-    if(list[parser->token_ptr + 1]->type != IDENTIFIER) {
+
+    // checks for identifier
+    if (list[parser->token_ptr + 1]->type != IDENTIFIER)
+    {
         parser->token_ptr++;
-        print_expected_token_err(parser,"Object Declaration Identifier",false);
+        print_expected_token_err(parser, "Object Declaration Identifier", false,
+                                 "Proper Syntax: object obj( ... ) { ... }");
         stop_parsing(parser);
         return NULL;
-    } 
-    
-    //checks for open parenthesis 
-    if(list[parser->token_ptr + 2]->type != OPEN_PARENTHESIS) {
-        parser->token_ptr+=2;
-        print_expected_token_err(parser, "Open Parenthesis ('(')", false);
+    }
+
+    // checks for open parenthesis
+    if (list[parser->token_ptr + 2]->type != OPEN_PARENTHESIS)
+    {
+        parser->token_ptr += 2;
+        print_expected_token_err(parser, "Open Parenthesis ('(')", false,
+                                 "Proper Syntax: object obj( ... ) { ... }");
         stop_parsing(parser);
         return NULL;
     }
@@ -1301,8 +1310,16 @@ AST_node *parse_object_declaration(Parser *parser, int rec_lvl)
     node->ast_data.obj_args.object_prototype_args = args;
     node->ast_data.obj_args.args_num = get_expression_list_length(args);
 
+    // checks for open parenthesis
+    if (list[parser->token_ptr]->type != OPEN_CURLY_BRACKETS)
+    {
+        print_expected_token_err(parser, "Open Curly Brackets ('{')", false,
+                                 "Proper Syntax: object obj ( ... ) { ... }");
+        stop_parsing(parser);
+        return NULL;
+    }
+
     // parses object inner code block
-    assert(list[parser->token_ptr]->type == OPEN_CURLY_BRACKETS);
     enum token_type end_of_block[] = {CLOSING_CURLY_BRACKETS};
     parser->token_ptr++;
     node->body = parse_code_block(parser, node, rec_lvl + 1, end_of_block, 1);
@@ -1311,7 +1328,7 @@ AST_node *parse_object_declaration(Parser *parser, int rec_lvl)
 }
 
 /* Parses variable assignment or expression component (i.e function call) */
-AST_node *parse_variable_assignment_or_exp_component(Parser *parser, int rec_lvl)
+AST_node *parse_variable_assignment_exp_func_component(Parser *parser, int rec_lvl)
 {
     assert(parser);
     Token **list = parser->lexeme_list->list;
@@ -1319,12 +1336,12 @@ AST_node *parse_variable_assignment_or_exp_component(Parser *parser, int rec_lvl
     assert(is_preliminary_expression_token(list[parser->token_ptr]));
 
     ExpressionComponent *component = parse_expression_component(parser, NULL, 0);
-    
-    // Checks for open parenthesis 
-    if(list[parser->token_ptr]->type != SEMI_COLON &&
-        list[parser->token_ptr]->type != ASSIGNMENT_OP) {
 
-        print_expected_token_err(parser, "Semicolon (';') or Assignment Operator ('=')", false);
+    // Checks for open parenthesis
+    if (list[parser->token_ptr]->type != SEMI_COLON &&
+        list[parser->token_ptr]->type != ASSIGNMENT_OP)
+    {
+        print_expected_token_err(parser, "Semicolon (';') or Assignment Operator ('=')", false, NULL);
         stop_parsing(parser);
         return NULL;
     }
@@ -1486,8 +1503,25 @@ AST_List *parse_code_block(
                     break;
                 }
             }
+
             parser->error_indicator = true;
-            print_invalid_access_modifer_err(parser, list[parser->token_ptr]->ident);
+
+            if (ast_list->head->type == FUNCTION_DECLARATION &&
+                list[parser->token_ptr]->type == OPEN_PARENTHESIS)
+            {
+
+                print_invalid_access_modifer_err(parser, list[parser->token_ptr]->ident,
+                                                 "Access Modifer keywords can only be used in front of variable, function or object declarations"
+                                                 "\nDid you mean an inline function?"
+                                                 "\nProper Syntax: func ( ... ) {...}(ARGS); ");
+            }
+            else
+            {
+
+                print_invalid_access_modifer_err(parser, list[parser->token_ptr]->ident,
+                                                 "Access Modifer keywords can only be used in front of variable, function or object declarations");
+            }
+
             stop_parsing(parser);
             break;
         }
@@ -1501,19 +1535,35 @@ AST_List *parse_code_block(
             // Grammar [EXPRESSION COMPONENT] -> [IDENTIFER][ARGUMENTS ...][END OF EXPRESSION]
             if (is_preliminary_expression_token(list[parser->token_ptr]))
             {
-                AST_node *node = parse_variable_assignment_or_exp_component(parser, rec_lvl);
+                AST_node *node = parse_variable_assignment_exp_func_component(parser, rec_lvl);
                 push_to_ast_list(ast_list, node);
             }
             else
             {
-                // syntax error TODO
-                parser->error_indicator = true;
-                printf("BAD TOKEN AT Line: %d\n", list[parser->token_ptr]->line_num);
+
+                if (ast_list->tail->type == FUNCTION_DECLARATION &&
+                    list[parser->token_ptr]->type == OPEN_PARENTHESIS)
+                {
+
+                    print_invalid_token_err(parser,
+                                            "Did you mean an inline function?"
+                                            "\nProper Syntax: func ( ... ) { ... }(ARGUMENTS); ");
+                }
+                else if(list[parser->token_ptr]->type == END_OF_FILE) 
+                {
+                    print_unexpected_end_of_file_err(parser, NULL);
+                }
+                else
+                {
+                    print_invalid_token_err(parser, NULL);
+                }
+
+                stop_parsing(parser);
                 return NULL;
             }
 
             break;
-        }
+            }
         }
     }
 

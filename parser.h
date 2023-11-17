@@ -17,8 +17,9 @@ typedef struct Parser
     bool error_indicator;
     char *file_name;
 
-    struct Lines {
-        char** lines;
+    struct Lines
+    {
+        char **lines;
         int line_count;
     } lines;
 
@@ -240,8 +241,6 @@ void free_expression_component(ExpressionComponent *component);
 
 bool is_preliminary_expression_token(Token *lexeme);
 
-double compute_exp(ExpressionNode *root);
-
 ExpressionNode **parse_expressions_by_seperator(
     Parser *parser,
     enum token_type seperator,
@@ -273,7 +272,7 @@ AST_node *parse_loop_continuation(Parser *parser, int rec_lvl);
 AST_node *parse_func_declaration(Parser *parser, int rec_lvl);
 AST_node *parse_inline_func(Parser *parser, int rec_lvl);
 AST_node *parse_object_declaration(Parser *parser, int rec_lvl);
-AST_node *parse_variable_assignment_or_exp_component(Parser *parser, int rec_lvl);
+AST_node *parse_variable_assignment_exp_func_component(Parser *parser, int rec_lvl);
 
 AST_List *parse_code_block(
     Parser *parser,

@@ -1,24 +1,9 @@
-
-func A() {
-    return B();
+func f (num) {
+    return num; 
 }
 
-func B() {
-    return A();
-}
+let f = func (num) {return num;};
 
-
-if(num[10] -> call()) {
-
-} else {
-    num= 100 10 *; 
-    while(num) {
-        num = num 1 +;
-    }
-
-}
-
-func function(num, num1 10 / 20, num2) {
-    return %;
+else if([[1,2,3,4,2,3,void]]) {
 
 }

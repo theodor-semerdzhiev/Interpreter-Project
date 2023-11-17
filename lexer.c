@@ -17,6 +17,8 @@
 //     "&&", "||", "!", ">", "<", ">=", "<=", "==",             // logical operators
 //     "#"                                                      // comment
 
+static char* cpy_string_helper(const char* str);
+
 /* Checks if string is a number, string must not have whitespace */
 static bool is_token_numeric(char *token)
 {
@@ -518,7 +520,7 @@ TokenList *tokenize_str(Lexer *lexer, char *file_contents)
 
     clear_buffer(lexer, list);
 
-    push_token(list, END_OF_FILE, NULL, lexer->cur_line, lexer->prev_pos);
+    push_token(list, END_OF_FILE, cpy_string_helper("End of File"), lexer->cur_line, lexer->prev_pos);
 
     return list;
 }
@@ -672,6 +674,14 @@ char** tokenize_str_by_seperators(const char* input, const char sep, int *count)
     return result;
 }
 
+/* Helper function for copying strings */
+static char* cpy_string_helper(const char* str) {
+    char* copy = malloc(sizeof(char)*(strlen(str)+1));
+    strcpy(copy,str);
+    copy[strlen(str)]='\0';
+    return copy;
+}
+
 /* Mallocs a substring from a base string */
 char *malloc_substring(char *str, int start, int end)
 {
@@ -682,6 +692,22 @@ char *malloc_substring(char *str, int start, int end)
 
     substr[end - start] = '\0';
     return substr;
+}
+
+/* Creates a deep copy of 2D string array */
+char** cpy_2D_string_arr(char** strs, int strs_length) {
+    char** arr = malloc(sizeof(char*)*(strs_length+1));
+    int len, i;
+
+    for(i=0; i < strs_length; i++) {
+        len = strlen(strs[i]);
+        arr[i] = malloc(sizeof(char)*(len+1));
+        strcpy(arr[i],strs[i]);
+        arr[i][len]='\0';
+    }
+
+    arr[strs_length]=NULL;
+    return arr;
 }
 
 #define DEFAULT_BUFFER_LENGTH 512

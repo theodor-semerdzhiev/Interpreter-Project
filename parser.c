@@ -1390,7 +1390,8 @@ AST_List *parse_code_block(
     // SYNTAX ERROR: invalid end of code block
     if (list[parser->token_ptr]->type == END_OF_FILE)
     {
-        parser->error_indicator = true;
+        print_unexpected_end_of_file_err(parser, NULL);
+        stop_parsing(parser);
         return NULL;
     }
 

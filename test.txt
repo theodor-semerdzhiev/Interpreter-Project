@@ -2,8 +2,7 @@ func f (num) {
     return num; 
 }
 
-let f = func (num) {return num;};
+let f = func (num;) {return num;};
 
-else if([[1,2,3,4,2,3,void]]) {
+else if([[1,2,3,4,2,3,void]]) {}
 
-}

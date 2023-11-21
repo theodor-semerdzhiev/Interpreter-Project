@@ -3,8 +3,16 @@
 #include <assert.h>
 #include "semanalysis.h"
 #include "lexer.h"
+#include "errors.h"
 
-static bool is_access_modifier_valid(SemanticAnalyser *sem_analyzer, AST_node *node)
+static bool is_access_modifier_valid(SemanticAnalyzer *sem_analyzer, AST_node *node);
+static bool is_exp_component_terminal(enum expression_component_type type);
+static bool is_obj_block_valid(SemanticAnalyzer *sem_anaylzer, AST_node *node);
+static void add_argument_declarations_to_symtable(SemanticAnalyzer *sem_analyzer, AST_node *node);
+static void forward_declare_obj_func(SemanticAnalyzer *sem_analyzer, AST_List *ast_list);
+
+/* Checks that if access modifiers are used in the proper scope */
+static bool is_access_modifier_valid(SemanticAnalyzer *sem_analyzer, AST_node *node)
 {
     assert(node->access != DOES_NOT_APPLY);
     assert(node->type == VAR_DECLARATION ||
@@ -15,11 +23,25 @@ static bool is_access_modifier_valid(SemanticAnalyser *sem_analyzer, AST_node *n
     if (node->access == GLOBAL_ACCESS &&
         (sem_analyzer->scope_type != GLOBAL_SCOPE || sem_analyzer->nesting_lvl > 0))
     {
+        print_invalid_access_modifier_semantics_err(
+            sem_analyzer, node->token_num,
+            sem_analyzer->scope_type == OBJECT_SCOPE     ? "Global access modifiers can NOT be used in the Object scope."
+                                                           "\nThey can only be used in the global scope."
+            : sem_analyzer->scope_type == FUNCTION_SCOPE ? "Global access modifiers cant NOT be used in the function scope.\n"
+                                                           "They can only be used in the global scope."
+                                                         : NULL);
         return false;
     }
     // private variables can only be defined within an object
     if (node->access == PRIVATE_ACCESS && sem_analyzer->scope_type != OBJECT_SCOPE)
     {
+        print_invalid_access_modifier_semantics_err(
+            sem_analyzer, node->token_num,
+            sem_analyzer->scope_type == FUNCTION_SCOPE  ? "Private access modifiers can NOT be used in the function scope."
+                                                          "\nThey can only be used in the object scope."
+            : sem_analyzer->scope_type == GLOBAL_ACCESS ? "Private access modifiers cant NOT be used in the global scope.\n"
+                                                          "They can only be used in the object     scope."
+                                                        : NULL);
         return false;
     }
 
@@ -37,7 +59,7 @@ static bool is_exp_component_terminal(enum expression_component_type type)
 }
 
 /* Checks that OBJECT block only contains variable, function, or object declarations */
-static bool is_obj_block_valid(SemanticAnalyser *sem_anaylzer, AST_node *node)
+static bool is_obj_block_valid(SemanticAnalyzer *sem_anaylzer, AST_node *node)
 {
     assert(node->type == OBJECT_DECLARATION);
     AST_node *head = node->body->head;
@@ -47,6 +69,10 @@ static bool is_obj_block_valid(SemanticAnalyser *sem_anaylzer, AST_node *node)
             head->type != FUNCTION_DECLARATION &&
             head->type != OBJECT_DECLARATION)
         {
+            print_invalid_object_block_err(
+                sem_anaylzer, head->token_num,
+                "Only Variable, Function, and Object declarations can be used in a top level Object scope.\n"
+                "Object body does not run code, it holds declarations.");
             return false;
         }
         head = head->next;
@@ -55,7 +81,7 @@ static bool is_obj_block_valid(SemanticAnalyser *sem_anaylzer, AST_node *node)
 }
 
 /* Adds a function scopes parameters variables to symbol table */
-static void add_argument_declarations_to_symtable(SemanticAnalyser *sem_analyzer, AST_node *node)
+static void add_argument_declarations_to_symtable(SemanticAnalyzer *sem_analyzer, AST_node *node)
 {
     assert(node->type == FUNCTION_DECLARATION ||
            node->type == INLINE_FUNCTION_DECLARATION ||
@@ -79,7 +105,7 @@ static void add_argument_declarations_to_symtable(SemanticAnalyser *sem_analyzer
     {
         assert(args[i]->component->meta_data.variable_reference);
 
-        add_sym_to_symtable(
+        add_var_to_vartable(
             sem_analyzer->symtable,
             args[i]->component->meta_data.variable_reference,
             sem_analyzer->filename,
@@ -88,10 +114,10 @@ static void add_argument_declarations_to_symtable(SemanticAnalyser *sem_analyzer
     }
 }
 
-/* Mallocs semantic analyser struct */
-SemanticAnalyser *malloc_semantic_analyser(const char *filename, const char **lines, const int line_num)
+/* Mallocs semantic analyzer struct */
+SemanticAnalyzer *malloc_semantic_analyser(const char *filename, const char **lines, const int line_num, const TokenList *list)
 {
-    SemanticAnalyser *sem_analyser = malloc(sizeof(SemanticAnalyser));
+    SemanticAnalyzer *sem_analyser = malloc(sizeof(SemanticAnalyzer));
     sem_analyser->is_in_loop = false;
     sem_analyser->nesting_lvl = 0;
     sem_analyser->scope_type = GLOBAL_SCOPE;
@@ -99,25 +125,28 @@ SemanticAnalyser *malloc_semantic_analyser(const char *filename, const char **li
     sem_analyser->symtable = malloc_symbol_table();
     sem_analyser->lines.line_count = line_num;
     sem_analyser->lines.lines = cpy_2D_string_arr(lines, line_num);
+    sem_analyser->token_list = cpy_token_list(list);
     return sem_analyser;
 }
 
-/* Frees semantic analyser */
-void free_semantic_analyser(SemanticAnalyser *sem_analyser)
+/* Frees semantic analyzer */
+void free_semantic_analyser(SemanticAnalyzer *sem_analyser)
 {
-    free_sym_table(sem_analyser->symtable);
+    free_var_table(sem_analyser->symtable);
     free(sem_analyser->filename);
 
-    for(int i=0; i < sem_analyser->lines.line_count; i++) {
+    for (int i = 0; i < sem_analyser->lines.line_count; i++)
+    {
         free(sem_analyser->lines.lines[i]);
     }
 
     free(sem_analyser->lines.lines);
+    free_token_list(sem_analyser->token_list);
     free(sem_analyser);
 }
 
 /* Checks that the expression as consistent identifiers */
-bool exp_has_correct_semantics(SemanticAnalyser *sem_analyser, ExpressionNode *root)
+bool exp_has_correct_semantics(SemanticAnalyzer *sem_analyser, ExpressionNode *root)
 {
     // Bases cases
     if (!root)
@@ -126,6 +155,7 @@ bool exp_has_correct_semantics(SemanticAnalyser *sem_analyser, ExpressionNode *r
     if (root->type == VALUE)
     {
         if (!expression_component_has_correct_semantics(sem_analyser, root->component))
+            // function should print out an error
             return false;
 
         return true;
@@ -138,7 +168,12 @@ bool exp_has_correct_semantics(SemanticAnalyser *sem_analyser, ExpressionNode *r
 
 // TODO
 /* Makes sure expression component is semantically correct */
-bool expression_component_has_correct_semantics(SemanticAnalyser *sem_analyzer, ExpressionComponent *node)
+/*
+For each expression component,
+it only checks its sub component is semantically valid for the respective component
+
+*/
+bool expression_component_has_correct_semantics(SemanticAnalyzer *sem_analyzer, ExpressionComponent *node)
 {
     while (node->sub_component)
         node = node->sub_component;
@@ -147,101 +182,97 @@ bool expression_component_has_correct_semantics(SemanticAnalyser *sem_analyzer, 
     {
         switch (node->type)
         {
-        // terminal component
+
+        /*
+        Numeric Constant:
+        - This a terminal component
+        It cannot be a child component (i.e parent->123 is invalid)
+        */
         case NUMERIC_CONSTANT:
         {
-            if (node->top_component || node->sub_component)
+            if (node->sub_component)
             {
-                // Invalid Syntax: 200->[EXPRESSION COMPONENT] | [EXPRESSION COMPONENT]->200, not valid
+                print_invalid_terminal_top_component_err(
+                    sem_analyzer, node,
+                    "Proper Syntax: 123123 -> [EXPRESSION COMPONENT]\n");
                 return false;
             }
 
             break;
         }
-        // terminal component
+
+        /*
+        String Constant:
+        - This a terminal component
+        It cannot be a child component (i.e parent->"string" is invalid)
+        */
         case STRING_CONSTANT:
         {
-            if (node->top_component || node->sub_component)
+            if (node->sub_component)
             {
-                // Invalid Syntax: "123123"->[EXPRESSION COMPONENT] | [EXPRESSION COMPONENT]->"123123" not valid
+                print_invalid_terminal_top_component_err(
+                    sem_analyzer, node,
+                    "Proper Syntax: \"string\" -> [EXPRESSION COMPONENT]\n");
                 return false;
             }
 
             break;
         }
-        // terminal component
+
+        /*
+        List Constant:
+        - This a terminal component
+        It cannot be a child component (i.e parent->[...] is invalid)
+        */
         case LIST_CONSTANT:
         {
-            if (node->top_component &&
-                (node->top_component->type != IDENTIFIER || node->top_component->type != LIST_INDEX))
+            if (node->sub_component)
             {
-                // Invalid Syntax: [1,2,3,4,5,6,7,8]()
+                print_invalid_terminal_top_component_err(
+                    sem_analyzer, node,
+                    "Proper Syntax: [ ... ] -> [EXPRESSION COMPONENT]");
                 return false;
             }
 
             break;
         }
 
-        // terminal component
+        /*
+        Null constant ('null' keyword):
+        - This is a terminal component
+        Which means that if its used it must at the root of the expression component (i.e parent -> null is invalid)
+        */
         case NULL_CONSTANT:
         {
-            if (node->top_component &&
-                (node->top_component->type != IDENTIFIER || node->top_component->type != LIST_INDEX))
+            if (node->sub_component)
             {
-                // Invalid Syntax: null->identifier...
+                print_invalid_terminal_top_component_err(
+                    sem_analyzer, node,
+                    "Proper Syntax: null -> [EXPRESSION COMPONENT]");
                 return false;
             }
 
             break;
         }
 
-        case VARIABLE:
-        {
-            if (node->top_component && is_exp_component_terminal(node->top_component->type))
+        /*
+        HashMap constant:
+        - This a terminal component
+        */
+        case HASHMAP_CONSTANT: {
+            if (node->sub_component)
             {
-                // Invalid Syntax: num -> [TERMINAL EXPRESSION COMPONENT]
-
-                return false;
-            }
-            if (!node->sub_component &&
-                !symtable_has_sym(sem_analyzer->symtable, node->meta_data.variable_reference))
-            {
-
-                // num -> ... (num must be a defined visible variable)
+                print_invalid_terminal_top_component_err(
+                    sem_analyzer, node,
+                    "Proper Syntax: map { v1: e1, ... } -> [EXPRESSION COMPONENT]");
                 return false;
             }
 
-            break;
-        }
-
-        case LIST_INDEX:
-        {
-            if (node->top_component && is_exp_component_terminal(node->top_component->type))
-            {
-                // Invalid Syntax: [EXPRESSION COMPONENT][LIST_INDEX] -> [TERMINAL EXPRESSION COMPONENT]
-                return false;
-            }
-
-            // Makes sure that
-            if (!exp_has_correct_semantics(sem_analyzer, node->meta_data.list_index))
-                return false;
-
-            break;
-        }
-
-        case FUNC_CALL:
-        {
-            if (node->top_component && is_exp_component_terminal(node->top_component->type))
-            {
-                // Invalid Syntax: [EXPRESSION COMPONENT](ARGS,...) -> [TERMINAL EXPRESSION COMPONENT]
-                return false;
-            }
-
-            for (int i = 0; i < node->meta_data.func_data.args_num; i++)
-            {
-                if (!exp_has_correct_semantics(sem_analyzer, node->meta_data.func_data.func_args[i]))
-                {
-                    // Invalid Syntax: [EXPRESSION COMPONENT]([EXPRESSION TREE, ..., EXPRESSION TREE])
+            for(int i=0; i < node->meta_data.HashMap.size; i++) {
+                if(!exp_has_correct_semantics(sem_analyzer, node->meta_data.HashMap.pairs[i]->key)) {
+                    return false;
+                }
+                if(!exp_has_correct_semantics(sem_analyzer, node->meta_data.HashMap.pairs[i]->value)) {
                     return false;
                 }
             }
@@ -249,18 +280,116 @@ bool expression_component_has_correct_semantics(SemanticAnalyser *sem_analyzer, 
             break;
         }
 
-        // TODO
+        /*
+        HashSet constant:
+        - This is terminal component
+        */
+        case HASHSET_CONSTANT: {
+            if (node->sub_component)
+            {
+                print_invalid_terminal_top_component_err(
+                    sem_analyzer, node,
+                    "Proper Syntax: set { v1: e1, ... } -> [EXPRESSION COMPONENT]");
+                return false;
+            }
+
+            for(int i=0; i < node->meta_data.HashSet.size; i++) {
+                if(!exp_has_correct_semantics(sem_analyzer,node->meta_data.HashSet.values[i])) {
+                    return false;
+                }
+            }
+
+            break;
+        }
+
+        /*
+        Variable:
+        - If the variable is at the root of the expression component.
+        Its identifer must have been declared somewhere in the current or higher scope.
+        */
+        case VARIABLE:
+        {
+            if (!node->sub_component &&
+                !vartable_has_var(sem_analyzer->symtable, node->meta_data.variable_reference))
+            {
+                print_undeclared_identifier_err(sem_analyzer, node, NULL);
+                return false;
+            }
+
+            break;
+        }
+
+        /*
+        Indexes:
+        - Sub Expression must be valid
+        - Indexes are allowed to have list and string constants as sub components
+        since it makes sense for list and strings (i.e fetching the nth list element or character)
+        */
+        case LIST_INDEX:
+        {
+            if (node->sub_component &&
+                node->sub_component->type != LIST_CONSTANT &&
+                node->sub_component->type != STRING_CONSTANT &&
+                is_exp_component_terminal(node->sub_component->type))
+            {
+                print_invalid_index_err(sem_analyzer, node, node->token_num, NULL);
+                return false;
+            }
+
+            if (!exp_has_correct_semantics(sem_analyzer, node->meta_data.list_index))
+                // function should print out an error
+                return false;
+
+            break;
+        }
+
+        /*
+        Function Calls:
+        - Must have single standalone identifiers as arguments
+        - They are allowed to have inline functions as sub components since the latter is still a function
+        - Its arguments must be valid expressions
+        */
+        case FUNC_CALL:
+        {
+            if (node->sub_component &&
+                node->sub_component->type == INLINE_FUNC &&
+                is_exp_component_terminal(node->sub_component->type))
+            {
+                print_invalid_func_call_err(sem_analyzer, node, node->token_num, NULL);
+                return false;
+            }
+
+            for (int i = 0; i < node->meta_data.func_data.args_num; i++)
+            {
+                if (!exp_has_correct_semantics(sem_analyzer, node->meta_data.func_data.func_args[i]))
+                {
+                    // function will print out error
+                    return false;
+                }
+            }
+
+            break;
+        }
+
+        /*
+        Inline functions (or nameless functions):
+        - This a terminal component
+        It cannot be a child component (i.e parent -> func(...) {...} is invalid)
+        - Its arguments must be single standalone identifers
+        */
         case INLINE_FUNC:
         {
-            if (node->top_component && is_exp_component_terminal(node->top_component->type))
+            if (node->sub_component)
             {
-                // Invalid Syntax: [EXPRESSION COMPONENT](ARGS,...) -> [TERMINAL EXPRESSION COMPONENT]
+                print_invalid_terminal_top_component_err(
+                    sem_analyzer, node,
+                    "Proper Syntax: func (...) { ... } -> [EXPRESSION COMPONENT]");
                 return false;
             }
 
             if (!check_argument_semantics(sem_analyzer, node->meta_data.inline_func))
             {
-                // Invalid Syntax: [EXPRESSION COMPONENT]([EXPRESSION TREE, ..., EXPRESSION TREE])
+                // function will print out error
                 return false;
             }
 
@@ -271,11 +400,10 @@ bool expression_component_has_correct_semantics(SemanticAnalyser *sem_analyzer, 
             add_argument_declarations_to_symtable(sem_analyzer, node->meta_data.inline_func);
 
             if (!AST_list_has_consistent_semantics(sem_analyzer, node->meta_data.inline_func->body))
-            {
+                // function should print an error
                 return false;
-            }
 
-            remove_all_syms_above_nesting_lvl(sem_analyzer->symtable, sem_analyzer->nesting_lvl);
+            remove_all_vars_above_nesting_lvl(sem_analyzer->symtable, sem_analyzer->nesting_lvl);
 
             sem_analyzer->scope_type = current_scope;
             sem_analyzer->nesting_lvl--;
@@ -293,8 +421,8 @@ bool expression_component_has_correct_semantics(SemanticAnalyser *sem_analyzer, 
     return true;
 }
 
-/* Checks that var assignment makes semantic sense */
-bool var_assignment_has_correct_semantics(SemanticAnalyser *sem_analyser, AST_node *node)
+/* Checks that var assignment makes sense */
+bool var_assignment_has_correct_semantics(SemanticAnalyzer *sem_analyser, AST_node *node)
 {
     assert(node->type == VAR_ASSIGNMENT);
     return expression_component_has_correct_semantics(sem_analyser, node->identifier.expression_component) &&
@@ -302,7 +430,7 @@ bool var_assignment_has_correct_semantics(SemanticAnalyser *sem_analyser, AST_no
 }
 
 /* Checks argument semantics (and to some extent syntax) i.e [IDENTIFER]([EXP NODE],[EXP NODE],...)*/
-bool check_argument_semantics(SemanticAnalyser *sem_analyser, AST_node *node)
+bool check_argument_semantics(SemanticAnalyzer *sem_analyser, AST_node *node)
 {
     assert(
         node->type == FUNCTION_DECLARATION ||
@@ -328,6 +456,17 @@ bool check_argument_semantics(SemanticAnalyser *sem_analyser, AST_node *node)
         // invalid argument (must be a single variable), i.e func sum(n0,n1)
         if (args[i]->type != VALUE || args[i]->component->type != VARIABLE)
         {
+
+            print_invalid_arg_identifier_err(
+                sem_analyser, args[i]->token_num,
+                node->type == FUNCTION_DECLARATION          ? "Function Declarations arguments must be standalone identifiers\n"
+                                                              "Proper Syntax: func function (arg1,arg2, ... ) { ... }"
+                : node->type == OBJECT_DECLARATION          ? "Object Declarations arguments must be standalone identifiers\n"
+                                                              "Proper Syntax: object function (arg1,arg2, ... ) { ... }"
+                : node->type == INLINE_FUNCTION_DECLARATION ? "Inline Function Declarations arguments must be standalone identifiers\n"
+                                                              "Proper Syntax: func (arg1,arg2, ... ) { ... }"
+                                                            : NULL);
+
             return false;
         }
     }
@@ -336,7 +475,7 @@ bool check_argument_semantics(SemanticAnalyser *sem_analyser, AST_node *node)
 }
 
 /* Iterates through AST and adds object and function declarations to symtable */
-static void forward_declare_obj_func(SemanticAnalyser *sem_analyzer, AST_List *ast_list)
+static void forward_declare_obj_func(SemanticAnalyzer *sem_analyzer, AST_List *ast_list)
 {
     if (!ast_list)
         return;
@@ -347,7 +486,7 @@ static void forward_declare_obj_func(SemanticAnalyser *sem_analyzer, AST_List *a
         switch (node->type)
         {
         case OBJECT_DECLARATION:
-            add_sym_to_symtable(
+            add_var_to_vartable(
                 sem_analyzer->symtable,
                 node->identifier.func_name,
                 sem_analyzer->filename,
@@ -355,7 +494,7 @@ static void forward_declare_obj_func(SemanticAnalyser *sem_analyzer, AST_List *a
                 SYMBOL_TYPE_OBJECT);
             break;
         case FUNCTION_DECLARATION:
-            add_sym_to_symtable(
+            add_var_to_vartable(
                 sem_analyzer->symtable,
                 node->identifier.obj_name,
                 sem_analyzer->filename,
@@ -376,13 +515,16 @@ static void forward_declare_obj_func(SemanticAnalyser *sem_analyzer, AST_List *a
 - Function declarations are valid
 - Program makes logical sense
 */
-bool AST_list_has_consistent_semantics(SemanticAnalyser *sem_analyzer, AST_List *ast_list)
+bool AST_list_has_consistent_semantics(SemanticAnalyzer *sem_analyzer, AST_List *ast_list)
 {
+    // Empty code block are valid
     if (!ast_list)
         return true;
 
     AST_node *node = ast_list->head;
 
+    // forward declares function, object declarations
+    // Allows for recursive/ recursively dependant definitions
     forward_declare_obj_func(sem_analyzer, ast_list);
 
     while (node)
@@ -390,23 +532,30 @@ bool AST_list_has_consistent_semantics(SemanticAnalyser *sem_analyzer, AST_List 
         switch (node->type)
         {
 
-        // i.e let var = ...
+        /*
+        Variable Declarations:
+        - let keyword can be preceded by a semantically valid access modifier
+        - Initial assignment can be empty, but if its not it must a valid expression
+        - Identifer is put into variable table
+        */
         case VAR_DECLARATION:
         {
             // access modifier semantics
             if (!is_access_modifier_valid(sem_analyzer, node))
             {
+                // function prints out error
                 return false;
             }
 
             // checks assignment value
             if (!exp_has_correct_semantics(sem_analyzer, node->ast_data.exp))
             {
+                // function prints out error
                 return false;
             }
 
             // saves symbol
-            add_sym_to_symtable(
+            add_var_to_vartable(
                 sem_analyzer->symtable,
                 node->identifier.declared_var,
                 sem_analyzer->filename,
@@ -416,49 +565,74 @@ bool AST_list_has_consistent_semantics(SemanticAnalyser *sem_analyzer, AST_List 
             break;
         }
 
-        // i.e var = ...
+        /*
+        Variable assignment:
+        - Assignment variable must have been declared in the current or higher scope
+        - Assignment expression must also be valid
+        */
         case VAR_ASSIGNMENT:
         {
             if (!var_assignment_has_correct_semantics(sem_analyzer, node))
+            {
+                // function prints out error
                 return false;
+            }
 
             break;
         }
 
-        // i.e if(EXPRESSION) {...}
+        /*
+        If block:
+        - Conditional expression must be valid
+        - And its sub block must also be valid
+        */
         case IF_CONDITIONAL:
         {
             if (!exp_has_correct_semantics(sem_analyzer, node->ast_data.exp))
+            {
+                // function prints out error
                 return false;
+            }
 
             sem_analyzer->nesting_lvl++;
 
             if (!AST_list_has_consistent_semantics(sem_analyzer, node->body))
+            {
+                // function prints out error
                 return false;
+            }
 
             sem_analyzer->nesting_lvl--;
 
             break;
         }
 
-        // I.E else if(EXPRESSION) {...}
+        /*
+        else if block:
+        - Must be preceded by an if OR else if block (which must be valid)
+        - Conditional expression must be valid
+        - Sub block must be valid
+        */
         case ELSE_IF_CONDITIONAL:
         {
             if (!node->prev || (node->prev &&
                                 node->prev->type != IF_CONDITIONAL &&
                                 node->prev->type != ELSE_IF_CONDITIONAL))
             {
-                // TODO -> BAD SYNTAX
 
+                print_invalid_else_if_block_err(sem_analyzer, node, node->token_num,
+                                                "Proper Syntax: if (...) { ... } else if (...) { ... } ... else if (...) { ... }");
                 return false;
             }
 
             if (!exp_has_correct_semantics(sem_analyzer, node->ast_data.exp))
+                // function prints out error
                 return false;
 
             sem_analyzer->nesting_lvl++;
 
             if (!AST_list_has_consistent_semantics(sem_analyzer, node->body))
+                // function prints out error
                 return false;
 
             sem_analyzer->nesting_lvl--;
@@ -466,36 +640,55 @@ bool AST_list_has_consistent_semantics(SemanticAnalyser *sem_analyzer, AST_List 
             break;
         }
 
+        /*
+        else block:
+        - Must be preceded by a if or else if block (which must be valid)
+        - Sub block must be valid
+        */
         case ELSE_CONDITIONAL:
         {
             if (!node->prev || (node->prev &&
                                 node->prev->type != IF_CONDITIONAL &&
                                 node->prev->type != ELSE_IF_CONDITIONAL))
             {
-                // TODO -> BAD SYNTAX
-
+                print_invalid_else_block_err(
+                    sem_analyzer, node, node->token_num,
+                    "Proper Syntax: if (...) { ... } else if (...) { ... } ... else { ... }");
                 return false;
             }
 
             sem_analyzer->nesting_lvl++;
 
             if (!AST_list_has_consistent_semantics(sem_analyzer, node->body))
+            {
+                // function prints out error
                 return false;
+            }
 
             sem_analyzer->nesting_lvl--;
 
             break;
         }
+        /*
+        while block:
+        - Conditional expression must be valid
+        - Sub block must be valid
+        */
         case WHILE_LOOP:
         {
             if (!exp_has_correct_semantics(sem_analyzer, node->ast_data.exp))
+            {
+                // function prints out error
                 return false;
+            }
 
             sem_analyzer->nesting_lvl++;
             bool current_loop_cond = sem_analyzer->is_in_loop;
 
             sem_analyzer->is_in_loop = true;
+
             bool tmp = AST_list_has_consistent_semantics(sem_analyzer, node->body);
+            // if tmp false, an error would have been printed out
 
             sem_analyzer->is_in_loop = current_loop_cond;
             sem_analyzer->nesting_lvl--;
@@ -506,22 +699,25 @@ bool AST_list_has_consistent_semantics(SemanticAnalyser *sem_analyzer, AST_List 
             break;
         }
 
-        // i.e func function(EXPRESSION COMPONENT, ... ) {...}
+        /*
+        Function Declarations:
+        - Access modifier must be semantically valid
+        - Function arguments must be standalone identifiers
+        - Sub block must be valid
+        - Function name will have been forward declared
+        - Argument names are added to the functions scope
+        */
         case FUNCTION_DECLARATION:
         {
-            // access modifier semantics
             if (!is_access_modifier_valid(sem_analyzer, node))
-            {
+                // function prints out error
                 return false;
-            }
 
             if (!check_argument_semantics(sem_analyzer, node))
-            {
+                // function prints out error
                 return false;
-            }
 
-            // adds function name has symbol to table
-            add_sym_to_symtable(
+            add_var_to_vartable(
                 sem_analyzer->symtable,
                 node->identifier.func_name,
                 sem_analyzer->filename,
@@ -531,13 +727,13 @@ bool AST_list_has_consistent_semantics(SemanticAnalyser *sem_analyzer, AST_List 
             sem_analyzer->nesting_lvl++;
             Scope this_scope = sem_analyzer->scope_type;
 
-            // adds func args to symbol table
             add_argument_declarations_to_symtable(sem_analyzer, node);
 
             sem_analyzer->scope_type = FUNCTION_SCOPE;
             bool tmp = AST_list_has_consistent_semantics(sem_analyzer, node->body);
+            // if tmp false, an error should have been printed out
 
-            remove_all_syms_above_nesting_lvl(sem_analyzer->symtable, sem_analyzer->nesting_lvl);
+            remove_all_vars_above_nesting_lvl(sem_analyzer->symtable, sem_analyzer->nesting_lvl);
 
             sem_analyzer->scope_type = this_scope;
             sem_analyzer->nesting_lvl--;
@@ -548,17 +744,26 @@ bool AST_list_has_consistent_semantics(SemanticAnalyser *sem_analyzer, AST_List 
             break;
         }
 
-        // TODO
+        /*
+        Object Declarations:
+        - Access modifer must be semantically valid
+        - Object arguments must be standalone identifers
+        - Object name is added to var table (however it should have been already forward declared)
+        - Object Arguments are added to var table for the object's lower scope
+        - Sub block must only contain variable, function, and/or object declarations
+        */
         case OBJECT_DECLARATION:
         {
-            // access modifier semantics
             if (!is_access_modifier_valid(sem_analyzer, node))
-            {
+                // function prints out error
                 return false;
-            }
 
-            // adds function name has symbol to table
-            add_sym_to_symtable(
+            if (!check_argument_semantics(sem_analyzer, node))
+                // function prints out error
+                return false;
+
+            // adds object name has symbol to table
+            add_var_to_vartable(
                 sem_analyzer->symtable,
                 node->identifier.obj_name,
                 sem_analyzer->filename,
@@ -566,21 +771,20 @@ bool AST_list_has_consistent_semantics(SemanticAnalyser *sem_analyzer, AST_List 
                 SYMBOL_TYPE_OBJECT);
 
             if (!is_obj_block_valid(sem_analyzer, node))
-            {
+                // function prints out error
                 return false;
-            }
 
             sem_analyzer->nesting_lvl++;
             Scope this_scope = sem_analyzer->scope_type;
 
-            // adds func args to symbol table
             add_argument_declarations_to_symtable(sem_analyzer, node);
 
             sem_analyzer->scope_type = OBJECT_SCOPE;
 
             bool tmp = AST_list_has_consistent_semantics(sem_analyzer, node->body);
+            // if tmp false, an error should have been printed out
 
-            remove_all_syms_above_nesting_lvl(sem_analyzer->symtable, sem_analyzer->nesting_lvl);
+            remove_all_vars_above_nesting_lvl(sem_analyzer->symtable, sem_analyzer->nesting_lvl);
 
             sem_analyzer->scope_type = this_scope;
             sem_analyzer->nesting_lvl--;
@@ -591,23 +795,27 @@ bool AST_list_has_consistent_semantics(SemanticAnalyser *sem_analyzer, AST_List 
             break;
         }
 
+        /*
+        Inline function:
+        - Arguments must be standalone identifiers
+        - Arguments are added to var table for the functions lower scope
+        - Sub block must be valid
+        */
         case INLINE_FUNCTION_DECLARATION:
         {
             if (!AST_list_has_consistent_semantics(sem_analyzer, node->body))
-            {
+                // function will print an error
                 return false;
-            }
 
             sem_analyzer->nesting_lvl++;
             Scope this_scope = sem_analyzer->scope_type;
 
-            // adds func args to symbol table
             add_argument_declarations_to_symtable(sem_analyzer, node);
 
             sem_analyzer->scope_type = FUNCTION_SCOPE;
             bool tmp = AST_list_has_consistent_semantics(sem_analyzer, node->body);
 
-            remove_all_syms_above_nesting_lvl(sem_analyzer->symtable, sem_analyzer->nesting_lvl);
+            remove_all_vars_above_nesting_lvl(sem_analyzer->symtable, sem_analyzer->nesting_lvl);
 
             sem_analyzer->scope_type = this_scope;
             sem_analyzer->nesting_lvl--;
@@ -618,17 +826,25 @@ bool AST_list_has_consistent_semantics(SemanticAnalyser *sem_analyzer, AST_List 
             break;
         }
 
-        // i.e return EXPRESSION ...;
+        /*
+        Return value:
+        - return expression must be valid
+        - return values can be used in the global scope (meaning end of the program)
+        */
         case RETURN_VAL:
         {
             if (!exp_has_correct_semantics(sem_analyzer, node->ast_data.exp))
-            {
+                // function will print out an error
                 return false;
-            }
+
             break;
         }
 
-        // i.e break;
+        /*
+        Loop termination (break keyword)
+        - Its a standalone keyword (i.e used by itself)
+        - Can only be used while in a loop block
+        */
         case LOOP_TERMINATOR:
         {
             if (!sem_analyzer->is_in_loop)
@@ -639,7 +855,11 @@ bool AST_list_has_consistent_semantics(SemanticAnalyser *sem_analyzer, AST_List 
             break;
         }
 
-        // i.e continue;
+        /*
+        Loop continuation (continue keyword)
+        - Its a standalone keyword (i.e used by itself)
+        - Can only be used while in a loop block
+        */
         case LOOP_CONTINUATION:
         {
             if (!sem_analyzer->is_in_loop)
@@ -650,12 +870,17 @@ bool AST_list_has_consistent_semantics(SemanticAnalyser *sem_analyzer, AST_List 
             break;
         }
 
-        // todo
+        /*
+        Expression component:
+        - Represents a standalone expression component (can represent standalone function calls)
+        - Expression component must be valid
+        */
         case EXPRESSION_COMPONENT:
         {
             if (!expression_component_has_correct_semantics(sem_analyzer, node->identifier.expression_component))
             {
                 // Invalid Syntax for expression component
+                // function will print out an error
                 return false;
             }
             break;
@@ -667,7 +892,7 @@ bool AST_list_has_consistent_semantics(SemanticAnalyser *sem_analyzer, AST_List 
 
     // we only clear symtable if its nested, top level declarations are kept
     if (sem_analyzer->nesting_lvl > 0)
-        remove_all_syms_above_nesting_lvl(sem_analyzer->symtable, sem_analyzer->nesting_lvl);
+        remove_all_vars_above_nesting_lvl(sem_analyzer->symtable, sem_analyzer->nesting_lvl);
 
     return true;
 }

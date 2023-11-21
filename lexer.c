@@ -499,7 +499,7 @@ TokenList *tokenize_str(Lexer *lexer, char *file_contents)
         }
         // handles comments
         else if(file_contents[lexer->text_ptr] == '#') {
-            while(file_contents[lexer->text_ptr] != '\n') {
+            while(file_contents[lexer->text_ptr] != '\n' && file_contents[lexer->text_ptr] != '\0') {
                 push_char_to_buffer(lexer,file_contents[lexer->text_ptr]);
                 lexer->text_ptr++;
             }
@@ -726,6 +726,10 @@ char *get_file_contents(const char *f_name)
 
     while (c != EOF)
     {
+        buffer[cur_buffer_len] = c;
+        c = fgetc(file);
+        ++cur_buffer_len;
+
         if (cur_buffer_len == max_buffer_len)
         {
             max_buffer_len *= 2;
@@ -738,9 +742,6 @@ char *get_file_contents(const char *f_name)
             free(buffer);
             buffer = tmp_buffer;
         }
-        buffer[cur_buffer_len] = c;
-        c = fgetc(file);
-        ++cur_buffer_len;
     }
     buffer[cur_buffer_len] = '\0';
     fclose(file);

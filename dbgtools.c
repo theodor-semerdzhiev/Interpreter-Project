@@ -164,6 +164,7 @@ static void print_repeated_string(char *str, int repetitions)
 {
     for (int i = 0; i < repetitions; i++)
         printf("%s", str);
+    
 }
 
 /* Prints out a human readable representation of a expression component */
@@ -207,7 +208,6 @@ void print_expression_component(ExpressionComponent *component, char *buffer, in
     case NULL_CONSTANT:
     {
         printf(" NULL_CONSTANT -> null \n");
-
         break;
     }
 
@@ -238,6 +238,33 @@ void print_expression_component(ExpressionComponent *component, char *buffer, in
 
         break;
     }
+
+    case HASHSET_CONSTANT: {
+        printf(" HASHSET_CONSTANT -> %s \n", 
+        !component->meta_data.HashSet.size? "Empty": "");
+        for (int i = 0; i < component->meta_data.HashSet.size; i++)
+            print_expression_tree(component->meta_data.HashSet.values[i], buffer, rec_lvl + 1);
+
+        break;
+    }
+
+    case HASHMAP_CONSTANT: {
+        printf(" HASHMAP_CONSTANT -> %s \n", 
+        !component->meta_data.HashMap.size? "Empty": "");
+        print_repeated_string(buffer, rec_lvl+1);
+        
+        for (int i = 0; i < component->meta_data.HashMap.size; i++) {
+            printf("Key -> \n"); 
+            print_expression_tree(component->meta_data.HashMap.pairs[i]->key, buffer, rec_lvl + 2);
+            print_repeated_string(buffer, rec_lvl+1);
+            printf("Value -> \n"); 
+            print_expression_tree(component->meta_data.HashMap.pairs[i]->value, buffer, rec_lvl + 2);
+            print_repeated_string(buffer, rec_lvl+1);
+        }
+
+        break;
+    }
+
 
     default:
         printf("Expression Component does not have a valid type \n");

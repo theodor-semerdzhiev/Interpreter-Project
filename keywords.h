@@ -15,7 +15,9 @@ enum keyword_type
   NULL_KEYWORD,
   GLOBAL_KEYWORD,
   PRIVATE_KEYWORD,
-  OBJECT_KEYWORD
+  OBJECT_KEYWORD,
+  MAP_KEYWORD,
+  SET_KEYWORD
 };
 
 struct keyword

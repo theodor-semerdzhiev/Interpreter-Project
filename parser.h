@@ -10,7 +10,7 @@
 typedef struct Parser
 {
     int token_ptr;
-    TokenList *lexeme_list;
+    TokenList *token_list;
 
     MemoryTracker *memtracker; // keeps track of mallocs
 
@@ -55,7 +55,10 @@ enum expression_component_type
     STRING_CONSTANT,
     LIST_CONSTANT,
     NULL_CONSTANT,
+    HASHMAP_CONSTANT,
+    HASHSET_CONSTANT,
     //////////////
+
     VARIABLE,
     LIST_INDEX,
     FUNC_CALL,
@@ -67,6 +70,7 @@ typedef struct expression_node ExpressionNode;
 typedef struct AST_node AST_node;
 typedef struct ast_list AST_List;
 typedef struct expression_component ExpressionComponent;
+typedef struct KeyValue KeyValue;
 /*******************************************/
 
 typedef struct expression_component
@@ -77,6 +81,8 @@ typedef struct expression_component
     ExpressionComponent *top_component;
 
     int line_num;
+
+    int token_num; // Associated position in the Token List
 
     // all the data in this union is mutually exclusive
     union data
@@ -109,17 +115,39 @@ typedef struct expression_component
 
         } func_data;
 
+        // defines HashMap built in data structure
+        struct HashMap
+        {
+            KeyValue **pairs;
+            int size;
+        } HashMap;
+
+        // defines HashSet built in data structure
+        struct HashSet
+        {
+            ExpressionNode **values;
+            int size;
+        } HashSet;
+
         // used ONLY for inline defined functions (INLINE_FUNC type)
         AST_node *inline_func;
 
     } meta_data;
 } ExpressionComponent;
 
+typedef struct KeyValue
+{
+    ExpressionNode *key;
+    ExpressionNode *value;
+} KeyValue;
+
 /* General struct for a expression */
 typedef struct expression_node
 {
     enum expression_token_type type;
     bool negation; // wether it as a ! op in front
+
+    int token_num; // Associated position in the Token List
 
     ExpressionComponent *component; // contains a the 'value' of the node
 
@@ -172,6 +200,8 @@ typedef struct AST_node
     AccessModifier access;
 
     int line_num;
+
+    int token_num; // Associated position in the Token List
 
     // represents LHS identifer (for var assignment or declaration) or function name
     // union is NULL if type is a INLINE_FUNCTION_DECLARATION
@@ -246,7 +276,13 @@ ExpressionNode **parse_expressions_by_seperator(
     enum token_type seperator,
     enum token_type end_of_exp);
 
-int get_expression_list_length(ExpressionNode **args);
+KeyValue **parser_key_value_pair_exps(
+    Parser *parser,
+    enum token_type key_val_seperators,
+    enum token_type pair_seperators,
+    enum token_type end_of_exp);
+
+int get_pointer_list_length(void **args);
 
 ExpressionNode *parse_expression(
     Parser *parser,

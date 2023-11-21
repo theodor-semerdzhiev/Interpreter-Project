@@ -38,7 +38,9 @@ void init_keyword_table()
     insert_keyword_to_table("null", NULL_KEYWORD);
     insert_keyword_to_table("global", GLOBAL_KEYWORD);
     insert_keyword_to_table("private", PRIVATE_KEYWORD);
-    insert_keyword_to_table("object", OBJECT_KEYWORD);
+    insert_keyword_to_table("object", OBJECT_KEYWORD); 
+    insert_keyword_to_table("set", SET_KEYWORD); 
+    insert_keyword_to_table("map", MAP_KEYWORD); 
 }
 
 const char* get_keyword_string(enum keyword_type keyword) {
@@ -67,6 +69,10 @@ const char* get_keyword_string(enum keyword_type keyword) {
         return "private";
         case OBJECT_KEYWORD:
         return "object";
+        case MAP_KEYWORD:
+        return "map";
+        case SET_KEYWORD:
+        return "set";
         default:
         return NULL;
     }

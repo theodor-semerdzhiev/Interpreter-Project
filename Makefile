@@ -8,7 +8,7 @@ SRC_FILES = \
 	parser.c \
 	dbgtools.c \
 	semanalysis.c \
-	symtable.c \
+	vartable.c \
 	memtracker.c \
 	errors.c
 	

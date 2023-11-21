@@ -1,8 +1,5 @@
-func f (num) {
-    return num; 
-}
 
-let f = func (num;) {return num;};
-
-else if([[1,2,3,4,2,3,void]]) {}
-
+let x = 10;
+let map_ = map {
+    10 : x set {[1,2,3,4,5],[1,2,3,4,5]} +
+};

@@ -1,28 +1,28 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include "symtable.h"
+#include "vartable.h"
 #include "parser.h"
 
 #define DEFAULT_BUCKET_SIZE 40
 
-typedef struct SymbolChain SymbolChain;
+typedef struct VarChain VarChain;
 
 static unsigned int hash(const char *ident);
 
 /* Mallocs symbol struct */
-static Symbol *malloc_symbol(const char *ident, const char *filename)
+static Variable *malloc_symbol(const char *ident, const char *filename)
 {
-    Symbol *sym = malloc(sizeof(Symbol));
+    Variable *sym = malloc(sizeof(Variable));
     sym->ident = malloc_string_cpy(NULL, ident);
     sym->filename = malloc_string_cpy(NULL, filename);
     sym->next = NULL;
-    sym->nesting_lvl=0;
+    sym->nesting_lvl = 0;
     return sym;
 }
 
 /* Inserts symbol into symbol chain */
-static void insert_symbol(SymbolChain *chain, Symbol *sym)
+static void insert_symbol(VarChain *chain, Variable *sym)
 {
     if (!chain->head)
     {
@@ -37,29 +37,30 @@ static void insert_symbol(SymbolChain *chain, Symbol *sym)
 }
 
 /* Mallocs struct for hashmap chaining */
-static SymbolChain *malloc_symbol_chain() {
-    SymbolChain *chain = malloc(sizeof(SymbolChain));
-    chain->head=NULL;
-    chain->tail=NULL;
-    return chain;
-} 
-/* Mallocs symbol table, inits the table to NULL */
-SymbolTable *malloc_symbol_table()
+static VarChain *malloc_symbol_chain()
 {
-    SymbolTable *symtable = malloc(sizeof(SymbolTable));
+    VarChain *chain = malloc(sizeof(VarChain));
+    chain->head = NULL;
+    chain->tail = NULL;
+    return chain;
+}
+/* Mallocs symbol table, inits the table to NULL */
+VarTable *malloc_symbol_table()
+{
+    VarTable *symtable = malloc(sizeof(VarTable));
     symtable->bucket_count = DEFAULT_BUCKET_SIZE;
     symtable->sym_count = 0;
-    symtable->table = malloc(sizeof(SymbolChain *) * DEFAULT_BUCKET_SIZE);
-    memset(symtable->table, 0, sizeof(SymbolChain *) * DEFAULT_BUCKET_SIZE);
-    for(int i=0; i < DEFAULT_BUCKET_SIZE; i++) {
+    symtable->table = malloc(sizeof(VarChain *) * DEFAULT_BUCKET_SIZE);
+    memset(symtable->table, 0, sizeof(VarChain *) * DEFAULT_BUCKET_SIZE);
+    for (int i = 0; i < DEFAULT_BUCKET_SIZE; i++)
+    {
         symtable->table[i] = malloc_symbol_chain();
-
     }
     return symtable;
 }
 
 /* Frees symbol itself, does not touch *next node, make sure this function is called appropriately*/
-void free_symbol_struct(Symbol *sym)
+void free_var_struct(Variable *sym)
 {
     free(sym->ident);
     free(sym->filename);
@@ -67,17 +68,18 @@ void free_symbol_struct(Symbol *sym)
 }
 
 /* Frees the symbol table */
-void free_sym_table(SymbolTable *symtable)
+void free_var_table(VarTable *symtable)
 {
     for (int i = 0; i < symtable->bucket_count; i++)
     {
-        SymbolChain *chain = symtable->table[i];
-        if(!chain) continue;
-        Symbol *head = chain->head;
+        VarChain *chain = symtable->table[i];
+        if (!chain)
+            continue;
+        Variable *head = chain->head;
         while (head)
         {
-            Symbol *tmp = head->next;
-            free_symbol_struct(head);
+            Variable *tmp = head->next;
+            free_var_struct(head);
             head = tmp;
         }
         free(chain);
@@ -86,28 +88,29 @@ void free_sym_table(SymbolTable *symtable)
     free(symtable);
 }
 
-/* Adds symbol to symbol table, 
+/* Adds symbol to symbol table,
 - returns true if it was added successfully
 - return false if the same Symbol is already in the table */
-bool add_sym_to_symtable(
-    SymbolTable *symtable, 
-    const char *ident, 
+bool add_var_to_vartable(
+    VarTable *symtable,
+    const char *ident,
     const char *filename,
     int nesting_lvl,
-    SymbolType symtype)
+    VariableType symtype)
 {
     // if symbol already exists
     // it gets replaced
-    if(symtable_has_sym(symtable, ident)) {
-        remove_sym_from_symtable(symtable, ident);
+    if (vartable_has_var(symtable, ident))
+    {
+        remove_var_from_vartable(symtable, ident);
     }
 
     unsigned int index = hash(ident);
-    Symbol *sym = malloc_symbol(ident, filename);
-    sym->nesting_lvl=nesting_lvl;
+    Variable *sym = malloc_symbol(ident, filename);
+    sym->nesting_lvl = nesting_lvl;
     sym->type = symtype;
 
-    SymbolChain *chain = symtable->table[index % symtable->bucket_count];
+    VarChain *chain = symtable->table[index % symtable->bucket_count];
 
     insert_symbol(chain, sym);
     symtable->sym_count++;
@@ -116,10 +119,10 @@ bool add_sym_to_symtable(
 }
 
 /* Checks if symbol is contained within the symbol table */
-bool symtable_has_sym(SymbolTable *symtable, const char *ident)
+bool vartable_has_var(VarTable *symtable, const char *ident)
 {
-    SymbolChain *chain = symtable->table[hash(ident) % symtable->bucket_count];
-    Symbol *head = chain->head;
+    VarChain *chain = symtable->table[hash(ident) % symtable->bucket_count];
+    Variable *head = chain->head;
     while (head)
     {
         if (!strcmp(head->ident, ident))
@@ -131,31 +134,34 @@ bool symtable_has_sym(SymbolTable *symtable, const char *ident)
 }
 
 /* Removes all symbols that have a smaller or equal nesting level */
-void remove_all_syms_above_nesting_lvl(SymbolTable *symtable, int nesting_lvl) {
-    for(int i=0; i < symtable->bucket_count; i++) {
-        if(!symtable->table[i]) continue;
-        
-        Symbol *head = symtable->table[i]->head;
-        while(head) {
-            Symbol *tmp = head->next;
-            if(head->nesting_lvl >= nesting_lvl) {
-                remove_sym_from_symtable(symtable, head->ident);
+void remove_all_vars_above_nesting_lvl(VarTable *symtable, int nesting_lvl)
+{
+    for (int i = 0; i < symtable->bucket_count; i++)
+    {
+        if (!symtable->table[i])
+            continue;
+
+        Variable *head = symtable->table[i]->head;
+        while (head)
+        {
+            Variable *tmp = head->next;
+            if (head->nesting_lvl >= nesting_lvl)
+            {
+                remove_var_from_vartable(symtable, head->ident);
             }
-            
-            head=tmp;
-            
+
+            head = tmp;
         }
     }
 }
 
-
 /* Removes symbol from table, return true if symbol was in table gets removes successfully, otherwise return false*/
-bool remove_sym_from_symtable(SymbolTable *symtable, const char *ident)
+bool remove_var_from_vartable(VarTable *symtable, const char *ident)
 {
     unsigned int index = hash(ident) % symtable->bucket_count;
-    SymbolChain *chain = symtable->table[index];
-    Symbol *head = chain->head;
-    Symbol *prev = NULL;
+    VarChain *chain = symtable->table[index];
+    Variable *head = chain->head;
+    Variable *prev = NULL;
 
     while (head)
     {
@@ -166,14 +172,15 @@ bool remove_sym_from_symtable(SymbolTable *symtable, const char *ident)
                 chain->head = head->next;
                 if (!head->next)
                     chain->tail = NULL;
-                
-            } else {
-                 prev->next = head->next;
+            }
+            else
+            {
+                prev->next = head->next;
                 if (!head->next)
                     chain->tail = prev;
             }
 
-            free_symbol_struct(head);
+            free_var_struct(head);
             return true;
         }
         prev = head;
@@ -181,7 +188,6 @@ bool remove_sym_from_symtable(SymbolTable *symtable, const char *ident)
     }
     return false;
 }
-
 
 // hash function: string -> int
 static unsigned int hash(const char *ident)

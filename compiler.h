@@ -1,46 +1,75 @@
 
-/**
- * if (10 > num) {
- * 
- * } else {
- * 
- * }
- * 
- * 1. LOAD_VAR num
- * 2. BIGGER THAN 10 NUM [4]
- * 3. JUMP 5
- * 4. [if block ...]
- * 5. [else block ... ]
- * 6. everything else
- * 
- * 
- * 
- * 
- * 
-*/
-
 
 typedef enum OpCode {
-    //TODO
     
-    
-    GET_FROM_STACK,
+    PUSH_VAR_OP,
+    POP_VAR_OP,
+    GET_VAR_WITH_OFFSET_OP,
+    GET_VAR_WITH_CONST_OP,
 
-    
+
+
+
 } OpCode;
 
 
-typedef struct Intermediate {
 
-} Intermediate;
+
+/* Final Runtime ready ByteCode */
+
+typedef enum RtType {
+    NUMBER_TYPE,
+    STRING_TYPE,
+    OBJECT_TYPE,
+    FUNCTION_TYPE,
+    LIST_TYPE,
+    HASHMAP_TYPE,
+    HASHSET_TYPE,
+} RtType;
+
+// ALL variables are 
+typedef struct RtObject {
+
+
+    union data {
+        struct Number {
+
+        } Number;
+
+        struct String {
+
+        } String;
+
+        struct Object {
+
+        };
+
+        struct Function {
+
+        } Function;
+
+        struct List {
+            
+        } List;
+
+        struct HashMap {
+
+        } HashMap;
+
+        struct HashMap {
+
+        } HashSet;
+
+    } data;
+} RtObject;
 
 
 typedef struct ByteCode {
     OpCode code;
 
-    Intermediate *interm1;
-    Intermediate *interm2;
-    Intermediate *interm3;
+    RtObject *interm1;
+    RtObject *interm2;
+    RtObject *interm3;
 
 } ByteCode;
 

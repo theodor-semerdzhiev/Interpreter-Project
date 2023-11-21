@@ -1,4 +1,4 @@
-#include "symtable.h"
+#include "vartable.h"
 #include "parser.h"
 
 #ifndef SEMANALYZER
@@ -12,9 +12,9 @@ typedef enum scope_type
 
 } Scope;
 
-typedef struct SemanticAnalyser
+typedef struct SemanticAnalyzer
 {
-    SymbolTable *symtable;
+    VarTable *symtable;
     Scope scope_type;
     bool is_in_loop;
     int nesting_lvl;
@@ -25,16 +25,18 @@ typedef struct SemanticAnalyser
         int line_count;
     } lines;
 
+    TokenList *token_list;
+
     char *filename;
 
-} SemanticAnalyser;
+} SemanticAnalyzer;
 
-SemanticAnalyser *malloc_semantic_analyser(const char *filename, const char **lines, const int line_num);
-void free_semantic_analyser(SemanticAnalyser *sem_analyser);
-bool exp_has_correct_semantics(SemanticAnalyser *sem_analyser, ExpressionNode *root);
-bool expression_component_has_correct_semantics(SemanticAnalyser *sem_analyser, ExpressionComponent *node);
-bool var_assignment_has_correct_semantics(SemanticAnalyser *sem_analyser, AST_node *node);
-bool check_argument_semantics(SemanticAnalyser *sem_analyser, AST_node *node);
-bool AST_list_has_consistent_semantics(SemanticAnalyser *sem_analyser, AST_List *ast_list);
+SemanticAnalyzer *malloc_semantic_analyser(const char *filename, const char **lines, const int line_num, const TokenList *list);
+void free_semantic_analyser(SemanticAnalyzer *sem_analyser);
+bool exp_has_correct_semantics(SemanticAnalyzer *sem_analyser, ExpressionNode *root);
+bool expression_component_has_correct_semantics(SemanticAnalyzer *sem_analyser, ExpressionComponent *node);
+bool var_assignment_has_correct_semantics(SemanticAnalyzer *sem_analyser, AST_node *node);
+bool check_argument_semantics(SemanticAnalyzer *sem_analyser, AST_node *node);
+bool AST_list_has_consistent_semantics(SemanticAnalyzer *sem_analyser, AST_List *ast_list);
 
 #endif

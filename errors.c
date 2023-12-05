@@ -16,6 +16,28 @@
 #define WHITE_TEXT "\x1b[37m"
 #define RESET_COLOR "\x1b[0m"
 
+/* Prints out syntax message depending on parsing context */
+/* Only used for parsing errors (not semantic analyzer)*/
+static void print_ctx_dependent_msg(ParsingContext ctx, char* color) {
+    switch(ctx) {
+        case REGUALR_CTX: 
+        return;
+
+        case LIST_CTX: {
+            printf("%s" "Proper List Syntax: [1,2,3,4,5,6,7, ...];\n" RESET_COLOR, color);
+            return;
+        }
+        case MAP_CTX: {
+            printf("%s" "Proper Map Syntax: map {key1: val1, key2: val2, .... };\n" RESET_COLOR, color);
+            return;
+        }
+        case SET_CTX: {
+            printf("%s" "Proper Set Syntax: set {val1, val2, val3, ...};\n" RESET_COLOR, color);
+            return; 
+        }
+    }
+}
+
 /* Converts a expression component into a string */
 static char *_exp_component_to_string(ExpressionComponent *node)
 {
@@ -120,6 +142,9 @@ void print_missing_operator_err(Parser *parser, const char *msg)
     
     if (msg)
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);
+    
+    print_ctx_dependent_msg(parser->ctx, RED_TEXT);
+    
 }
 
 /* Print Error missing operator in Expression */
@@ -135,6 +160,8 @@ void print_missing_exp_component_err(Parser *parser, const char *msg)
 
     if (msg)
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);
+    
+    print_ctx_dependent_msg(parser->ctx, RED_TEXT);
 }
 
 /* Print Error missing operator in Expression */
@@ -151,6 +178,10 @@ void print_invalid_token_err(Parser *parser, const char *msg)
 
     if (msg)
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);
+    
+    print_ctx_dependent_msg(parser->ctx, RED_TEXT);
+    
+    
 }
 
 /* Print Error expected token  */
@@ -174,6 +205,9 @@ void print_expected_token_err(Parser *parser, const char *expected_token, const 
    
     if (msg)
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);
+    
+    print_ctx_dependent_msg(parser->ctx, RED_TEXT);
+    
 }
 
 /* Prints Error for invalid access modifier error */
@@ -200,6 +234,9 @@ void print_invalid_access_modifer_err(Parser *parser, const char *keyword, const
 
     if (msg)
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);
+    
+    print_ctx_dependent_msg(parser->ctx, RED_TEXT);
+    
 }
 
 /* Prints out unexpected end of file error */
@@ -211,6 +248,9 @@ void print_unexpected_end_of_file_err(Parser *parser, const char *msg)
 
     if (msg)
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);
+    
+    print_ctx_dependent_msg(parser->ctx, RED_TEXT);
+    
 }
 
 /* Prints out invalid expression component */
@@ -222,6 +262,9 @@ void print_invalid_expression_component(Parser *parser, const char *msg)
 
     if (msg)
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);
+    
+    print_ctx_dependent_msg(parser->ctx, RED_TEXT);
+    
 }
 
 /* SEMANTIC ERRORS */
@@ -241,6 +284,7 @@ void print_undeclared_identifier_err(SemanticAnalyzer *sa, ExpressionComponent *
 
     if (msg)
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);
+    
 }
 
 /* Prints invalid argument identifer error */
@@ -251,6 +295,7 @@ void print_invalid_arg_identifier_err(SemanticAnalyzer *sa, const int token_ptr,
 
     if (msg)
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);
+    
 }
 
 /* Prints out invalid access modifier error */
@@ -261,6 +306,7 @@ void print_invalid_access_modifier_semantics_err(SemanticAnalyzer *sa, const int
 
     if (msg)
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);
+    
 }
 
 /* Prints out invalid access modifier error */
@@ -271,6 +317,7 @@ void print_invalid_object_block_err(SemanticAnalyzer *sa, const int token_ptr, c
 
     if (msg)
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);
+    
 }
 
 /* Prints invalid sub component error (i.e [EXPRESSION COMPONENT] -> [TERMINAL COMPONENT]) */
@@ -286,6 +333,7 @@ void print_invalid_terminal_top_component_err(SemanticAnalyzer *sa, ExpressionCo
 
     if (msg)
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);
+    
 }
 
 /* Prints out invalid function call */
@@ -298,6 +346,7 @@ void print_invalid_func_call_err(SemanticAnalyzer *sa, ExpressionComponent *cm, 
 
     if (msg)
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);
+    
 }
 
 /* Prints out invalid index */
@@ -310,6 +359,7 @@ void print_invalid_index_err(SemanticAnalyzer *sa, ExpressionComponent *cm, cons
 
     if (msg)
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);
+    
 }
 
 /* Prints out else if error  */
@@ -325,6 +375,7 @@ void print_invalid_else_if_block_err(SemanticAnalyzer *sa, AST_node *node, const
 
     if (msg)
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);
+    
 }
 
 /* Prints out else if error  */
@@ -340,4 +391,33 @@ void print_invalid_else_block_err(SemanticAnalyzer *sa, AST_node *node, const in
 
     if (msg)
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);
+    
+}
+
+/* Prints out else if error  */
+void print_invalid_var_assignment_err(SemanticAnalyzer *sa, ExpressionComponent *cm, const int token_ptr, const char *msg)
+{
+    _print_context(sa->token_list->list, token_ptr, sa->filename, sa->lines.lines);
+
+    printf(RED_TEXT
+           "Invalid Variable Assignment. %s\n"
+           RESET_COLOR, msg);
+
+    if (msg)
+        printf(RED_TEXT "%s\n" RESET_COLOR, msg);
+    
+}
+
+/* Prints out invalid empty body error */
+void print_invalid_empty_body_err(SemanticAnalyzer *sa, ExpressionComponent *cm, const int token_ptr, const char *msg)
+{
+    _print_context(sa->token_list->list, token_ptr, sa->filename, sa->lines.lines);
+
+    printf(RED_TEXT
+           "Empty body is invalid. \n"
+           RESET_COLOR);
+
+    if (msg)
+        printf(RED_TEXT "%s\n" RESET_COLOR, msg);
+    
 }

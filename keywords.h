@@ -1,6 +1,6 @@
 #include <stdbool.h>
 
-enum keyword_type
+typedef enum keyword_type
 {
   NOT_A_KEYWORD, // Define the case where its not a keyword
 
@@ -18,28 +18,8 @@ enum keyword_type
   OBJECT_KEYWORD,
   MAP_KEYWORD,
   SET_KEYWORD
-};
-
-struct keyword
-{
-  char *keyword;
-  enum keyword_type type;
-  struct keyword *next;
-};
-
-struct keyword_linked_list
-{
-  struct keyword *head;
-  struct keyword *tail;
-};
-
-struct keywords_table
-{
-  struct keyword_linked_list **buckets;
-  int nb_of_buckets;
-};
-
-extern char *keyword_list[];
+  
+} KeywordType;
 
 void init_keyword_table();
 const char* get_keyword_string(enum keyword_type keyword);

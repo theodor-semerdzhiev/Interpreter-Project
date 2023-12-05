@@ -7,21 +7,44 @@
 
 #define INITIAL_BUCKET_SIZE 25
 
-static unsigned int hash(const char *keywords);
-static void insert_keyword_to_table(char *keyword, enum keyword_type type);
+typedef struct Keyword Keyword;
 
-static struct keywords_table *keyword_table = NULL;
+typedef struct Keyword
+{
+    char *keyword;
+    KeywordType type;
+    Keyword *next;
+} Keyword;
+
+typedef struct keyword_linked_list
+{
+    Keyword *head;
+    Keyword *tail;
+
+} KeywordLList;
+
+typedef struct KeywordTable
+{
+    KeywordLList **buckets;
+    int nb_of_buckets;
+} KeywordTable;
+
+
+static unsigned int hash(const char *keywords);
+static void insert_keyword_to_table(char *keyword, KeywordType type);
+
+static KeywordTable *keyword_table = NULL;
 
 // Initializes keyword table
 void init_keyword_table()
 {
-    keyword_table = (struct keywords_table *)malloc(sizeof(struct keywords_table));
+    keyword_table = (KeywordTable *)malloc(sizeof(KeywordTable));
     keyword_table->nb_of_buckets = INITIAL_BUCKET_SIZE;
-    keyword_table->buckets = (struct keyword_linked_list **)malloc(sizeof(struct keyword_linked_list *) * INITIAL_BUCKET_SIZE);
+    keyword_table->buckets = (KeywordLList **)malloc(sizeof(KeywordLList *) * INITIAL_BUCKET_SIZE);
 
     for (int i = 0; i < INITIAL_BUCKET_SIZE; i++)
     {
-        keyword_table->buckets[i] = (struct keyword_linked_list *)malloc(sizeof(struct keyword_linked_list));
+        keyword_table->buckets[i] = (KeywordLList *)malloc(sizeof(KeywordLList));
         keyword_table->buckets[i]->head = NULL;
         keyword_table->buckets[i]->tail = NULL;
     }
@@ -86,10 +109,10 @@ void free_keyword_table()
 
     for (int i = 0; i < keyword_table->nb_of_buckets; i++)
     {
-        struct keyword *ptr = keyword_table->buckets[i]->head;
+        Keyword *ptr = keyword_table->buckets[i]->head;
         while (ptr != NULL)
         {
-        struct keyword *tmp = ptr->next;
+        Keyword *tmp = ptr->next;
         free(ptr);
         ptr = tmp;
         }
@@ -98,7 +121,7 @@ void free_keyword_table()
     free(keyword_table->buckets);
     free(keyword_table);
     keyword_table = NULL;
-    }
+}
 
     // Checks table to see if token is keyword
     bool is_keyword(const char *token)
@@ -108,8 +131,8 @@ void free_keyword_table()
 
     unsigned int index = hash(token) % keyword_table->nb_of_buckets;
 
-    struct keyword_linked_list *list = keyword_table->buckets[index];
-    struct keyword *ptr = list->head;
+    KeywordLList *list = keyword_table->buckets[index];
+    Keyword *ptr = list->head;
 
     while (ptr != NULL)
     {
@@ -122,15 +145,15 @@ void free_keyword_table()
 }
 
 /* Gets the type of keyword */
-enum keyword_type get_keyword_type(const char *token)
+KeywordType get_keyword_type(const char *token)
 {
     if (token == NULL)
         return NOT_A_KEYWORD;
 
     int index = hash(token) % keyword_table->nb_of_buckets;
 
-    struct keyword_linked_list *list = keyword_table->buckets[index];
-    struct keyword *ptr = list->head;
+    KeywordLList *list = keyword_table->buckets[index];
+    Keyword *ptr = list->head;
 
     while (ptr != NULL)
     {
@@ -143,12 +166,12 @@ enum keyword_type get_keyword_type(const char *token)
 }
 
 // Inserts new keyword into table
-static void insert_keyword_to_table(char *keyword, enum keyword_type type)
+static void insert_keyword_to_table(char *keyword, KeywordType type)
 {
     unsigned int index = hash(keyword) % keyword_table->nb_of_buckets;
 
-    struct keyword_linked_list *list = keyword_table->buckets[index];
-    struct keyword *keyword_node = (struct keyword *)malloc(sizeof(struct keyword));
+    KeywordLList *list = keyword_table->buckets[index];
+    Keyword *keyword_node = (Keyword *)malloc(sizeof(Keyword));
     keyword_node->keyword = keyword;
     keyword_node->next = NULL;
     keyword_node->type = type;

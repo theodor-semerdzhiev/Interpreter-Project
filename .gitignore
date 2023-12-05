@@ -3,3 +3,4 @@
 **/*.o
 /.vscode/
 /main.out.dSYM/
+*.dSYM/

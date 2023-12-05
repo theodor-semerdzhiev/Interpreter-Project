@@ -10,6 +10,7 @@ static bool is_exp_component_terminal(enum expression_component_type type);
 static bool is_obj_block_valid(SemanticAnalyzer *sem_anaylzer, AST_node *node);
 static void add_argument_declarations_to_symtable(SemanticAnalyzer *sem_analyzer, AST_node *node);
 static void forward_declare_obj_func(SemanticAnalyzer *sem_analyzer, AST_List *ast_list);
+static ExpressionComponent *get_left_most_component(ExpressionComponent *component);
 
 /* Checks that if access modifiers are used in the proper scope */
 static bool is_access_modifier_valid(SemanticAnalyzer *sem_analyzer, AST_node *node)
@@ -48,6 +49,14 @@ static bool is_access_modifier_valid(SemanticAnalyzer *sem_analyzer, AST_node *n
     return true;
 }
 
+/* Gets the left most component in the expression component */
+static ExpressionComponent *get_left_most_component(ExpressionComponent *component) {
+    while(component->sub_component) {
+        component=component->sub_component;
+    }
+    return component;
+}
+
 /* Checks if the expression component type is terminal component */
 static bool is_exp_component_terminal(enum expression_component_type type)
 {
@@ -55,7 +64,9 @@ static bool is_exp_component_terminal(enum expression_component_type type)
            type == STRING_CONSTANT ||
            type == NUMERIC_CONSTANT ||
            type == INLINE_FUNC ||
-           type == NULL_CONSTANT;
+           type == NULL_CONSTANT ||
+           type == HASHMAP_CONSTANT ||
+           type == HASHSET_CONSTANT;
 }
 
 /* Checks that OBJECT block only contains variable, function, or object declarations */
@@ -327,6 +338,13 @@ bool expression_component_has_correct_semantics(SemanticAnalyzer *sem_analyzer, 
         */
         case LIST_INDEX:
         {
+            // if list index expression is empty
+            if (!node->sub_component->meta_data.list_index->component) {
+                print_invalid_empty_body_err(sem_analyzer, node, node->token_num, 
+                "List Indexing cannot accept an empty expressions.");
+                return false;
+            }
+
             if (node->sub_component &&
                 node->sub_component->type != LIST_CONSTANT &&
                 node->sub_component->type != STRING_CONSTANT &&
@@ -339,6 +357,8 @@ bool expression_component_has_correct_semantics(SemanticAnalyzer *sem_analyzer, 
             if (!exp_has_correct_semantics(sem_analyzer, node->meta_data.list_index))
                 // function should print out an error
                 return false;
+
+            
 
             break;
         }
@@ -425,7 +445,41 @@ bool expression_component_has_correct_semantics(SemanticAnalyzer *sem_analyzer, 
 bool var_assignment_has_correct_semantics(SemanticAnalyzer *sem_analyser, AST_node *node)
 {
     assert(node->type == VAR_ASSIGNMENT);
-    return expression_component_has_correct_semantics(sem_analyser, node->identifier.expression_component) &&
+    ExpressionComponent *exp_node = node->identifier.expression_component;
+
+    if(is_exp_component_terminal(exp_node->type)) {
+        char *msg = NULL;
+        switch (exp_node->type)
+        {
+        case LIST_CONSTANT:
+        msg = "Cannot assign a List Constant.";
+        break;
+        case STRING_CONSTANT:
+        msg = "Cannot assign a String Constant.";
+        break;
+        case NUMERIC_CONSTANT:
+        msg = "Cannot assign a Number Constant.";
+        break;
+        case INLINE_FUNC:
+        msg = "Cannot assign a Inline Function.";
+        break;
+        case NULL_CONSTANT:
+        msg = "Cannot assign a Null value.";
+        break;
+        case HASHMAP_CONSTANT:
+        msg = "Cannot assign a Map Constant.";
+        break;
+        case HASHSET_CONSTANT:
+        msg = "Cannot assign a Set Constant.";
+        break;
+        default:
+            break;
+        }
+        print_invalid_var_assignment_err(sem_analyser,exp_node,exp_node->token_num, msg);
+        return false;
+    }
+
+    return expression_component_has_correct_semantics(sem_analyser, exp_node) &&
            exp_has_correct_semantics(sem_analyser, node->ast_data.exp);
 }
 

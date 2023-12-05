@@ -49,6 +49,6 @@ bool add_var_to_vartable(
 bool vartable_has_var(VarTable *symtable, const char *ident);
 
 void remove_all_vars_above_nesting_lvl(VarTable *symtable, int nesting_lvl);
-bool remove_var_from_vartable(VarTable *symtable, const char *ident);
+bool remove_var_from_vartable(VarTable *symtable, const char *ident, const int nesting_lvl);
 
 #endif

@@ -100,10 +100,10 @@ bool add_var_to_vartable(
 {
     // if symbol already exists
     // it gets replaced
-    if (vartable_has_var(symtable, ident))
-    {
-        remove_var_from_vartable(symtable, ident);
-    }
+    // if (vartable_has_var(symtable, ident))
+    // {
+    //     remove_var_from_vartable(symtable, ident);
+    // }
 
     unsigned int index = hash(ident);
     Variable *sym = malloc_symbol(ident, filename);
@@ -147,7 +147,7 @@ void remove_all_vars_above_nesting_lvl(VarTable *symtable, int nesting_lvl)
             Variable *tmp = head->next;
             if (head->nesting_lvl >= nesting_lvl)
             {
-                remove_var_from_vartable(symtable, head->ident);
+                remove_var_from_vartable(symtable, head->ident, nesting_lvl);
             }
 
             head = tmp;
@@ -155,8 +155,8 @@ void remove_all_vars_above_nesting_lvl(VarTable *symtable, int nesting_lvl)
     }
 }
 
-/* Removes symbol from table, return true if symbol was in table gets removes successfully, otherwise return false*/
-bool remove_var_from_vartable(VarTable *symtable, const char *ident)
+/* Removes symbol from table above or at nesting_lvl, return true if symbol was in table gets removes successfully, otherwise return false*/
+bool remove_var_from_vartable(VarTable *symtable, const char *ident, const int nesting_lvl)
 {
     unsigned int index = hash(ident) % symtable->bucket_count;
     VarChain *chain = symtable->table[index];
@@ -165,7 +165,7 @@ bool remove_var_from_vartable(VarTable *symtable, const char *ident)
 
     while (head)
     {
-        if (strcmp(head->ident, ident) == 0)
+        if (strcmp(head->ident, ident) == 0 && head->nesting_lvl >= nesting_lvl)
         {
             if (!prev)
             {

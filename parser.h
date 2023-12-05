@@ -6,6 +6,14 @@
 #include "lexer.h"
 #include "memtracker.h"
 
+typedef enum ParsingContext
+{
+    REGUALR_CTX,
+    LIST_CTX,
+    MAP_CTX,
+    SET_CTX
+} ParsingContext;
+
 /* Top Level Object for Parser State */
 typedef struct Parser
 {
@@ -24,6 +32,8 @@ typedef struct Parser
     } lines;
 
     jmp_buf *error_handler; //
+
+    ParsingContext ctx;
 } Parser;
 
 enum expression_token_type
@@ -62,7 +72,7 @@ enum expression_component_type
     VARIABLE,
     LIST_INDEX,
     FUNC_CALL,
-    INLINE_FUNC
+    INLINE_FUNC,
 };
 
 /* pre defines some structs */
@@ -207,10 +217,17 @@ typedef struct AST_node
     // union is NULL if type is a INLINE_FUNCTION_DECLARATION
     union identifier
     {
-        char *declared_var;                        // used for variable declaration (let keyword)
-        char *func_name;                           // use for function declaration
-        char *obj_name;                            // use for object declaration
-        ExpressionComponent *expression_component; // used for variable assignment, function calls or just standalone expression components
+        // used for variable declaration (let keyword)
+        char *declared_var;
+
+        // use for function declaration
+        char *func_name;
+
+        // use for object declaration
+        char *obj_name;
+
+        // used for variable assignment, function calls or just standalone expression components
+        ExpressionComponent *expression_component;
     } identifier;
 
     // contains extra information about the ast node
@@ -219,7 +236,7 @@ typedef struct AST_node
         // related expression (if, else if, loops, var assignment, var declaration, return)
         ExpressionNode *exp;
 
-        // list of function prototype arguments
+        // list of function prototype arguments (for both regular and inline functions )
         struct func_args
         {
             ExpressionNode **func_prototype_args;

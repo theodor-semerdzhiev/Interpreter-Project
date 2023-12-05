@@ -22,5 +22,7 @@ void print_invalid_func_call_err(SemanticAnalyzer *sa, ExpressionComponent *cm, 
 void print_invalid_index_err(SemanticAnalyzer *sa, ExpressionComponent *cm, const int token_ptr, const char *msg);
 void print_invalid_else_if_block_err(SemanticAnalyzer *sa, AST_node *node, const int token_ptr, const char *msg);
 void print_invalid_else_block_err(SemanticAnalyzer *sa, AST_node *node, const int token_ptr, const char *msg); 
+void print_invalid_var_assignment_err(SemanticAnalyzer *sa, ExpressionComponent *cm, const int token_ptr, const char *msg);
+void print_invalid_empty_body_err(SemanticAnalyzer *sa, ExpressionComponent *cm, const int token_ptr, const char *msg);
 
 #endif

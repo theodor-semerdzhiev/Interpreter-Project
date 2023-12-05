@@ -2,11 +2,11 @@
 #include <stdlib.h>
 #include <setjmp.h>
 #include <assert.h>
-
-// #include "./parser.h"
 #include "./keywords.h"
 #include "./dbgtools.h"
 #include "./semanalysis.h"
+#include "./compiler.h"
+#include "generics/hashset.h"
 
 /* Abstracts lexing for a given file */
 TokenList *tokenize_file(char *file_contents)
@@ -27,7 +27,7 @@ static void parser_error_cleanup(Parser *parser)
     free_parser(parser);
 }
 
-/* Abstracts file parsing, if an error occurs function returns NULL */
+/* Abstracts file parsing, if a parsing or semantic error occurs, function returns NULL */
 AST_List *parse_file(char *filename)
 {
 
@@ -52,12 +52,13 @@ AST_List *parse_file(char *filename)
 
     free(file_contents);
 
-    int error_return = setjmp(before_parsing);
     parser->error_handler = &before_parsing;
+    int error_return = setjmp(&before_parsing);
 
     // if an error is detected, long jump is performed and if statement is called
     if (error_return != 0)
     {
+        parser_error:;
         assert(parser->error_indicator);
         parser_error_cleanup(parser);
         return NULL;
@@ -67,14 +68,16 @@ AST_List *parse_file(char *filename)
     AST_List *ast = parse_code_block(parser, NULL, 0, end_of_program, 1);
 
     if (parser->error_indicator)
-    {
-        parser_error_cleanup(parser);
-        return NULL;
-    }
+        goto parser_error;
 
+    // for debugging purposes 
     print_ast_list(ast, "  ", 0);
 
-    SemanticAnalyzer *sem_analyser = malloc_semantic_analyser(filename, parser->lines.lines, parser->lines.line_count, parser->token_list);
+    SemanticAnalyzer *sem_analyser = malloc_semantic_analyser(
+                                    filename, 
+                                    parser->lines.lines, 
+                                    parser->lines.line_count, 
+                                    parser->token_list);
 
     free_parser(parser);
 
@@ -82,15 +85,16 @@ AST_List *parse_file(char *filename)
 
     if (is_sem_valid)
     {
-        printf("Valid semantics\n");
+        printf("Valid semantics\n");        
     }
     else
     {
         printf("Invalid semantics\n");
+        free_ast_list(ast);
     }
 
     free_semantic_analyser(sem_analyser);
-    return ast;
+    return is_sem_valid? ast: NULL;
 }
 
 /* MAIN PROGRAM LOGIC */
@@ -102,8 +106,22 @@ int main(int argc, char *argv[])
     init_keyword_table();
 
     AST_List *ast = parse_file("test.txt");
-    if (!ast)
+
+    if(!ast) {
         return_code = 1;
+    } else {
+        // GenericSet *set = collect_free_vars(ast->head->next->next->next->next->next->body);
+        // GenericSet *set1 = collect_free_vars_ast_node(ast->head->next->next->next->next->next);
+        // GenericSet *set2 = collect_free_vars(ast);
+
+        // free_GenericSet(set, true);
+        // free_GenericSet(set1, true);
+        // free_GenericSet(set2, true);
+        ByteCodeList* list = compile_expression(ast->head->ast_data.exp);
+        deconstruct_bytecode(list);
+
+    }
+
 
     free_ast_list(ast);
     free_keyword_table();

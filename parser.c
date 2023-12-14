@@ -7,6 +7,7 @@
 #include "keywords.h"
 #include "parser.h"
 #include "errors.h"
+#include "./generics/utilities.h"
 
 /* Makes a long jump and returns to when the parsing function was called */
 static void stop_parsing(Parser *parser)
@@ -411,15 +412,6 @@ KeyValue **parser_key_value_pair_exps(
 
     pairs[pair_count] = NULL;
     return pairs;
-}
-
-/* Gets the length of the argument list (ends with a NULL pointer)*/
-int get_pointer_list_length(void **args)
-{
-    int length = 0;
-    for (int i = 0; args[i] != NULL; i++)
-        length++;
-    return length;
 }
 
 /*

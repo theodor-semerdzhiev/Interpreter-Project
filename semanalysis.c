@@ -50,9 +50,11 @@ static bool is_access_modifier_valid(SemanticAnalyzer *sem_analyzer, AST_node *n
 }
 
 /* Gets the left most component in the expression component */
-static ExpressionComponent *get_left_most_component(ExpressionComponent *component) {
-    while(component->sub_component) {
-        component=component->sub_component;
+static ExpressionComponent *get_left_most_component(ExpressionComponent *component)
+{
+    while (component->sub_component)
+    {
+        component = component->sub_component;
     }
     return component;
 }
@@ -270,7 +272,8 @@ bool expression_component_has_correct_semantics(SemanticAnalyzer *sem_analyzer, 
         HashMap constant:
         - This a terminal component
         */
-        case HASHMAP_CONSTANT: {
+        case HASHMAP_CONSTANT:
+        {
             if (node->sub_component)
             {
                 print_invalid_terminal_top_component_err(
@@ -279,11 +282,14 @@ bool expression_component_has_correct_semantics(SemanticAnalyzer *sem_analyzer, 
                 return false;
             }
 
-            for(int i=0; i < node->meta_data.HashMap.size; i++) {
-                if(!exp_has_correct_semantics(sem_analyzer, node->meta_data.HashMap.pairs[i]->key)) {
+            for (int i = 0; i < node->meta_data.HashMap.size; i++)
+            {
+                if (!exp_has_correct_semantics(sem_analyzer, node->meta_data.HashMap.pairs[i]->key))
+                {
                     return false;
                 }
-                if(!exp_has_correct_semantics(sem_analyzer, node->meta_data.HashMap.pairs[i]->value)) {
+                if (!exp_has_correct_semantics(sem_analyzer, node->meta_data.HashMap.pairs[i]->value))
+                {
                     return false;
                 }
             }
@@ -295,7 +301,8 @@ bool expression_component_has_correct_semantics(SemanticAnalyzer *sem_analyzer, 
         HashSet constant:
         - This is terminal component
         */
-        case HASHSET_CONSTANT: {
+        case HASHSET_CONSTANT:
+        {
             if (node->sub_component)
             {
                 print_invalid_terminal_top_component_err(
@@ -304,8 +311,10 @@ bool expression_component_has_correct_semantics(SemanticAnalyzer *sem_analyzer, 
                 return false;
             }
 
-            for(int i=0; i < node->meta_data.HashSet.size; i++) {
-                if(!exp_has_correct_semantics(sem_analyzer,node->meta_data.HashSet.values[i])) {
+            for (int i = 0; i < node->meta_data.HashSet.size; i++)
+            {
+                if (!exp_has_correct_semantics(sem_analyzer, node->meta_data.HashSet.values[i]))
+                {
                     return false;
                 }
             }
@@ -338,10 +347,9 @@ bool expression_component_has_correct_semantics(SemanticAnalyzer *sem_analyzer, 
         */
         case LIST_INDEX:
         {
-            // if list index expression is empty
-            if (!node->sub_component->meta_data.list_index->component) {
-                print_invalid_empty_body_err(sem_analyzer, node, node->token_num, 
-                "List Indexing cannot accept an empty expressions.");
+            if (!node->meta_data.list_index)
+            {
+                print_empty_exp_err(sem_analyzer, node, node->token_num, "List Indexes must have non empty expressions");
                 return false;
             }
 
@@ -358,8 +366,6 @@ bool expression_component_has_correct_semantics(SemanticAnalyzer *sem_analyzer, 
                 // function should print out an error
                 return false;
 
-            
-
             break;
         }
 
@@ -371,11 +377,23 @@ bool expression_component_has_correct_semantics(SemanticAnalyzer *sem_analyzer, 
         */
         case FUNC_CALL:
         {
+            // if (node->sub_component &&
+            //     node->sub_component->type == INLINE_FUNC &&
+            //     is_exp_component_terminal(node->sub_component->type))
+            // {
+            //     print_invalid_func_call_err(sem_analyzer, node, node->token_num, NULL);
+            //     return false;
+            // }
             if (node->sub_component &&
                 node->sub_component->type == INLINE_FUNC &&
-                is_exp_component_terminal(node->sub_component->type))
+                node->sub_component->meta_data.inline_func->ast_data.func_args.args_num !=
+                    node->meta_data.func_data.args_num)
             {
-                print_invalid_func_call_err(sem_analyzer, node, node->token_num, NULL);
+                print_invalid_arg_count_err(
+                    sem_analyzer, node,
+                    node->meta_data.func_data.args_num,
+                    node->sub_component->meta_data.inline_func->ast_data.func_args.args_num,
+                    node->token_num, NULL);
                 return false;
             }
 
@@ -447,35 +465,36 @@ bool var_assignment_has_correct_semantics(SemanticAnalyzer *sem_analyser, AST_no
     assert(node->type == VAR_ASSIGNMENT);
     ExpressionComponent *exp_node = node->identifier.expression_component;
 
-    if(is_exp_component_terminal(exp_node->type)) {
+    if (is_exp_component_terminal(exp_node->type))
+    {
         char *msg = NULL;
         switch (exp_node->type)
         {
         case LIST_CONSTANT:
-        msg = "Cannot assign a List Constant.";
-        break;
+            msg = "Cannot assign a List Constant.";
+            break;
         case STRING_CONSTANT:
-        msg = "Cannot assign a String Constant.";
-        break;
+            msg = "Cannot assign a String Constant.";
+            break;
         case NUMERIC_CONSTANT:
-        msg = "Cannot assign a Number Constant.";
-        break;
+            msg = "Cannot assign a Number Constant.";
+            break;
         case INLINE_FUNC:
-        msg = "Cannot assign a Inline Function.";
-        break;
+            msg = "Cannot assign a Inline Function.";
+            break;
         case NULL_CONSTANT:
-        msg = "Cannot assign a Null value.";
-        break;
+            msg = "Cannot assign a Null value.";
+            break;
         case HASHMAP_CONSTANT:
-        msg = "Cannot assign a Map Constant.";
-        break;
+            msg = "Cannot assign a Map Constant.";
+            break;
         case HASHSET_CONSTANT:
-        msg = "Cannot assign a Set Constant.";
-        break;
+            msg = "Cannot assign a Set Constant.";
+            break;
         default:
             break;
         }
-        print_invalid_var_assignment_err(sem_analyser,exp_node,exp_node->token_num, msg);
+        print_invalid_var_assignment_err(sem_analyser, exp_node, exp_node->token_num, msg);
         return false;
     }
 
@@ -642,6 +661,14 @@ bool AST_list_has_consistent_semantics(SemanticAnalyzer *sem_analyzer, AST_List 
         */
         case IF_CONDITIONAL:
         {
+            // checks if conditional expression is empty
+            if (!node->ast_data.exp)
+            {
+                print_empty_exp_err(sem_analyzer, node, node->token_num,
+                                    "Proper Syntax: if ( expression ...) { ... }");
+                return false;
+            }
+
             if (!exp_has_correct_semantics(sem_analyzer, node->ast_data.exp))
             {
                 // function prints out error
@@ -669,6 +696,14 @@ bool AST_list_has_consistent_semantics(SemanticAnalyzer *sem_analyzer, AST_List 
         */
         case ELSE_IF_CONDITIONAL:
         {
+            // checks if conditional expression is empty
+            if (!node->ast_data.exp)
+            {
+                print_empty_exp_err(sem_analyzer, node, node->token_num,
+                                    "Proper Syntax: ... else if ( expression ... ) { ... }");
+                return false;
+            }
+
             if (!node->prev || (node->prev &&
                                 node->prev->type != IF_CONDITIONAL &&
                                 node->prev->type != ELSE_IF_CONDITIONAL))
@@ -730,6 +765,14 @@ bool AST_list_has_consistent_semantics(SemanticAnalyzer *sem_analyzer, AST_List 
         */
         case WHILE_LOOP:
         {
+            // checks if conditional expression is empty
+            if (!node->ast_data.exp)
+            {
+                print_empty_exp_err(sem_analyzer, node, node->token_num,
+                                    "Proper Syntax: while ( expression ...) { ... }");
+                return false;
+            }
+
             if (!exp_has_correct_semantics(sem_analyzer, node->ast_data.exp))
             {
                 // function prints out error

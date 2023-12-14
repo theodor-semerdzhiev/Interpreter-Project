@@ -18,23 +18,34 @@
 
 /* Prints out syntax message depending on parsing context */
 /* Only used for parsing errors (not semantic analyzer)*/
-static void print_ctx_dependent_msg(ParsingContext ctx, char* color) {
-    switch(ctx) {
-        case REGUALR_CTX: 
+static void print_ctx_dependent_msg(ParsingContext ctx, char *color)
+{
+    switch (ctx)
+    {
+    case REGUALR_CTX:
         return;
 
-        case LIST_CTX: {
-            printf("%s" "Proper List Syntax: [1,2,3,4,5,6,7, ...];\n" RESET_COLOR, color);
-            return;
-        }
-        case MAP_CTX: {
-            printf("%s" "Proper Map Syntax: map {key1: val1, key2: val2, .... };\n" RESET_COLOR, color);
-            return;
-        }
-        case SET_CTX: {
-            printf("%s" "Proper Set Syntax: set {val1, val2, val3, ...};\n" RESET_COLOR, color);
-            return; 
-        }
+    case LIST_CTX:
+    {
+        printf("%s"
+               "Proper List Syntax: [1,2,3,4,5,6,7, ...];\n" RESET_COLOR,
+               color);
+        return;
+    }
+    case MAP_CTX:
+    {
+        printf("%s"
+               "Proper Map Syntax: map {key1: val1, key2: val2, .... };\n" RESET_COLOR,
+               color);
+        return;
+    }
+    case SET_CTX:
+    {
+        printf("%s"
+               "Proper Set Syntax: set {val1, val2, val3, ...};\n" RESET_COLOR,
+               color);
+        return;
+    }
     }
 }
 
@@ -133,18 +144,19 @@ void print_missing_operator_err(Parser *parser, const char *msg)
     Token **list = parser->token_list->list;
     _print_context(list, parser->token_ptr, parser->file_name, parser->lines.lines);
 
-
-    if(list[parser->token_ptr]->type == KEYWORD) {
+    if (list[parser->token_ptr]->type == KEYWORD)
+    {
         printf(RED_TEXT "Expected Binary Operator but got reserved keyword '%s'\n" RESET_COLOR, list[parser->token_ptr]->ident);
-    } else {
+    }
+    else
+    {
         printf(RED_TEXT "Expected Binary Operator but got '%s'\n" RESET_COLOR, list[parser->token_ptr]->ident);
     }
-    
+
     if (msg)
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);
-    
+
     print_ctx_dependent_msg(parser->ctx, RED_TEXT);
-    
 }
 
 /* Print Error missing operator in Expression */
@@ -155,12 +167,12 @@ void print_missing_exp_component_err(Parser *parser, const char *msg)
     _print_context(list, parser->token_ptr, parser->file_name, parser->lines.lines);
 
     printf(RED_TEXT "Expected Expression Component but got %s '%s'\n" RESET_COLOR,
-        list[parser->token_ptr]->type == KEYWORD? "reserved keyword": "",
-        list[parser->token_ptr]->ident);
+           list[parser->token_ptr]->type == KEYWORD ? "reserved keyword" : "",
+           list[parser->token_ptr]->ident);
 
     if (msg)
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);
-    
+
     print_ctx_dependent_msg(parser->ctx, RED_TEXT);
 }
 
@@ -170,18 +182,16 @@ void print_invalid_token_err(Parser *parser, const char *msg)
     Token **list = parser->token_list->list;
 
     _print_context(list, parser->token_ptr, parser->file_name, parser->lines.lines);
-    printf(RED_TEXT "Invalid Token '%s'.\n" RESET_COLOR, 
-    list[parser->token_ptr]->ident);
+    printf(RED_TEXT "Invalid Token '%s'.\n" RESET_COLOR,
+           list[parser->token_ptr]->ident);
 
-    if(list[parser->token_ptr]->type == KEYWORD)
+    if (list[parser->token_ptr]->type == KEYWORD)
         printf(RED_TEXT "'%s' is a reserved keyword\n" RESET_COLOR, list[parser->token_ptr]->ident);
 
     if (msg)
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);
-    
+
     print_ctx_dependent_msg(parser->ctx, RED_TEXT);
-    
-    
 }
 
 /* Print Error expected token  */
@@ -198,16 +208,15 @@ void print_expected_token_err(Parser *parser, const char *expected_token, const 
     _print_context(list, parser->token_ptr, parser->file_name, parser->lines.lines);
 
     printf(RED_TEXT "Expected %s %s, but got %s '%s'\n" RESET_COLOR,
-            expected_token,
-            is_keyword? "Keyword": "Token",
-            list[parser->token_ptr]->type == KEYWORD? "reserved keyword": "",
-            list[parser->token_ptr]->ident);
-   
+           expected_token,
+           is_keyword ? "Keyword" : "Token",
+           list[parser->token_ptr]->type == KEYWORD ? "reserved keyword" : "",
+           list[parser->token_ptr]->ident);
+
     if (msg)
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);
-    
+
     print_ctx_dependent_msg(parser->ctx, RED_TEXT);
-    
 }
 
 /* Prints Error for invalid access modifier error */
@@ -221,11 +230,11 @@ void print_invalid_access_modifer_err(Parser *parser, const char *keyword, const
     {
         char *next_identifier = list[parser->token_ptr + 1]->ident;
 
-        printf(RED_TEXT "Invalid use of '%s' Access Modifier, '%s' must be followed by a variable, function, or Object declaration, but got %s '%s'\n" RESET_COLOR, 
-        keyword, 
-        keyword, 
-        list[parser->token_ptr + 1]->type == KEYWORD? "reserved keyword": "token",
-        next_identifier);
+        printf(RED_TEXT "Invalid use of '%s' Access Modifier, '%s' must be followed by a variable, function, or Object declaration, but got %s '%s'\n" RESET_COLOR,
+               keyword,
+               keyword,
+               list[parser->token_ptr + 1]->type == KEYWORD ? "reserved keyword" : "token",
+               next_identifier);
     }
     else
     {
@@ -234,9 +243,8 @@ void print_invalid_access_modifer_err(Parser *parser, const char *keyword, const
 
     if (msg)
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);
-    
+
     print_ctx_dependent_msg(parser->ctx, RED_TEXT);
-    
 }
 
 /* Prints out unexpected end of file error */
@@ -248,9 +256,8 @@ void print_unexpected_end_of_file_err(Parser *parser, const char *msg)
 
     if (msg)
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);
-    
+
     print_ctx_dependent_msg(parser->ctx, RED_TEXT);
-    
 }
 
 /* Prints out invalid expression component */
@@ -262,9 +269,8 @@ void print_invalid_expression_component(Parser *parser, const char *msg)
 
     if (msg)
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);
-    
+
     print_ctx_dependent_msg(parser->ctx, RED_TEXT);
-    
 }
 
 /* SEMANTIC ERRORS */
@@ -284,7 +290,6 @@ void print_undeclared_identifier_err(SemanticAnalyzer *sa, ExpressionComponent *
 
     if (msg)
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);
-    
 }
 
 /* Prints invalid argument identifer error */
@@ -295,7 +300,6 @@ void print_invalid_arg_identifier_err(SemanticAnalyzer *sa, const int token_ptr,
 
     if (msg)
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);
-    
 }
 
 /* Prints out invalid access modifier error */
@@ -306,7 +310,6 @@ void print_invalid_access_modifier_semantics_err(SemanticAnalyzer *sa, const int
 
     if (msg)
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);
-    
 }
 
 /* Prints out invalid access modifier error */
@@ -317,7 +320,6 @@ void print_invalid_object_block_err(SemanticAnalyzer *sa, const int token_ptr, c
 
     if (msg)
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);
-    
 }
 
 /* Prints invalid sub component error (i.e [EXPRESSION COMPONENT] -> [TERMINAL COMPONENT]) */
@@ -333,7 +335,6 @@ void print_invalid_terminal_top_component_err(SemanticAnalyzer *sa, ExpressionCo
 
     if (msg)
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);
-    
 }
 
 /* Prints out invalid function call */
@@ -346,7 +347,6 @@ void print_invalid_func_call_err(SemanticAnalyzer *sa, ExpressionComponent *cm, 
 
     if (msg)
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);
-    
 }
 
 /* Prints out invalid index */
@@ -359,7 +359,6 @@ void print_invalid_index_err(SemanticAnalyzer *sa, ExpressionComponent *cm, cons
 
     if (msg)
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);
-    
 }
 
 /* Prints out else if error  */
@@ -370,12 +369,22 @@ void print_invalid_else_if_block_err(SemanticAnalyzer *sa, AST_node *node, const
 
     printf(RED_TEXT
            "Invalid ELSE IF block. "
-           "ELSE IF blocks must preceded by IF or ELSE IF blocks.\n"
-           RESET_COLOR);
+           "ELSE IF blocks must preceded by IF or ELSE IF blocks.\n" RESET_COLOR);
 
     if (msg)
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);
-    
+}
+
+/* Prints out else if error  */
+void print_empty_exp_err(SemanticAnalyzer *sa, AST_node *node, const int token_ptr, const char *msg)
+{
+    _print_context(sa->token_list->list, token_ptr, sa->filename, sa->lines.lines);
+
+    printf(RED_TEXT
+           "Expression cannot be empty.\n" RESET_COLOR);
+
+    if (msg)
+        printf(RED_TEXT "%s\n" RESET_COLOR, msg);
 }
 
 /* Prints out else if error  */
@@ -386,12 +395,10 @@ void print_invalid_else_block_err(SemanticAnalyzer *sa, AST_node *node, const in
 
     printf(RED_TEXT
            "Invalid ELSE block. "
-           "ELSE blocks must preceded by IF or ELSE IF blocks.\n" 
-           RESET_COLOR);
+           "ELSE blocks must preceded by IF or ELSE IF blocks.\n" RESET_COLOR);
 
     if (msg)
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);
-    
 }
 
 /* Prints out else if error  */
@@ -400,12 +407,11 @@ void print_invalid_var_assignment_err(SemanticAnalyzer *sa, ExpressionComponent 
     _print_context(sa->token_list->list, token_ptr, sa->filename, sa->lines.lines);
 
     printf(RED_TEXT
-           "Invalid Variable Assignment. %s\n"
-           RESET_COLOR, msg);
+           "Invalid Variable Assignment. %s\n" RESET_COLOR,
+           msg);
 
     if (msg)
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);
-    
 }
 
 /* Prints out invalid empty body error */
@@ -414,10 +420,31 @@ void print_invalid_empty_body_err(SemanticAnalyzer *sa, ExpressionComponent *cm,
     _print_context(sa->token_list->list, token_ptr, sa->filename, sa->lines.lines);
 
     printf(RED_TEXT
-           "Empty body is invalid. \n"
-           RESET_COLOR);
+           "Empty body is invalid. \n" RESET_COLOR);
 
     if (msg)
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);
-    
+}
+
+/* Prints out invalid number of arguments error */
+void print_invalid_arg_count_err(
+    SemanticAnalyzer *sa, ExpressionComponent *cm,
+    const int arg_count, const int expected_arg_count,
+    const int token_ptr, const char *msg)
+{
+    _print_context(sa->token_list->list, token_ptr, sa->filename, sa->lines.lines);
+
+    if (expected_arg_count == 1)
+    {
+        printf(RED_TEXT "Function expected 1 Argument, but got %d \n" RESET_COLOR,
+               arg_count);
+    }
+    else
+    {
+        printf(RED_TEXT "Function expected %d Arguments, but got %d \n" RESET_COLOR,
+               expected_arg_count, arg_count);
+    }
+
+    if (msg)
+        printf(RED_TEXT "%s\n" RESET_COLOR, msg);
 }

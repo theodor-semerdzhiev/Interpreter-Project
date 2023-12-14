@@ -46,6 +46,15 @@ bool strings_equal(const char* str1, const char* str2) {
     }
 }
 
+/* Gets the length of the argument list (ends with a NULL pointer)*/
+int get_pointer_list_length(void **args)
+{
+    int length = 0;
+    for (int i = 0; args[i] != NULL; i++)
+        length++;
+    return length;
+}
+
 /* Compares if two integers are equal */
 bool integers_equal(const int *integer1, const int *integer2) {
     if (integer1 == NULL || integer2 == NULL) return false;

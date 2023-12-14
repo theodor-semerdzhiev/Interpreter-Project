@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
+#include "hashset.h"
 
 /* Generic HashSet Implementation using Chaining */
 
@@ -20,19 +21,6 @@ typedef struct ChainList
     int length;
 } ChainList;
 
-typedef struct GenericSet
-{
-
-    int size;
-
-    int max_buckets;
-    ChainList **buckets;
-
-    bool (*is_equal)(const void *, const void *); // used to compare set elements
-    unsigned int (*hash)(const void *);           // hash function
-    void (*free_data)(void *);                    // free function for set elements
-
-} GenericSet;
 
 /* Mallocs chain Node */
 static Node *_malloc_chain_node(void *data)
@@ -324,6 +312,27 @@ void set_filter_remove(GenericSet *set, bool (*filter)(void *), bool free_data)
     }
 }
 
+/* Collects all the contents of the set and creates (mallocs) a list, same size as the set */
+void** GenericSet_to_list(const GenericSet *set) {
+    void** list = malloc(sizeof(void*) * (set->size+1));
+    list[set->size]=NULL;
+    int list_length = 0;
+    for(int i=0; i < set->max_buckets; i++) {
+        if(!set->buckets[i]) continue;
+        
+        Node *ptr = set->buckets[i]->head;
+        while(ptr) {
+            list[list_length]=ptr->data;
+            ptr = ptr->next;
+            list_length++;
+        }
+    }
+
+    return list;
+}
+
+
+
 
 /* Used for debugging purposes */
 void GenericSet_print_contents(const GenericSet *map, void (*print_data)(const void*)) {
@@ -343,6 +352,7 @@ void GenericSet_print_contents(const GenericSet *map, void (*print_data)(const v
     }
 
 }
+
 
 /* For testing purposes */
 //////////////////////////

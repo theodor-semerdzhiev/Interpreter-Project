@@ -742,7 +742,7 @@ char *get_file_contents(const char *f_name)
             free(buffer);
             buffer = tmp_buffer;
         }
-    }
+    } 
     buffer[cur_buffer_len] = '\0';
     fclose(file);
     return buffer;

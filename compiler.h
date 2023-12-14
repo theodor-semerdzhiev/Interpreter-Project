@@ -37,7 +37,7 @@ typedef enum OpCode
     // Pops object and pushes atribute object
     LOAD_ATTRIBUTE,
 
-    // Takes current object on the top of the stack 
+    // Takes current object on the top of the stack
     // Uses it to fetch that index from second object on the stack
     LOAD_INDEX, // stack[n-1][stack[n]]
 
@@ -48,20 +48,35 @@ typedef enum OpCode
     // Arguments
     FUNCTION_CALL,
 
-    // Loads closures into current stack frame
-    CLOSURE,
+    // Pushes function object onto stack, used for nameless functions
+    // Closure variables should be loaded on the stack first,
+    // and will be fetched depending on the number of closures
+    CREATE_FUNCTION,
 
     // Jumps the program counter to fixed index in bytecode
-    CONST_JUMP,
+    ABSOLUTE_JUMP,
 
     // Jumps the program counter to a position relative to its current one (value can be -/+)
     OFFSET_JUMP,
 
+    // Pops element from call stack and returns to that byte code location
+    // Pops element from stack and pushes that on the parent call frame
+    FUNCTION_RETURN,
+
+    // Same as above, but does not pop the current stack, instead it simply adds UNDEFINED object to parent stack
+    FUNCTION_RETURN_UNDEFINED,
+
+    // Terminates program, exit code is fetched from the top of the stack
+    EXIT_PROGRAM,
     /*
     Jumps the program counter to a position relative to its current one
     if popped value from stack evals to true
     */
-    CONDITIONAL_OFFSET_JUMP,
+    OFFSET_JUMP_IF_TRUE,
+
+    /* If popped value from stack evals to false */
+    OFFSET_JUMP_IF_FALSE,
+
     //
 
     // MATH OPERATORS
@@ -101,6 +116,7 @@ typedef enum OpCode
 // // Possible runtime types
 typedef enum RtType
 {
+    UNDEFINED_TYPE,
     NULL_TYPE,
     NUMBER_TYPE,
     STRING_TYPE,
@@ -113,27 +129,34 @@ typedef enum RtType
 
 // Forward declaration
 typedef struct RtObject RtObject;
+typedef struct ByteCodeList ByteCodeList;
 
 // Generic object for all variables
 typedef struct RtObject
 {
-
-    char *name; // name of var associated (could be null depending on the object)
-    int name_len;
-
     RtType type;
 
-    union RtObject_data {
+    union RtObject_data
+    {
         // will contain data about runtime object
-        struct NumberConstant {
+        struct NumberConstant
+        {
             double number;
         } Number;
 
-
-        struct StringConstant {
+        struct StringConstant
+        {
             char *string;
             int string_length;
         } String;
+
+        struct Function
+        {
+            ByteCodeList *body;
+
+            char **args;
+            int arg_count;
+        } Function;
 
         // Object *obj;
         // Function *func;
@@ -152,10 +175,26 @@ typedef struct RtObject
 /* Struct representing a single Bytecode instruction */
 typedef struct ByteCode
 {
-    OpCode code;
+    OpCode op_code;
 
     union bytecode_data
     {
+        struct OFFSET_JUMP_IF_FALSE
+        {
+            int offset;
+        } OFFSET_JUMP_IF_FALSE;
+
+        struct OFFSET_JUMP_IF_TRUE
+        {
+            int offset;
+        } OFFSET_JUMP_IF_TRUE;
+
+        /* Used any sort of program counter jump */
+        struct OFFSET_JUMP
+        {
+            int offset;
+        } OFFSET_JUMP;
+
         struct LOAD_CONST
         {
             RtObject *constant;
@@ -175,7 +214,7 @@ typedef struct ByteCode
         {
             // the number of key value pairs
             // So if size is 4, it will pop 8 elements from the stack
-            int map_size; 
+            int map_size;
         } CREATE_MAP;
 
         struct LOAD_VAR
@@ -202,17 +241,18 @@ typedef struct ByteCode
             int closure_count;
         } CLOSURE;
 
-        /* Used any sort of program counter jump */
-        struct JUMP
-        {
-            int jump;
-        } OFFSET_JUMP;
-
         struct FUNCTION_CALL
         {
             int arg_count;
         } FUNCTION_CALL;
 
+        struct CREATE_FUNCTION
+        {
+            RtObject *function;
+
+            char **closures;
+            int closure_count;
+        } CREATE_FUNCTION;
 
     } data;
 
@@ -222,7 +262,7 @@ typedef struct ByteCode
 typedef struct ByteCodeList
 {
     ByteCode **code;
-    int  pg_length;
+    int pg_length;
 
     int malloc_len;
 } ByteCodeList;
@@ -231,18 +271,26 @@ typedef struct ByteCodeList
 GenericSet *collect_free_vars(AST_List *body);
 GenericSet *collect_free_vars_ast_node(AST_node *node);
 
-RtObject *init_RtObject(RtType type, char* name);
+RtObject *init_RtObject(RtType type);
 ByteCodeList *init_ByteCodeList();
 ByteCode *init_ByteCode(OpCode code);
 
 ByteCodeList *concat_bytecode_lists(ByteCodeList *lhs, ByteCodeList *rhs);
 ByteCodeList *compile_exps_sequence(ExpressionNode **exps, const int exps_length);
 ByteCodeList *compile_expression_component(ExpressionComponent *cm);
-ByteCodeList *compile_expression(ExpressionNode* root);
+ByteCode *compile_func_declaration(AST_node *function);
+ByteCodeList *compile_conditional_chain(AST_node *node);
+ByteCodeList *compile_expression(ExpressionNode *root);
+ByteCodeList *compile_code_body(AST_List *body, bool append_exit_pg);
 
 void free_ByteCodeList(ByteCodeList *list);
 void free_ByteCode(ByteCode *bytecode);
 
-void deconstruct_RtObject(RtObject *obj);
-void deconstruct_bytecode(ByteCodeList* bytecode);
+void deconstruct_RtObject(RtObject *obj, int offset);
+void deconstruct_bytecode(ByteCodeList *bytecode, int offset);
+
+void free_RtObject(RtObject *obj);
+void free_ByteCodeList(ByteCodeList *list);
+void free_ByteCode(ByteCode *bytecode);
+
 #endif

@@ -4,3 +4,4 @@
 /.vscode/
 /main.out.dSYM/
 *.dSYM/
+.DS_Store

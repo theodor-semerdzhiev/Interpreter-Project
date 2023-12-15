@@ -1,7 +1,5 @@
+#pragma once
 #include <stdlib.h>
-
-#ifndef LEXER
-#define LEXER
 
 /* Lexeme type */
 enum token_type
@@ -131,4 +129,3 @@ char *malloc_substring(char *g, int start, int end);
 char** cpy_2D_string_arr(char** strs, int strs_length);
 /****************************************/
 
-#endif

@@ -1,6 +1,4 @@
-
-#ifndef COMPILER_H
-#define COMPILER_H
+#pragma once
 
 #include "generics/hashset.h"
 #include <stdio.h>
@@ -276,7 +274,7 @@ ByteCodeList *init_ByteCodeList();
 ByteCode *init_ByteCode(OpCode code);
 
 ByteCodeList *concat_bytecode_lists(ByteCodeList *lhs, ByteCodeList *rhs);
-ByteCodeList *compile_exps_sequence(ExpressionNode **exps, const int exps_length);
+ByteCodeList *compile_exps_sequence(ExpressionNode **exps, int exps_length);
 ByteCodeList *compile_expression_component(ExpressionComponent *cm);
 ByteCode *compile_func_declaration(AST_node *function);
 ByteCodeList *compile_conditional_chain(AST_node *node);
@@ -292,5 +290,3 @@ void deconstruct_bytecode(ByteCodeList *bytecode, int offset);
 void free_RtObject(RtObject *obj);
 void free_ByteCodeList(ByteCodeList *list);
 void free_ByteCode(ByteCode *bytecode);
-
-#endif

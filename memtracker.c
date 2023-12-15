@@ -3,6 +3,16 @@
 #include <stdio.h>
 #include "memtracker.h"
 
+/*
+DESCRITPION:
+This file contains the implementation of a memory tracker data structure.
+Its especially useful for keeping track of malloced memory and freeing it all 
+even if some pointers have gotten out of reach.
+
+Its heavily used in the parsing frontend, by freeing all the memory that was recursively allocated in case of a syntax error.
+
+*/
+
 /* Mallocs static memtracker pointer*/
 MemoryTracker *init_memtracker()
 {

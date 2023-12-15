@@ -1,15 +1,29 @@
 let x = 10;
-let z = x;
+let z = x 10 %;
 
 func test () {
-    if(z) {
-        let y = x;
+    while(0) {
 
-        if(x 10 -) {
-            x[10 "123123123" * x() +] = y;
-        } else {
-            x[0]() = y;
+        if(x) {
+            let x = x;
+            break;
+        }
+
+        if(x) {
+            let x = x;
+            return x;
+        }
+
+        while(0) {
+            if(x) {
+                let x = x;
+                continue;
+            }
         }
     }
+
+    let x = 10;
+
+    return test();
 }
 

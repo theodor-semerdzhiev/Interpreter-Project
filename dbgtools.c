@@ -321,7 +321,7 @@ void print_expression_tree(ExpressionNode *root, char *buffer, int rec_lvl)
         break;
 
     case MOD:
-        printf("- MOD(%):\n");
+        printf("- MOD(%%):\n");
         print_expression_tree(root->LHS, buffer, rec_lvl + 1);
         print_expression_tree(root->RHS, buffer, rec_lvl + 1);
         break;

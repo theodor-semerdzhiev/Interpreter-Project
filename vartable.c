@@ -4,6 +4,12 @@
 #include "vartable.h"
 #include "parser.h"
 
+/*
+DESCRIPTION:
+This file contains the implementation of a specialized lookup table used exclusively by the 
+Semantic Analyzer to keep track of bounded variables, and if needed their type.
+*/
+
 #define DEFAULT_BUCKET_SIZE 40
 
 typedef struct VarChain VarChain;

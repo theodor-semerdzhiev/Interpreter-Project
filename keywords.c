@@ -7,6 +7,13 @@
 
 #define INITIAL_BUCKET_SIZE 25
 
+
+/* 
+This file contains the Keyword table implementation used by the lexer and parser.
+Provides a practical API for recognizing keywords.
+Lookup Table uses chaining.
+*/
+
 typedef struct Keyword Keyword;
 
 typedef struct Keyword
@@ -33,6 +40,7 @@ typedef struct KeywordTable
 static unsigned int hash(const char *keywords);
 static void insert_keyword_to_table(char *keyword, KeywordType type);
 
+/* Global keyword table */
 static KeywordTable *keyword_table = NULL;
 
 // Initializes keyword table

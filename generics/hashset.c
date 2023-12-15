@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
 #include <stdio.h>
 #include <assert.h>
 #include "hashset.h"
@@ -41,47 +42,12 @@ static ChainList *_malloc_chain_list()
     return list;
 }
 
-/* Helper function for inserting node into Chain list */
-static Node *_insert_into_chain_list(GenericSet *set, ChainList *list, void *data)
-{
-
-    if (!list->head)
-    {
-        Node *new_node = _malloc_chain_node(data);
-        list->head = new_node;
-        list->tail = new_node;
-        list->length++;
-        return new_node;
-    }
-
-    Node *node = list->head;
-
-    while (node)
-    {
-        if (set->is_equal(data, node->data))
-        {
-            Node *new_node = _malloc_chain_node(data);
-            new_node->next = node->next;
-            node->next = new_node;
-            list->length++;
-            return new_node;
-        }
-
-        node = node->next;
-    }
-
-    Node *new_node = _malloc_chain_node(data);
-    list->tail->next = new_node;
-    list->tail = new_node;
-    return new_node;
-}
-
 #define DEFAULT_BUCKET_SIZE 100
 
 /* Mallocs Set struct, return NULL if allocation was not successful */
 GenericSet *init_GenericSet(
-    bool (*is_equal)(void *, void *),
-    unsigned int (*hash)(void *),
+    bool (*is_equal)(const void *, const void *),
+    unsigned int (*hash)(const void *),
     void (*free_data)(void *))
 {
 
@@ -105,10 +71,9 @@ GenericSet *init_GenericSet(
         return NULL;
     }
 
-    for (int i = 0; i < DEFAULT_BUCKET_SIZE; i++)
-    {
-        set->buckets[i] = NULL;
-    }
+    // Use memset to initialize the memory to zero
+    memset(set->buckets, 0, sizeof(ChainList *) * DEFAULT_BUCKET_SIZE);
+
     return set;
 }
 
@@ -374,7 +339,10 @@ static bool filter(const int *integer) {
 }
 
 int _main() {
-    GenericSet *set = init_GenericSet(integers_equal, hash_int, free);
+    GenericSet *set = init_GenericSet(
+        (bool (*)(const void *, const void *))integers_equal, 
+        (unsigned int (*)(const void *))hash_int, 
+        free);
 
     for(int i=0; i < 5000; i++) {
         int *num = malloc(sizeof(int));
@@ -383,7 +351,7 @@ int _main() {
     }
 
     // GenericSet_print_contents(set);
-    set_filter_remove(set, filter, true);
+    set_filter_remove(set, (bool (*)(void *))filter, true);
     // GenericSet_print_contents(set);
 
     free_GenericSet(set, true);

@@ -5,6 +5,19 @@
 #include "lexer.h"
 #include "errors.h"
 
+/* 
+DESCRIPTION:
+This file contains the implementation of the Semantic Analyzer 
+It checks for the following:
+- All referenced variables were declared and exist
+- If, else if, and while block contain NON empty expression
+- If, else if, else blocks are ordered properly 
+(i.e else if block must be preceded by if block, and else block must be preceded by else or else if block)
+- Expression Trees contain valid leaf nodes (expression components)
+- continue, break must be used witin loop blocks
+- Object Declarations must ONLY contain variables, functions, or other object declarations
+*/
+
 static bool is_access_modifier_valid(SemanticAnalyzer *sem_analyzer, AST_node *node);
 static bool is_exp_component_terminal(enum expression_component_type type);
 static bool is_obj_block_valid(SemanticAnalyzer *sem_anaylzer, AST_node *node);
@@ -49,7 +62,7 @@ static bool is_access_modifier_valid(SemanticAnalyzer *sem_analyzer, AST_node *n
     return true;
 }
 
-/* Gets the left most component in the expression component */
+/* Helper for getting the left most component in the expression component */
 static ExpressionComponent *get_left_most_component(ExpressionComponent *component)
 {
     while (component->sub_component)
@@ -128,7 +141,7 @@ static void add_argument_declarations_to_symtable(SemanticAnalyzer *sem_analyzer
 }
 
 /* Mallocs semantic analyzer struct */
-SemanticAnalyzer *malloc_semantic_analyser(const char *filename, const char **lines, const int line_num, const TokenList *list)
+SemanticAnalyzer *malloc_semantic_analyser(const char *filename, char **lines, int line_num, TokenList *list)
 {
     SemanticAnalyzer *sem_analyser = malloc(sizeof(SemanticAnalyzer));
     sem_analyser->is_in_loop = false;
@@ -349,7 +362,7 @@ bool expression_component_has_correct_semantics(SemanticAnalyzer *sem_analyzer, 
         {
             if (!node->meta_data.list_index)
             {
-                print_empty_exp_err(sem_analyzer, node, node->token_num, "List Indexes must have non empty expressions");
+                print_empty_exp_err(sem_analyzer, node->token_num, "List Indexes must have non empty expressions");
                 return false;
             }
 
@@ -390,7 +403,7 @@ bool expression_component_has_correct_semantics(SemanticAnalyzer *sem_analyzer, 
                     node->meta_data.func_data.args_num)
             {
                 print_invalid_arg_count_err(
-                    sem_analyzer, node,
+                    sem_analyzer,
                     node->meta_data.func_data.args_num,
                     node->sub_component->meta_data.inline_func->ast_data.func_args.args_num,
                     node->token_num, NULL);
@@ -494,7 +507,7 @@ bool var_assignment_has_correct_semantics(SemanticAnalyzer *sem_analyser, AST_no
         default:
             break;
         }
-        print_invalid_var_assignment_err(sem_analyser, exp_node, exp_node->token_num, msg);
+        print_invalid_var_assignment_err(sem_analyser, exp_node->token_num, msg);
         return false;
     }
 
@@ -598,7 +611,7 @@ bool AST_list_has_consistent_semantics(SemanticAnalyzer *sem_analyzer, AST_List 
 
     // forward declares function, object declarations
     // Allows for recursive/ recursively dependant definitions
-    forward_declare_obj_func(sem_analyzer, ast_list);
+    // forward_declare_obj_func(sem_analyzer, ast_list);
 
     while (node)
     {
@@ -664,7 +677,7 @@ bool AST_list_has_consistent_semantics(SemanticAnalyzer *sem_analyzer, AST_List 
             // checks if conditional expression is empty
             if (!node->ast_data.exp)
             {
-                print_empty_exp_err(sem_analyzer, node, node->token_num,
+                print_empty_exp_err(sem_analyzer, node->token_num,
                                     "Proper Syntax: if ( expression ...) { ... }");
                 return false;
             }
@@ -699,7 +712,7 @@ bool AST_list_has_consistent_semantics(SemanticAnalyzer *sem_analyzer, AST_List 
             // checks if conditional expression is empty
             if (!node->ast_data.exp)
             {
-                print_empty_exp_err(sem_analyzer, node, node->token_num,
+                print_empty_exp_err(sem_analyzer, node->token_num,
                                     "Proper Syntax: ... else if ( expression ... ) { ... }");
                 return false;
             }
@@ -768,7 +781,7 @@ bool AST_list_has_consistent_semantics(SemanticAnalyzer *sem_analyzer, AST_List 
             // checks if conditional expression is empty
             if (!node->ast_data.exp)
             {
-                print_empty_exp_err(sem_analyzer, node, node->token_num,
+                print_empty_exp_err(sem_analyzer, node->token_num,
                                     "Proper Syntax: while ( expression ...) { ... }");
                 return false;
             }

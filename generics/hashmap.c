@@ -2,10 +2,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <string.h>
 
 /*
 Generic HashMap implementation using chaining
 */
+
 typedef struct ChainNode ChainNode;
 typedef struct ChainNode
 {
@@ -202,10 +204,7 @@ GenericMap *init_GenericMap(
     map->free_key = free_key;
     map->free_data=free_data;
 
-    for (int i = 0; i < map->max_buckets; i++)
-    {
-        map->buckets[i] = NULL;
-    }
+    memset(map->buckets, 0, sizeof(ChainingList *) * DEFAULT_BUCKET_SIZE);
 
     return map;
 }

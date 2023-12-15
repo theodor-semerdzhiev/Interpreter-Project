@@ -1,5 +1,4 @@
-#ifndef GENERIC_LINKEDLIST_H
-#define GENERIC_LINKEDLIST_H
+#pragma once
 
 typedef struct GenericLList GenericLList;
 
@@ -11,5 +10,3 @@ void *LinkedList_popLast(GenericLList *list);
 void *LinkedList_popFirst(GenericLList *list);
 void *LinkedList_remove_matching_element(GenericLList *list, void *data);
 void LinkedList_free(GenericLList *list);
-
-#endif

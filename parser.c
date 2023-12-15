@@ -530,7 +530,7 @@ ExpressionComponent *parse_expression_component(
         parser->token_ptr++;
         ExpressionNode **elements = parse_expressions_by_seperator(parser, COMMA, CLOSING_SQUARE_BRACKETS);
         component->meta_data.list_const.list_elements = elements;
-        component->meta_data.list_const.list_length = get_pointer_list_length(elements);
+        component->meta_data.list_const.list_length = get_pointer_list_length((void **)elements);
 
         parser->ctx=tmp;
     }
@@ -633,8 +633,6 @@ ExpressionComponent *parse_expression_component(
         stop_parsing(parser);
         return NULL;
     }
-
-    end_of_func_body:;
     
     component->sub_component = parent;
     if (parent)
@@ -992,7 +990,7 @@ void push_to_ast_list(volatile AST_List *list, AST_node *node)
 }
 
 /* Creates AST node and parses variable declaration */
-AST_node *parse_variable_declaration(Parser *parser, int rec_lvl)
+AST_node *parse_variable_declaration(Parser *parser, int rec_lvl  __attribute__((unused)))
 {
     assert(parser);
     Token **list = parser->token_list->list;
@@ -1143,7 +1141,7 @@ AST_node *parse_if_conditional(Parser *parser, int rec_lvl)
 }
 
 /* Parse loop termination (i.e break) */
-AST_node *parse_loop_termination(Parser *parser, int rec_lvl)
+AST_node *parse_loop_termination(Parser *parser, int rec_lvl  __attribute__((unused)))
 {
     assert(parser);
     Token **list = parser->token_list->list;
@@ -1173,7 +1171,7 @@ AST_node *parse_loop_termination(Parser *parser, int rec_lvl)
 }
 
 /* Parses loop continuation (i.e continue )*/
-AST_node *parse_loop_continuation(Parser *parser, int rec_lvl)
+AST_node *parse_loop_continuation(Parser *parser, int rec_lvl  __attribute__((unused)))
 {
     assert(parser);
     Token **list = parser->token_list->list;
@@ -1201,7 +1199,7 @@ AST_node *parse_loop_continuation(Parser *parser, int rec_lvl)
 }
 
 /* Parses return expression (i.e return keyword )*/
-AST_node *parse_return_expression(Parser *parser, int rec_lvl)
+AST_node *parse_return_expression(Parser *parser, int rec_lvl  __attribute__((unused)))
 {
     assert(parser);
     Token **list = parser->token_list->list;
@@ -1476,7 +1474,7 @@ AST_node *parse_object_declaration(Parser *parser, int rec_lvl)
 }
 
 /* Parses variable assignment or expression component (i.e function call) */
-AST_node *parse_variable_assignment_exp_func_component(Parser *parser, int rec_lvl)
+AST_node *parse_variable_assignment_exp_func_component(Parser *parser, int rec_lvl __attribute__((unused)))
 {
     assert(parser);
     Token **list = parser->token_list->list;

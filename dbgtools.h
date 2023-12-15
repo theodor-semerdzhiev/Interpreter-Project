@@ -1,3 +1,4 @@
+#pragma once
 #include "parser.h"
 
 void print_token_list(TokenList *lexemes);

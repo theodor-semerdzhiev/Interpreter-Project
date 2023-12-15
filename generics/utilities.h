@@ -1,6 +1,4 @@
-#ifndef UTILITIES_H
-#define UTILITIES_H
-
+#pragma once
 #include <stdbool.h>
 
 unsigned int djb2_string_hash(const char *str);
@@ -11,4 +9,3 @@ int get_pointer_list_length(void **args);
 
 typedef bool (*IntFilter)(const int*);
 IntFilter integer_bge_than(int cutoff);
-#endif

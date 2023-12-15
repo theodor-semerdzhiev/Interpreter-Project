@@ -652,7 +652,6 @@ char** tokenize_str_by_seperators(const char* input, const char sep, int *count)
     *count = 0;
 
     int start = 0;
-    int end = 0;
 
     // Iterate through the string to separate it
     for (i = 0; i <= len; i++) {

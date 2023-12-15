@@ -1,8 +1,7 @@
+#pragma once
+
 #include "parser.h"
 #include "semanalysis.h"
-
-#ifndef ERRORS
-#define ERRORS
 
 void print_missing_operator_err(Parser *parser, const char *msg);
 void print_missing_exp_component_err(Parser *parser, const char *msg);
@@ -22,11 +21,11 @@ void print_invalid_func_call_err(SemanticAnalyzer *sa, ExpressionComponent *cm, 
 void print_invalid_index_err(SemanticAnalyzer *sa, ExpressionComponent *cm, const int token_ptr, const char *msg);
 void print_invalid_else_if_block_err(SemanticAnalyzer *sa, AST_node *node, const int token_ptr, const char *msg);
 void print_invalid_else_block_err(SemanticAnalyzer *sa, AST_node *node, const int token_ptr, const char *msg);
-void print_empty_exp_err(SemanticAnalyzer *sa, AST_node *node, const int token_ptr, const char *msg);
-void print_invalid_var_assignment_err(SemanticAnalyzer *sa, ExpressionComponent *cm, const int token_ptr, const char *msg);
-void print_invalid_empty_body_err(SemanticAnalyzer *sa, ExpressionComponent *cm, const int token_ptr, const char *msg);
+void print_empty_exp_err(SemanticAnalyzer *sa, const int token_ptr, const char *msg);
+void print_invalid_var_assignment_err(SemanticAnalyzer *sa, const int token_ptr, const char *msg);
+void print_invalid_empty_body_err(SemanticAnalyzer *sa, const int token_ptr, const char *msg);
 void print_invalid_arg_count_err(
-    SemanticAnalyzer *sa, ExpressionComponent *cm,
+    SemanticAnalyzer *sa,
     const int arg_count, const int expected_arg_count,
     const int token_ptr, const char *msg);
-#endif
+    

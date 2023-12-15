@@ -76,11 +76,6 @@ static char *_exp_component_to_string(ExpressionComponent *node)
     }
 }
 
-static char *_parser_getNthLine(Parser *parser, unsigned line)
-{
-    return parser->lines.lines[line - 1];
-}
-
 static void _print_whitespace(unsigned num)
 {
     for (int i = 0; i < (int)num; i++)
@@ -101,7 +96,7 @@ static void _print_pointer(unsigned offset)
     printf("\n" RESET_COLOR);
 }
 
-static void _print_prev_lines(const char **lines, unsigned cur_line, unsigned top_line)
+static void _print_prev_lines(char **lines, unsigned cur_line, unsigned top_line)
 {
     int i = cur_line - top_line - 1;
     for (; i < (int)cur_line; i++)
@@ -376,7 +371,7 @@ void print_invalid_else_if_block_err(SemanticAnalyzer *sa, AST_node *node, const
 }
 
 /* Prints out else if error  */
-void print_empty_exp_err(SemanticAnalyzer *sa, AST_node *node, const int token_ptr, const char *msg)
+void print_empty_exp_err(SemanticAnalyzer *sa, const int token_ptr, const char *msg)
 {
     _print_context(sa->token_list->list, token_ptr, sa->filename, sa->lines.lines);
 
@@ -402,7 +397,7 @@ void print_invalid_else_block_err(SemanticAnalyzer *sa, AST_node *node, const in
 }
 
 /* Prints out else if error  */
-void print_invalid_var_assignment_err(SemanticAnalyzer *sa, ExpressionComponent *cm, const int token_ptr, const char *msg)
+void print_invalid_var_assignment_err(SemanticAnalyzer *sa, const int token_ptr, const char *msg)
 {
     _print_context(sa->token_list->list, token_ptr, sa->filename, sa->lines.lines);
 
@@ -415,7 +410,7 @@ void print_invalid_var_assignment_err(SemanticAnalyzer *sa, ExpressionComponent 
 }
 
 /* Prints out invalid empty body error */
-void print_invalid_empty_body_err(SemanticAnalyzer *sa, ExpressionComponent *cm, const int token_ptr, const char *msg)
+void print_invalid_empty_body_err(SemanticAnalyzer *sa, const int token_ptr, const char *msg)
 {
     _print_context(sa->token_list->list, token_ptr, sa->filename, sa->lines.lines);
 
@@ -428,7 +423,7 @@ void print_invalid_empty_body_err(SemanticAnalyzer *sa, ExpressionComponent *cm,
 
 /* Prints out invalid number of arguments error */
 void print_invalid_arg_count_err(
-    SemanticAnalyzer *sa, ExpressionComponent *cm,
+    SemanticAnalyzer *sa,
     const int arg_count, const int expected_arg_count,
     const int token_ptr, const char *msg)
 {

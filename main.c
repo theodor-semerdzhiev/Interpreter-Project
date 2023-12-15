@@ -53,7 +53,7 @@ AST_List *parse_file(char *filename)
     free(file_contents);
 
     parser->error_handler = &before_parsing;
-    int error_return = setjmp(&before_parsing);
+    int error_return = setjmp((int *)&before_parsing);
 
     // if an error is detected, long jump is performed and if statement is called
     if (error_return != 0)
@@ -110,9 +110,6 @@ int main(int argc, char *argv[])
     if(!ast) {
         return_code = 1;
     } else {
-        // GenericSet *set = collect_free_vars(ast->head->next->next->next->next->next->body);
-        // GenericSet *set1 = collect_free_vars_ast_node(ast->head->next->next->next->next->next);
-        // GenericSet *set2 = collect_free_vars(ast);
 
         // free_GenericSet(set, true);
         // free_GenericSet(set1, true);

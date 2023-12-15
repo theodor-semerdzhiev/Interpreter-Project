@@ -1,13 +1,12 @@
+#pragma once
 #include <stdbool.h>
-
-#ifndef VARTABLE
-#define VARTABLE
 
 typedef enum VariableType
 {
     SYMBOL_TYPE_FUNCTION,
     SYMBOL_TYPE_OBJECT,
-    SYMBOL_TYPE_VARIABLE
+    SYMBOL_TYPE_VARIABLE,
+    SYMBOL_TYPE_EXCEPTION
 } VariableType;
 
 typedef struct variable Variable;
@@ -50,5 +49,3 @@ bool vartable_has_var(VarTable *symtable, const char *ident);
 
 void remove_all_vars_above_nesting_lvl(VarTable *symtable, int nesting_lvl);
 bool remove_var_from_vartable(VarTable *symtable, const char *ident, const int nesting_lvl);
-
-#endif

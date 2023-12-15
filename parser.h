@@ -1,5 +1,4 @@
-#ifndef PARSER
-#define PARSER
+#pragma once
 
 #include <stdbool.h>
 #include <setjmp.h>
@@ -334,4 +333,3 @@ AST_List *parse_code_block(
     enum token_type ends_of_exp[],
     const int ends_of_exp_length);
 
-#endif

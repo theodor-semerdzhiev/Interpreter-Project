@@ -41,16 +41,16 @@ typedef struct FreeVariable
 } FreeVariable;
 
 static FreeVariable *_malloc_free_var_struct(const char *varname, int nesting_lvl);
-static void *_free_var_struct(FreeVariable *var);
+static void _free_var_struct(FreeVariable *var);
 static bool _are_free_vars_equal_via_name(const FreeVariable *var1, const FreeVariable *var2);
 static unsigned _hash_free_vars(const FreeVariable *var);
 
 typedef bool (*NestingLevelFilter)(const FreeVariable *var);
-static NestingLevelFilter _filter_bge_nesting_lvl(const int nesting_lvl);
+static NestingLevelFilter _filter_bge_nesting_lvl(int nesting_lvl);
 
-static void _collect_free_vars_from_exp(int recursion_lvl, const ExpressionNode *root, GenericSet *free_var_set, GenericSet *bound_var_set);
-static void _add_sequence_of_exps_free_vars(int recursion_lvl, const ExpressionNode **args, const int arg_count, GenericSet *free_var_set, GenericSet *bound_var_set);
-static void _add_sequence_as_bounded_vars(int recursion_lvl, const ExpressionNode **args, const int arg_count, GenericSet *bound_var_set);
+static void _collect_free_vars_from_exp(int recursion_lvl, ExpressionNode *root, GenericSet *free_var_set, GenericSet *bound_var_set);
+static void _add_sequence_of_exps_free_vars(int recursion_lvl, ExpressionNode **args, int arg_count, GenericSet *free_var_set, GenericSet *bound_var_set);
+static void _add_sequence_as_bounded_vars(int recursion_lvl, ExpressionNode **args, int arg_count, GenericSet *bound_var_set);
 static void _collect_free_vars_from_exp_component(
     int recursion_lvl,
     ExpressionComponent *node,
@@ -65,7 +65,6 @@ static void _collect_free_vars_while_loop(int recursion_lvl, AST_node *node, Gen
 static void _collect_free_vars_func_declaration(int recursion_lvl, AST_node *node, GenericSet *free_var_set, GenericSet *bound_var_set);
 static void _collect_free_vars_inline_func_declaration(int recursion_lvl, AST_node *node, GenericSet *free_var_set, GenericSet *bound_var_set);
 static void _collect_free_vars_obj_declaration(int recursion_lvl, AST_node *node, GenericSet *free_var_set, GenericSet *bound_var_set);
-
 static void _collect_free_vars_from_ast_node(int recursion_lvl, AST_node *node, GenericSet *free_var_set, GenericSet *bound_var_set);
 static void _collect_free_vars_from_body(int recursion_lvl, AST_List *body, GenericSet *free_var_set, GenericSet *bound_var_set);
 
@@ -76,16 +75,16 @@ returns NULL if malloc error occurred */
 GenericSet *collect_free_vars(AST_List *node)
 {
     GenericSet *free_var_table = init_GenericSet(
-        (bool (*)(void *, void *))_are_free_vars_equal_via_name,
-        (unsigned int (*)(void *))_hash_free_vars,
+        (bool (*)(const void *, const void *))_are_free_vars_equal_via_name,
+        (unsigned int (*)(const void *))_hash_free_vars,
         (void (*)(void *))_free_var_struct);
 
     if (!free_var_table)
         return NULL;
 
     GenericSet *bound_var_table = init_GenericSet(
-        (bool (*)(void *, void *))_are_free_vars_equal_via_name,
-        (unsigned int (*)(void *))_hash_free_vars,
+        (bool (*)(const void *, const void *))_are_free_vars_equal_via_name,
+        (unsigned int (*)(const void *))_hash_free_vars,
         (void (*)(void *))_free_var_struct);
 
     if (!bound_var_table)
@@ -103,16 +102,16 @@ GenericSet *collect_free_vars(AST_List *node)
 GenericSet *collect_free_vars_ast_node(AST_node *node)
 {
     GenericSet *free_var_table = init_GenericSet(
-        (bool (*)(void *, void *))_are_free_vars_equal_via_name,
-        (unsigned int (*)(void *))_hash_free_vars,
+        (bool (*)(const void *, const void *))_are_free_vars_equal_via_name,
+        (unsigned int (*)(const void *))_hash_free_vars,
         (void (*)(void *))_free_var_struct);
 
     if (!free_var_table)
         return NULL;
 
     GenericSet *bound_var_table = init_GenericSet(
-        (bool (*)(void *, void *))_are_free_vars_equal_via_name,
-        (unsigned int (*)(void *))_hash_free_vars,
+        (bool (*)(const void *, const void *))_are_free_vars_equal_via_name,
+        (unsigned int (*)(const void *))_hash_free_vars,
         (void (*)(void *))_free_var_struct);
 
     if (!bound_var_table)
@@ -138,7 +137,7 @@ static FreeVariable *_malloc_free_var_struct(const char *varname, int nesting_lv
 }
 
 /* Frees Free Variable struct */
-static void *_free_var_struct(FreeVariable *var)
+static void _free_var_struct(FreeVariable *var)
 {
     free(var->varname);
     free(var);
@@ -166,18 +165,8 @@ static NestingLevelFilter _filter_bge_nesting_lvl(const int nesting_lvl)
     return _filter_by_nesting_lvl;
 }
 
-/* Gets left most component from expression component */
-static ExpressionComponent *_get_left_most(ExpressionComponent *node)
-{
-    while (node->sub_component)
-    {
-        node = node->sub_component;
-    }
-    return node;
-}
-
 /* Traverse the expression tree and finds free variables */
-static void _collect_free_vars_from_exp(int recursion_lvl, const ExpressionNode *root, GenericSet *free_var_set, GenericSet *bound_var_set)
+static void _collect_free_vars_from_exp(int recursion_lvl, ExpressionNode *root, GenericSet *free_var_set, GenericSet *bound_var_set)
 {
     /* Bases Cases */
     // In theory, this case should never happen
@@ -198,7 +187,7 @@ static void _collect_free_vars_from_exp(int recursion_lvl, const ExpressionNode 
 }
 
 /* Takes a list of expressions and adds them to the free_var_set if they are NOT bound */
-static void _add_sequence_of_exps_free_vars(int recursion_lvl, const ExpressionNode **args, const int arg_count, GenericSet *free_var_set, GenericSet *bound_var_set)
+static void _add_sequence_of_exps_free_vars(int recursion_lvl, ExpressionNode **args, int arg_count, GenericSet *free_var_set, GenericSet *bound_var_set)
 {
     for (int i = 0; i < arg_count; i++)
     {
@@ -207,14 +196,13 @@ static void _add_sequence_of_exps_free_vars(int recursion_lvl, const ExpressionN
 }
 
 /* Helper function fpr taking a list of arguments and adds them to the bound_var_set as bounded variables */
-static void _add_sequence_as_bounded_vars(int recursion_lvl, const ExpressionNode **args, const int arg_count, GenericSet *bound_var_set)
+static void _add_sequence_as_bounded_vars(int recursion_lvl, ExpressionNode **args, int arg_count, GenericSet *bound_var_set)
 {
     for (int i = 0; i < arg_count; i++)
     {
-        enum expression_token_type t = args[i]->type;
         assert(args[i]->type == VALUE);
 
-        const char *arg_name = args[i]->component->meta_data.variable_reference;
+        char *arg_name = args[i]->component->meta_data.variable_reference;
 
         FreeVariable var = {
             arg_name,
@@ -248,7 +236,7 @@ static void _collect_free_vars_from_exp_component(
         case LIST_CONSTANT:
         {
             ExpressionNode **list_elements = node->meta_data.list_const.list_elements;
-            const int list_length = node->meta_data.list_const.list_length;
+            int list_length = node->meta_data.list_const.list_length;
 
             // collects list contents
             _add_sequence_of_exps_free_vars(recursion_lvl, list_elements, list_length, free_var_set, bound_var_set);
@@ -280,7 +268,7 @@ static void _collect_free_vars_from_exp_component(
 
         case INLINE_FUNC:
         {
-            ExpressionNode *args = node->meta_data.inline_func->ast_data.func_args.func_prototype_args;
+            ExpressionNode **args = node->meta_data.inline_func->ast_data.func_args.func_prototype_args;
             const int arg_count = node->meta_data.inline_func->ast_data.func_args.args_num;
 
             // adds function arguments as bounded variables
@@ -309,11 +297,11 @@ static void _collect_free_vars_from_exp_component(
         {
             if (!node->sub_component)
             {
-                FreeVariable var = {
-                    node->meta_data.variable_reference,
-                    recursion_lvl};
+                FreeVariable var;
+                var.nesting_lvl=recursion_lvl;
+                var.varname=node->meta_data.variable_reference;
 
-                if (!set_contains(bound_var_set, &var))
+                if (!set_contains(bound_var_set, &var) && !set_contains(free_var_set, &var))
                 {
                     FreeVariable *var_ = _malloc_free_var_struct(var.varname, var.nesting_lvl);
                     set_insert(free_var_set, var_);
@@ -342,15 +330,18 @@ static void _collect_free_vars_var_declaration(
 
     // collects free variables fro RHS
     _collect_free_vars_from_exp(recursion_lvl, node->ast_data.exp, free_var_set, bound_var_set);
+
     char *varname = node->identifier.declared_var;
 
-    FreeVariable var = {varname, recursion_lvl};
+    FreeVariable var;
+    var.nesting_lvl=recursion_lvl;
+    var.varname=varname;
 
     // collects free variable for LHS
     if (!set_contains(bound_var_set, &var))
     {
-        FreeVariable *var = _malloc_free_var_struct(varname, recursion_lvl);
-        set_insert(bound_var_set, var);
+        FreeVariable *var_ = _malloc_free_var_struct(varname, recursion_lvl);
+        set_insert(bound_var_set, var_);
     }
 }
 
@@ -421,8 +412,8 @@ static void _collect_free_vars_func_declaration(
     GenericSet *bound_var_set)
 {
     ExpressionNode **args = node->ast_data.func_args.func_prototype_args;
-    const int arg_count = node->ast_data.func_args.args_num;
-    const char *func_name = node->identifier.func_name;
+    int arg_count = node->ast_data.func_args.args_num;
+    char *func_name = node->identifier.func_name;
 
     FreeVariable var = {func_name, recursion_lvl};
 
@@ -569,7 +560,12 @@ static void _collect_free_vars_from_body(
     set_filter_remove(bound_var_set, (bool (*)(void *))_filter_bge_nesting_lvl(recursion_lvl), true);
 }
 
-/** Implementation for compiling expressions into bytecode **/
+/** 
+ * Main Implementation for turning AST_List, AST_node and ExpressionComponents into correct bytecode 
+ * 
+ * 
+ * 
+ * **/
 
 /* Mallocs ByteCode */
 ByteCode *init_ByteCode(OpCode code)
@@ -606,10 +602,6 @@ ByteCodeList *init_ByteCodeList()
     list->malloc_len = DEFAULT_BYTECODE_LIST_LENGTH;
     list->pg_length = 0;
     list->code = malloc(sizeof(ByteCode *) * list->malloc_len);
-    for (int i = 0; i < list->malloc_len; i++)
-    {
-        list->code[i] = NULL;
-    }
     return list;
 }
 
@@ -698,7 +690,6 @@ ByteCodeList *compile_expression_component(ExpressionComponent *cm)
     // terminal constants
     case NUMERIC_CONSTANT:
     {
-
         instruction = init_ByteCode(LOAD_CONST);
         RtObject *number_constant = init_RtObject(NUMBER_TYPE);
         number_constant->data.Number.number = cm->meta_data.numeric_const;
@@ -920,8 +911,7 @@ ByteCodeList *compile_expression(ExpressionNode *root)
     case LOGICAL_OR:
         operation = init_ByteCode(LOGICAL_OR_VARS_OP);
         break;
-
-    case LOGICAL_NOT_VARS_OP:
+    case LOGICAL_NOT:
         operation = init_ByteCode(LOGICAL_NOT_VARS_OP);
         break;
     default:
@@ -955,6 +945,9 @@ ByteCode *compile_func_declaration(AST_node *function)
 
     RtObject *func = init_RtObject(FUNCTION_TYPE);
     func->data.Function.body = compile_code_body(func_body, false);
+    if(!func->data.Function.body) {
+        func->data.Function.body = init_ByteCodeList();
+    }
     func->data.Function.arg_count = arg_count;
     func->data.Function.args = malloc(sizeof(char *) * arg_count);
 
@@ -969,8 +962,7 @@ ByteCode *compile_func_declaration(AST_node *function)
     // Adds function return <=> function return is not already present
     ByteCodeList *compiled_body = func->data.Function.body;
 
-    if (compiled_body->code[compiled_body->pg_length - 1]->op_code != FUNCTION_RETURN ||
-        compiled_body->code[compiled_body->pg_length - 1]->op_code != FUNCTION_RETURN_UNDEFINED)
+    if (compiled_body)
         _add_bytecode(func->data.Function.body, init_ByteCode(FUNCTION_RETURN_UNDEFINED));
 
     ByteCode *instruction = init_ByteCode(CREATE_FUNCTION);
@@ -1022,11 +1014,11 @@ ByteCodeList *compile_conditional_chain(AST_node *node)
         if (node->next &&
             (node->next->type == ELSE_IF_CONDITIONAL || node->next->type == ELSE_CONDITIONAL))
         {
-            instr->data.OFFSET_JUMP_IF_FALSE.offset = compiled_body ? compiled_body->pg_length + 2 : 1;
+            instr->data.OFFSET_JUMP_IF_FALSE.offset = compiled_body ? compiled_body->pg_length + 1 : 1;
         }
         else
         {
-            instr->data.OFFSET_JUMP_IF_FALSE.offset = compiled_body ? compiled_body->pg_length + 1 : 0;
+            instr->data.OFFSET_JUMP_IF_FALSE.offset = compiled_body ? compiled_body->pg_length + 0 : 0;
         }
         _add_bytecode(compiled_exp, instr);
         compiled_node = concat_bytecode_lists(compiled_exp, compiled_body);
@@ -1139,9 +1131,68 @@ ByteCodeList *compile_code_body(AST_List *body, bool append_exit_pg)
             break;
         }
 
+        case RETURN_VAL: {
+            ByteCodeList *return_exp = compile_expression(node->ast_data.exp);
+            list = concat_bytecode_lists(list, return_exp);
+
+            ByteCode *return_code = NULL;
+
+            if(append_exit_pg) {
+                return_code=init_ByteCode(EXIT_PROGRAM);
+            } else {
+                return_code=init_ByteCode(FUNCTION_RETURN);
+            }
+
+            _add_bytecode(list, return_code);
+            break;
+        }
+
+        case LOOP_CONTINUATION: {
+            ByteCode *jump = init_ByteCode(OFFSET_JUMP);
+            jump->data.OFFSET_JUMP.offset = -INT32_MAX; 
+            _add_bytecode(list, jump);
+            break;
+        }
+
+        case LOOP_TERMINATOR: {
+            ByteCode *jump = init_ByteCode(OFFSET_JUMP);
+            jump->data.OFFSET_JUMP.offset = INT32_MAX;
+            _add_bytecode(list, jump);
+            break;
+        }
+
         case WHILE_LOOP:
         {
-            // TODO
+            ByteCodeList *loop_code = concat_bytecode_lists(
+                compile_expression(node->ast_data.exp), 
+                compile_code_body(node->body, false));
+
+            // resolves jump offsets for loop 
+            for(int i=0; i < loop_code->pg_length; i++) {
+                if(loop_code->code[i]->op_code == OFFSET_JUMP) {
+                    // loop termination
+                    if(loop_code->code[i]->data.OFFSET_JUMP.offset == INT32_MAX) {
+                        loop_code->code[i]->data.OFFSET_JUMP.offset = loop_code->pg_length - i;
+                    
+                    // loop continuation
+                    } else if(loop_code->code[i]->data.OFFSET_JUMP.offset == -INT32_MAX) {
+                        loop_code->code[i]->data.OFFSET_JUMP.offset = -i;
+                    }
+                }
+            }
+
+            if(loop_code->pg_length > 0 &&
+            loop_code->code[loop_code->pg_length - 1]->op_code != OFFSET_JUMP) {
+
+                ByteCode *code = init_ByteCode(OFFSET_JUMP);
+                code->data.OFFSET_JUMP.offset= (loop_code->pg_length * -1) + 1;
+                _add_bytecode(loop_code, code);
+            }
+
+
+            list = concat_bytecode_lists(list, loop_code);
+
+
             break;
         }
 
@@ -1255,6 +1306,8 @@ void free_ByteCode(ByteCode *bytecode)
         break;
     }
 
+    case FUNCTION_RETURN_UNDEFINED:
+    case EXIT_PROGRAM:
     case FUNCTION_RETURN:
     case CREATE_LIST:
     case CREATE_SET:
@@ -1367,7 +1420,7 @@ void deconstruct_RtObject(RtObject *obj, int offset)
     }
 }
 
-/* Deconstruct bytecode by printing it out */
+/* Deconstructs bytecode by printing it out */
 void deconstruct_bytecode(ByteCodeList *bytecode, int offset)
 {
     // Prints offset

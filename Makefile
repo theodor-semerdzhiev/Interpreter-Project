@@ -1,5 +1,5 @@
 CC = clang
-CFLAGS = -g -Wall -Wextra -std=c11
+CFLAGS = -g -fstack-protector -Wextra -std=c17
 
 SRC_FILES = \
   keywords.c \

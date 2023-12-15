@@ -1,8 +1,7 @@
+#pragma once
+
 #include "vartable.h"
 #include "parser.h"
-
-#ifndef SEMANALYZER
-#define SEMANALYZER
 
 typedef enum scope_type
 {
@@ -31,12 +30,10 @@ typedef struct SemanticAnalyzer
 
 } SemanticAnalyzer;
 
-SemanticAnalyzer *malloc_semantic_analyser(const char *filename, const char **lines, const int line_num, const TokenList *list);
+SemanticAnalyzer *malloc_semantic_analyser(const char *filename, char **lines, int line_num, TokenList *list);
 void free_semantic_analyser(SemanticAnalyzer *sem_analyser);
 bool exp_has_correct_semantics(SemanticAnalyzer *sem_analyser, ExpressionNode *root);
 bool expression_component_has_correct_semantics(SemanticAnalyzer *sem_analyser, ExpressionComponent *node);
 bool var_assignment_has_correct_semantics(SemanticAnalyzer *sem_analyser, AST_node *node);
 bool check_argument_semantics(SemanticAnalyzer *sem_analyser, AST_node *node);
 bool AST_list_has_consistent_semantics(SemanticAnalyzer *sem_analyser, AST_List *ast_list);
-
-#endif

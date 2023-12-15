@@ -3,27 +3,16 @@ let z = x 10 %;
 
 func test () {
     while(0) {
-
         if(x z &&) {
-            let x = x;
-            break;
-        }
-
-        if(x) {
-            let x = x;
-            return x;
-        }
-
-        while(0) {
             if(x) {
-                let x = x;
                 continue;
             }
         }
     }
 
-    let x = 10;
 
     return test();
 }
 
+
+         

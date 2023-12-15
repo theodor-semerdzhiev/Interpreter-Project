@@ -1018,7 +1018,7 @@ ByteCodeList *compile_conditional_chain(AST_node *node)
         }
         else
         {
-            instr->data.OFFSET_JUMP_IF_FALSE.offset = compiled_body ? compiled_body->pg_length + 1 : 0;
+            instr->data.OFFSET_JUMP_IF_FALSE.offset = compiled_body ? compiled_body->pg_length: 0;
         }
         _add_bytecode(compiled_exp, instr);
         compiled_node = concat_bytecode_lists(compiled_exp, compiled_body);
@@ -1150,6 +1150,8 @@ ByteCodeList *compile_code_body(AST_List *body, bool append_exit_pg)
         case LOOP_CONTINUATION: {
             ByteCode *jump = init_ByteCode(OFFSET_JUMP);
             jump->data.OFFSET_JUMP.offset = -INT32_MAX; 
+            if(!list)
+                list = init_ByteCodeList();
             _add_bytecode(list, jump);
             break;
         }
@@ -1157,6 +1159,8 @@ ByteCodeList *compile_code_body(AST_List *body, bool append_exit_pg)
         case LOOP_TERMINATOR: {
             ByteCode *jump = init_ByteCode(OFFSET_JUMP);
             jump->data.OFFSET_JUMP.offset = INT32_MAX;
+            if(!list)
+                list = init_ByteCodeList();
             _add_bytecode(list, jump);
             break;
         }
@@ -1191,8 +1195,6 @@ ByteCodeList *compile_code_body(AST_List *body, bool append_exit_pg)
 
 
             list = concat_bytecode_lists(list, loop_code);
-
-
             break;
         }
 

@@ -969,7 +969,7 @@ Adds a ast_node to the high abstraction ast_list data structure (i.e linked list
 NOTE: list is volatile, and MUST stay that way to prevent aggressive compiler optimizations from breaking crucial logic
 */
 
-void push_to_ast_list(volatile AST_List *list, AST_node *node)
+void push_to_ast_list(AST_List *list, AST_node *node)
 {
     if (!list)
         return;

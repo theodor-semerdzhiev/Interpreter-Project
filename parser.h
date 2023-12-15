@@ -312,7 +312,7 @@ AST_List *malloc_ast_list(Parser *parser);
 void free_ast_list(AST_List *list);
 void free_ast_node(AST_node *node);
 
-void push_to_ast_list(volatile AST_List *list, AST_node *node);
+void push_to_ast_list(AST_List *list, AST_node *node);
 
 /* Functions responsible for parsing code blocks */
 AST_node *parse_variable_declaration(Parser *parser, int rec_lvl);

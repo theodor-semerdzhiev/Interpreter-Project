@@ -4,7 +4,7 @@ let z = x 10 %;
 func test () {
     while(0) {
 
-        if(x) {
+        if(x z &&) {
             let x = x;
             break;
         }

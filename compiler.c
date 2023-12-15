@@ -1018,7 +1018,7 @@ ByteCodeList *compile_conditional_chain(AST_node *node)
         }
         else
         {
-            instr->data.OFFSET_JUMP_IF_FALSE.offset = compiled_body ? compiled_body->pg_length + 0 : 0;
+            instr->data.OFFSET_JUMP_IF_FALSE.offset = compiled_body ? compiled_body->pg_length + 1 : 0;
         }
         _add_bytecode(compiled_exp, instr);
         compiled_node = concat_bytecode_lists(compiled_exp, compiled_body);

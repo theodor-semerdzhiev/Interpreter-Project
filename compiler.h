@@ -75,7 +75,11 @@ typedef enum OpCode
     /* If popped value from stack evals to false */
     OFFSET_JUMP_IF_FALSE,
 
-    //
+    /* Pops computation stack */
+    POP_STACK,
+
+    /* Deference a variable name to its value, and sets it to the previous mapping, if one is available */
+    DEREF_VAR,
 
     // MATH OPERATORS
 
@@ -193,6 +197,10 @@ typedef struct ByteCode
             int offset;
         } OFFSET_JUMP;
 
+        struct {
+            char* var;
+        } DEREF_VAR;
+
         struct LOAD_CONST
         {
             RtObject *constant;
@@ -278,8 +286,9 @@ ByteCodeList *compile_exps_sequence(ExpressionNode **exps, int exps_length);
 ByteCodeList *compile_expression_component(ExpressionComponent *cm);
 ByteCode *compile_func_declaration(AST_node *function);
 ByteCodeList *compile_conditional_chain(AST_node *node);
+ByteCodeList *compiled_while_loop(AST_node *node);
 ByteCodeList *compile_expression(ExpressionNode *root);
-ByteCodeList *compile_code_body(AST_List *body, bool append_exit_pg);
+ByteCodeList *compile_code_body(AST_List *body, bool is_global_scope);
 
 void free_ByteCodeList(ByteCodeList *list);
 void free_ByteCode(ByteCode *bytecode);

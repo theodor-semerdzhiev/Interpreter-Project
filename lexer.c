@@ -8,7 +8,7 @@
 #include "./lexer.h"
 #include "./keywords.h"
 
-#define DEFAULT_LEX_ARR_LENGTH 256
+#define DEFAULT_LEX_ARR_LENGTH 128
 
 //     ".", ";", ",", ":",                                      // seperators
 //     "{", "}", "(", ")", "[", "]",                            // wrappers
@@ -171,7 +171,6 @@ static char* token_to_str(enum token_type type) {
 return UNDEFINED if its not a special token */
 static enum token_type get_special_token_type(Lexer *lexer, char *string)
 {
-
     char first = string[lexer->text_ptr];
     char second = string[lexer->text_ptr + 1];
 
@@ -352,25 +351,25 @@ static void push_char_to_buffer(Lexer *lexer, char c)
     lexer->buffer[lexer->buffer_ptr] = c;
     lexer->cur_pos++;
     
+    // resets prev_pos and cur_pos if buffer is empty
     if(lexer->buffer_ptr == 0) 
         lexer->prev_pos=lexer->cur_pos;
     
     lexer->buffer_ptr++;
-
+    lexer->buffer[lexer->buffer_ptr] = '\0';
 
     // resizes buffer
     if (lexer->buffer_ptr == lexer->buffer_size)
     {
-        char *resized_buffer = malloc(sizeof(char) * (lexer->buffer_size * 2 + 1));
-        for (int i = 0; i < lexer->buffer_ptr; i++)
-        {
-            resized_buffer[i] = lexer->buffer[i];
+        char *resized_buffer = realloc(lexer->buffer, lexer->buffer_size * 2 + 1);
+        if(resized_buffer) {
+            free(lexer->buffer);
+            lexer->buffer = resized_buffer;
+            lexer->buffer_size *= 2;
+        } else {
+            fprintf(stderr, "Memory Error");
+            return;
         }
-        resized_buffer[lexer->buffer_ptr] = '\0';
-
-        free(lexer->buffer);
-        lexer->buffer = resized_buffer;
-        lexer->buffer_size *= 2;
     }
 
     lexer->buffer[lexer->buffer_ptr] = '\0';
@@ -407,20 +406,16 @@ static void clear_buffer(Lexer *lexer, TokenList *list)
 TokenList *cpy_token_list(TokenList *list)
 {
     TokenList *new_list = malloc_token_list();
-    new_list->len = list->len;
-    new_list->max_len = list->max_len;
 
-    for (int i = 0; i < (int)new_list->len; i++)
-    {
-        // copies string
-        char* str_cpy = malloc(sizeof(char) * strlen(list->list[i]->ident) + 1);
-        strcpy(str_cpy, list->list[i]->ident);
-
-        new_list->list[i] = malloc_token_struct(
+    for (int i = 0; i < (int)list->len; i++)
+    {   
+        push_token(
+            new_list,
             list->list[i]->type,
-            str_cpy,
+            cpy_string_helper(list->list[i]->ident),
             list->list[i]->line_num,
-            list->list[i]->line_pos);
+            list->list[i]->line_pos
+        );
     }
 
     return new_list;
@@ -554,13 +549,9 @@ void free_lexer(Lexer *lexer)
 TokenList *malloc_token_list()
 {
     TokenList *token_list = (TokenList *)malloc(sizeof(TokenList));
-
-    // mallocs memory for array list
-    Token **list = (Token **)malloc(sizeof(Token *) * (DEFAULT_LEX_ARR_LENGTH + 1));
     token_list->len = 0;
-    token_list->list = list;
+    token_list->list = (Token **)malloc(sizeof(Token *) * (DEFAULT_LEX_ARR_LENGTH + 1));
     token_list->max_len = DEFAULT_LEX_ARR_LENGTH;
-
     return token_list;
 }
 
@@ -625,12 +616,14 @@ void push_token(
 
     if (arr->len == arr->max_len)
     {
-        Token **new_list = (Token **)malloc(sizeof(Token *) * arr->max_len * 2);
+        // Resize the array using realloc
+        Token **new_list = realloc(arr->list, sizeof(Token *) * (arr->max_len * 2));
 
-        for (int i = 0; i < (int)arr->max_len; i++)
-            new_list[i] = arr->list[i];
-
-        free(arr->list);
+        if (new_list == NULL)
+        {
+            // Handle memory allocation failure
+            return;
+        }
 
         arr->list = new_list;
         arr->max_len *= 2;
@@ -677,7 +670,6 @@ char** tokenize_str_by_seperators(const char* input, const char sep, int *count)
 static char* cpy_string_helper(const char* str) {
     char* copy = malloc(sizeof(char)*(strlen(str)+1));
     strcpy(copy,str);
-    copy[strlen(str)]='\0';
     return copy;
 }
 

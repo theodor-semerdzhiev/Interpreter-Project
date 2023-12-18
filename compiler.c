@@ -298,8 +298,8 @@ static void _collect_free_vars_from_exp_component(
             if (!node->sub_component)
             {
                 FreeVariable var;
-                var.nesting_lvl=recursion_lvl;
-                var.varname=node->meta_data.variable_reference;
+                var.nesting_lvl = recursion_lvl;
+                var.varname = node->meta_data.variable_reference;
 
                 if (!set_contains(bound_var_set, &var) && !set_contains(free_var_set, &var))
                 {
@@ -334,8 +334,8 @@ static void _collect_free_vars_var_declaration(
     char *varname = node->identifier.declared_var;
 
     FreeVariable var;
-    var.nesting_lvl=recursion_lvl;
-    var.varname=varname;
+    var.nesting_lvl = recursion_lvl;
+    var.varname = varname;
 
     // collects free variable for LHS
     if (!set_contains(bound_var_set, &var))
@@ -547,7 +547,8 @@ static void _collect_free_vars_from_body(
     GenericSet *free_var_set,
     GenericSet *bound_var_set)
 {
-    if(!body) return; 
+    if (!body)
+        return;
 
     AST_node *ptr = body->head;
     while (ptr)
@@ -560,12 +561,17 @@ static void _collect_free_vars_from_body(
     set_filter_remove(bound_var_set, (bool (*)(void *))_filter_bge_nesting_lvl(recursion_lvl), true);
 }
 
-/** 
- * Main Implementation for turning AST_List, AST_node and ExpressionComponents into correct bytecode 
- * 
- * 
- * 
+/**
+ * Main Implementation for turning AST_List, AST_node and ExpressionComponents into correct bytecode
+ *
+ *
+ *
  * **/
+
+static bool ast_list_has(AST_List *body, enum ast_node_type type);
+static ByteCodeList *add_var_derefs(AST_List *body, ByteCodeList *target);
+static bool expression_component_has(ExpressionComponent *cm, enum expression_component_type type);
+static void print_offset(int offset);
 
 /* Mallocs ByteCode */
 ByteCode *init_ByteCode(OpCode code)
@@ -575,8 +581,8 @@ ByteCode *init_ByteCode(OpCode code)
     return bytecode;
 }
 
-/* Adds bytecode instruction to Byte Code list */
-static void _add_bytecode(ByteCodeList *pg, ByteCode *instr)
+/* Adds bytecode instruction to Byte Code list, return the list itself */
+ByteCodeList *_add_bytecode(ByteCodeList *pg, ByteCode *instr)
 {
     pg->code[pg->pg_length] = instr;
     pg->pg_length++;
@@ -591,6 +597,7 @@ static void _add_bytecode(ByteCodeList *pg, ByteCode *instr)
         free(pg->code);
         pg->code = new_arr;
     }
+    return pg;
 }
 
 #define DEFAULT_BYTECODE_LIST_LENGTH 256;
@@ -945,7 +952,8 @@ ByteCode *compile_func_declaration(AST_node *function)
 
     RtObject *func = init_RtObject(FUNCTION_TYPE);
     func->data.Function.body = compile_code_body(func_body, false);
-    if(!func->data.Function.body) {
+    if (!func->data.Function.body)
+    {
         func->data.Function.body = init_ByteCodeList();
     }
     func->data.Function.arg_count = arg_count;
@@ -959,11 +967,10 @@ ByteCode *compile_func_declaration(AST_node *function)
             malloc_string_cpy(NULL, args[i]->component->meta_data.variable_reference);
     }
 
-    // Adds function return <=> function return is not already present
-    ByteCodeList *compiled_body = func->data.Function.body;
-
-    if (compiled_body)
+    // Adds function return <=> a return is not present in top scope of function body
+    if (function->body && function->body->length > 0 && !ast_list_has(function->body, RETURN_VAL)) {
         _add_bytecode(func->data.Function.body, init_ByteCode(FUNCTION_RETURN_UNDEFINED));
+    }
 
     ByteCode *instruction = init_ByteCode(CREATE_FUNCTION);
     instruction->data.CREATE_FUNCTION.closure_count = free_var_set->size;
@@ -999,6 +1006,7 @@ ByteCodeList *compile_conditional_chain(AST_node *node)
     // Recursive Case
 
     ByteCodeList *compiled_node = NULL;
+    ByteCode *jump_if_false = NULL;
 
     switch (node->type)
     {
@@ -1008,19 +1016,12 @@ ByteCodeList *compile_conditional_chain(AST_node *node)
         ByteCodeList *compiled_exp = compile_expression(node->ast_data.exp);
         ByteCodeList *compiled_body = compile_code_body(node->body, false);
 
-        ByteCode *instr = init_ByteCode(OFFSET_JUMP_IF_FALSE);
+        jump_if_false = init_ByteCode(OFFSET_JUMP_IF_FALSE);
+        jump_if_false->data.OFFSET_JUMP_IF_FALSE.offset =
+            compiled_body ? compiled_body->pg_length + 1 : 2;
+        
 
-        // Must jump over OFFSET_JUMP if an other conditional is next
-        if (node->next &&
-            (node->next->type == ELSE_IF_CONDITIONAL || node->next->type == ELSE_CONDITIONAL))
-        {
-            instr->data.OFFSET_JUMP_IF_FALSE.offset = compiled_body ? compiled_body->pg_length + 1 : 1;
-        }
-        else
-        {
-            instr->data.OFFSET_JUMP_IF_FALSE.offset = compiled_body ? compiled_body->pg_length: 0;
-        }
-        _add_bytecode(compiled_exp, instr);
+        _add_bytecode(compiled_exp, jump_if_false);
         compiled_node = concat_bytecode_lists(compiled_exp, compiled_body);
         break;
     }
@@ -1040,19 +1041,119 @@ ByteCodeList *compile_conditional_chain(AST_node *node)
         next = compile_conditional_chain(node->next);
     }
 
-    if (node->type != ELSE_CONDITIONAL && next)
+    // adds offset jump <=> if / else if body does not contain returns, break, or continue
+    // if it does contain, then Offset jump becomes redundant 
+    if (node->type != ELSE_CONDITIONAL && 
+        next && 
+        !ast_list_has(node->body, RETURN_VAL) &&
+        !ast_list_has(node->body, LOOP_CONTINUATION) &&
+        !ast_list_has(node->body, LOOP_TERMINATOR))
     {
         ByteCode *instr = init_ByteCode(OFFSET_JUMP);
         instr->data.OFFSET_JUMP.offset = next->pg_length + 1;
 
         _add_bytecode(compiled_node, instr);
+
+        // updates jump offset
+        jump_if_false->data.OFFSET_JUMP_IF_FALSE.offset++;
     }
+
     compiled_node = concat_bytecode_lists(compiled_node, next);
     return compiled_node;
 }
 
-/* Compiles a Code Block TODO */
-ByteCodeList *compile_code_body(AST_List *body, bool append_exit_pg)
+ByteCodeList *compiled_while_loop(AST_node *node) {
+    assert(node->type == WHILE_LOOP);
+
+    ByteCodeList *conditional = compile_expression(node->ast_data.exp);
+    ByteCodeList *compiled_body = compile_code_body(node->body, false);
+    ByteCode *jump = init_ByteCode(OFFSET_JUMP_IF_FALSE);
+    // +2 because we must jump over the offset jump at the end
+    jump->data.OFFSET_JUMP_IF_FALSE.offset= compiled_body->pg_length + 2;
+
+    ByteCodeList* loop_code = concat_bytecode_lists(_add_bytecode(conditional, jump), compiled_body);
+
+    // resolves jump offsets for loop
+    for (int i = 0; i < loop_code->pg_length; i++)
+    {
+        if (loop_code->code[i]->op_code == OFFSET_JUMP)
+        {
+            // loop termination
+            if (loop_code->code[i]->data.OFFSET_JUMP.offset == INT32_MAX)
+            {
+                loop_code->code[i]->data.OFFSET_JUMP.offset = loop_code->pg_length - i + 1;
+            }
+            // loop continuation
+            else if (loop_code->code[i]->data.OFFSET_JUMP.offset == -INT32_MAX)
+            {
+                loop_code->code[i]->data.OFFSET_JUMP.offset = -i;
+            }
+        }
+    }
+
+    // End of while loop should back to beginning ot loop
+    ByteCode *code = init_ByteCode(OFFSET_JUMP);
+    code->data.OFFSET_JUMP.offset = (loop_code->pg_length * -1);
+    _add_bytecode(loop_code, code);
+
+    return loop_code;
+}
+
+/* Checks if expression component has node with given type*/
+static bool expression_component_has(ExpressionComponent *cm, enum expression_component_type type)
+{
+    while (cm)
+    {
+        if (cm->type == type)
+            return true;
+        cm = cm->sub_component;
+    }
+
+    return false;
+}
+
+/* Checks if expression component has node with given type*/
+static bool ast_list_has(AST_List *body, enum ast_node_type type)
+{
+    AST_node *node = body->head;
+    while (node)
+    {
+        if (node->type == type)
+            return true;
+        node = node->next;
+    }
+
+    return false;
+}
+
+// Returns an array of strings representing the variables created inside a scope
+static ByteCodeList *add_var_derefs(AST_List *body, ByteCodeList *target)
+{
+    AST_node *node = body->head;
+
+    while (node)
+    {
+        if( node->type == LOOP_CONTINUATION || 
+            node->type == LOOP_TERMINATOR || 
+            node->type == RETURN_VAL)
+            break;
+            
+        if (node->type == VAR_DECLARATION)
+        {
+            ByteCode *deref = init_ByteCode(DEREF_VAR);
+            deref->data.DEREF_VAR.var = malloc_string_cpy(NULL, node->identifier.declared_var);
+            _add_bytecode(target, deref);
+        }
+        node = node->next;
+    }
+
+    return target;
+}
+
+/* Compiles a Code Block body,
+Param: append_exit_pg
+Used to flag if a EXIT_PROGRAM instruction should be appended to body, only used in the global scope */
+ByteCodeList *compile_code_body(AST_List *body, bool is_global_scope)
 {
     if (!body)
         return NULL;
@@ -1060,6 +1161,9 @@ ByteCodeList *compile_code_body(AST_List *body, bool append_exit_pg)
     ByteCodeList *list = NULL;
 
     AST_node *node = body->head;
+
+    bool as_var_declaration = false;
+
     while (node)
     {
         switch (node->type)
@@ -1075,6 +1179,8 @@ ByteCodeList *compile_code_body(AST_List *body, bool append_exit_pg)
             instruction->data.CREATE_VAR.str_length = strlen(varname);
 
             _add_bytecode(list, instruction);
+
+            as_var_declaration = true;
             break;
         }
 
@@ -1112,54 +1218,79 @@ ByteCodeList *compile_code_body(AST_List *body, bool append_exit_pg)
             break;
         }
 
-        case FUNCTION_DECLARATION: {
+        case FUNCTION_DECLARATION:
+        case INLINE_FUNCTION_DECLARATION:
+        {
             ByteCode *create_func = compile_func_declaration(node);
             ByteCode *create_var = init_ByteCode(CREATE_VAR);
-            create_var->data.CREATE_VAR.new_var_name=malloc_string_cpy(NULL, node->identifier.func_name);
+            create_var->data.CREATE_VAR.new_var_name = malloc_string_cpy(NULL, node->identifier.func_name);
             create_var->data.CREATE_VAR.str_length = strlen(create_var->data.CREATE_VAR.new_var_name);
 
-            if(!list)
+            if (!list)
                 list = init_ByteCodeList();
-            
+
             _add_bytecode(list, create_func);
             _add_bytecode(list, create_var);
             break;
         }
 
-        case EXPRESSION_COMPONENT: {
-            // TODO
+        case EXPRESSION_COMPONENT:
+        {
+            // Only compiles, if a function call is present, implying possible variable mutation
+            if (expression_component_has(node->identifier.expression_component, FUNC_CALL))
+            {
+                ByteCodeList *compiled_exp_component = compile_expression_component(node->identifier.expression_component);
+                _add_bytecode(compiled_exp_component, init_ByteCode(POP_STACK));
+                list = concat_bytecode_lists(list, compiled_exp_component);
+            }
             break;
         }
 
-        case RETURN_VAL: {
+        case RETURN_VAL:
+        {
+            if(is_global_scope) 
+                add_var_derefs(body, list);
+            
             ByteCodeList *return_exp = compile_expression(node->ast_data.exp);
             list = concat_bytecode_lists(list, return_exp);
 
             ByteCode *return_code = NULL;
 
-            if(append_exit_pg) {
-                return_code=init_ByteCode(EXIT_PROGRAM);
-            } else {
-                return_code=init_ByteCode(FUNCTION_RETURN);
+            if (is_global_scope)
+            {
+                return_code = init_ByteCode(EXIT_PROGRAM);
+            }
+            else
+            {
+                return_code = init_ByteCode(FUNCTION_RETURN);
             }
 
             _add_bytecode(list, return_code);
             break;
         }
 
-        case LOOP_CONTINUATION: {
+        case LOOP_CONTINUATION:
+        {
+            if(is_global_scope) 
+                add_var_derefs(body, list);
+
             ByteCode *jump = init_ByteCode(OFFSET_JUMP);
-            jump->data.OFFSET_JUMP.offset = -INT32_MAX; 
-            if(!list)
+            jump->data.OFFSET_JUMP.offset = -INT32_MAX;
+            if (!list)
                 list = init_ByteCodeList();
             _add_bytecode(list, jump);
             break;
         }
 
-        case LOOP_TERMINATOR: {
+        // break
+        case LOOP_TERMINATOR:
+        {
+            if(is_global_scope) 
+                add_var_derefs(body, list);
+
             ByteCode *jump = init_ByteCode(OFFSET_JUMP);
             jump->data.OFFSET_JUMP.offset = INT32_MAX;
-            if(!list)
+            if (!list)
                 list = init_ByteCodeList();
             _add_bytecode(list, jump);
             break;
@@ -1167,34 +1298,7 @@ ByteCodeList *compile_code_body(AST_List *body, bool append_exit_pg)
 
         case WHILE_LOOP:
         {
-            ByteCodeList *loop_code = concat_bytecode_lists(
-                compile_expression(node->ast_data.exp), 
-                compile_code_body(node->body, false));
-
-            // resolves jump offsets for loop 
-            for(int i=0; i < loop_code->pg_length; i++) {
-                if(loop_code->code[i]->op_code == OFFSET_JUMP) {
-                    // loop termination
-                    if(loop_code->code[i]->data.OFFSET_JUMP.offset == INT32_MAX) {
-                        loop_code->code[i]->data.OFFSET_JUMP.offset = loop_code->pg_length - i;
-                    
-                    // loop continuation
-                    } else if(loop_code->code[i]->data.OFFSET_JUMP.offset == -INT32_MAX) {
-                        loop_code->code[i]->data.OFFSET_JUMP.offset = -i;
-                    }
-                }
-            }
-
-            if(loop_code->pg_length > 0 &&
-            loop_code->code[loop_code->pg_length - 1]->op_code != OFFSET_JUMP) {
-
-                ByteCode *code = init_ByteCode(OFFSET_JUMP);
-                code->data.OFFSET_JUMP.offset= (loop_code->pg_length * -1) + 1;
-                _add_bytecode(loop_code, code);
-            }
-
-
-            list = concat_bytecode_lists(list, loop_code);
+            list = concat_bytecode_lists(list, compiled_while_loop(node));
             break;
         }
 
@@ -1204,21 +1308,36 @@ ByteCodeList *compile_code_body(AST_List *body, bool append_exit_pg)
             break;
         }
 
-
-
-            // TODO more cases ..
-
         default:
             break;
         }
 
         assert(list);
 
+        // ends compilation, since anything after is dead code
+        if (node && (node->type == LOOP_CONTINUATION ||
+                     node->type == LOOP_TERMINATOR ||
+                     node->type == RETURN_VAL))
+        {
+
+            break;
+        }
+
         if (node)
             node = node->next;
     }
 
-    if (append_exit_pg)
+    // Adds variable dereferences
+    // If and only if, we are not in the global scope, and body does not contain, control flow nodes
+    // If it does, then this bytecode will be unreachable
+    if (!is_global_scope && 
+        !ast_list_has(body, LOOP_CONTINUATION) && 
+        !ast_list_has(body, LOOP_TERMINATOR) &&
+        !ast_list_has(body, RETURN_VAL))
+        add_var_derefs(body, list);
+
+    // Is only added when in global scope
+    if (is_global_scope && !ast_list_has(body, RETURN_VAL))
     {
         _add_bytecode(list, init_ByteCode(EXIT_PROGRAM));
     }
@@ -1288,6 +1407,10 @@ void free_ByteCode(ByteCode *bytecode)
     case MUTATE_VAR:
         break;
 
+    case DEREF_VAR:
+        free(bytecode->data.DEREF_VAR.var);
+        break;
+
     case CREATE_VAR:
         free(bytecode->data.CREATE_VAR.new_var_name);
         break;
@@ -1308,6 +1431,7 @@ void free_ByteCode(ByteCode *bytecode)
         break;
     }
 
+    case POP_STACK:
     case FUNCTION_RETURN_UNDEFINED:
     case EXIT_PROGRAM:
     case FUNCTION_RETURN:
@@ -1442,6 +1566,9 @@ void deconstruct_bytecode(ByteCodeList *bytecode, int offset)
 
         switch (instrc->op_code)
         {
+        case DEREF_VAR:
+            printf("DEREF_VAR %s\n", instrc->data.DEREF_VAR.var);
+            break;
         case LOAD_CONST:
             printf("LOAD_CONST");
             deconstruct_RtObject(instrc->data.LOAD_CONST.constant, offset);
@@ -1513,6 +1640,9 @@ void deconstruct_bytecode(ByteCodeList *bytecode, int offset)
             break;
         case EXIT_PROGRAM:
             printf("EXIT_PROGRAM\n");
+            break;
+        case POP_STACK:
+            printf("POP_STACK\n");
             break;
         case ADD_VARS_OP:
             printf("ADD_VARS\n");

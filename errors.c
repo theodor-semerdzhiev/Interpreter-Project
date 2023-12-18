@@ -396,6 +396,19 @@ void print_invalid_else_block_err(SemanticAnalyzer *sa, AST_node *node, const in
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);
 }
 
+/* Prints out invalid ast node  */
+void print_invalid_ast_node(SemanticAnalyzer *sa, AST_node *node, const int token_ptr, const char *msg)
+{
+    _print_context(sa->token_list->list, token_ptr, sa->filename, sa->lines.lines);
+
+    printf(RED_TEXT
+           "Invalid statement\n"
+            RESET_COLOR);
+
+    if (msg)
+        printf(RED_TEXT "%s\n" RESET_COLOR, msg);
+}
+
 /* Prints out else if error  */
 void print_invalid_var_assignment_err(SemanticAnalyzer *sa, const int token_ptr, const char *msg)
 {

@@ -24,11 +24,7 @@ void print_token_list(TokenList *token_list)
 
   for (int i = 0; i < (int)token_list->len; i++)
   {
-    char str[2];
-    str[0] = token_list->list[i]->type;
-    str[1] = '\0';
-
-    char *type_in_str;
+    char *type_in_str = NULL;
 
     switch (token_list->list[i]->type)
     {

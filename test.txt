@@ -1,18 +1,26 @@
+
 let x = 10;
-let z = x 10 %;
 
-func test () {
-    while(0) {
-        if(x z &&) {
-            if(x) {
-                continue;
+let fib10 = func() {
+    func fib(n) {
+
+        while(n 10 >) {
+            if(n 0 ==) {
+                let x = x 10 -;
+                x = 20;
+            } else if(n 1 ==) {
+                
+                return 1;
+            } else {
+                n = n 1 -;
             }
+            
         }
+        return ! (fib(n 1 -) fib(n 2 -) +);
+        
     }
-
-
-    return test();
-}
+    return fib(10) x -;
+};
 
 
          

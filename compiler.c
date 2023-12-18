@@ -570,6 +570,7 @@ static void _collect_free_vars_from_body(
 
 static bool ast_list_has(AST_List *body, enum ast_node_type type);
 static ByteCodeList *add_var_derefs(AST_List *body, ByteCodeList *target);
+static void add_var_derefs_via_list(ByteCodeList *list);
 static bool expression_component_has(ExpressionComponent *cm, enum expression_component_type type);
 static void print_offset(int offset);
 
@@ -951,7 +952,7 @@ ByteCode *compile_func_declaration(AST_node *function)
     FreeVariable **free_vars = (FreeVariable **)GenericSet_to_list(free_var_set);
 
     RtObject *func = init_RtObject(FUNCTION_TYPE);
-    func->data.Function.body = compile_code_body(func_body, false);
+    func->data.Function.body = compile_code_body(func_body, false, false);
     if (!func->data.Function.body)
     {
         func->data.Function.body = init_ByteCodeList();
@@ -1014,7 +1015,7 @@ ByteCodeList *compile_conditional_chain(AST_node *node)
     case IF_CONDITIONAL:
     {
         ByteCodeList *compiled_exp = compile_expression(node->ast_data.exp);
-        ByteCodeList *compiled_body = compile_code_body(node->body, false);
+        ByteCodeList *compiled_body = compile_code_body(node->body, false, true);
 
         jump_if_false = init_ByteCode(OFFSET_JUMP_IF_FALSE);
         jump_if_false->data.OFFSET_JUMP_IF_FALSE.offset =
@@ -1026,7 +1027,7 @@ ByteCodeList *compile_conditional_chain(AST_node *node)
         break;
     }
     case ELSE_CONDITIONAL:
-        compiled_node = compile_code_body(node->body, false);
+        compiled_node = compile_code_body(node->body, false, true);
         break;
 
     default:
@@ -1066,7 +1067,7 @@ ByteCodeList *compiled_while_loop(AST_node *node) {
     assert(node->type == WHILE_LOOP);
 
     ByteCodeList *conditional = compile_expression(node->ast_data.exp);
-    ByteCodeList *compiled_body = compile_code_body(node->body, false);
+    ByteCodeList *compiled_body = compile_code_body(node->body, false, false);
     ByteCode *jump = init_ByteCode(OFFSET_JUMP_IF_FALSE);
     // +2 because we must jump over the offset jump at the end
     jump->data.OFFSET_JUMP_IF_FALSE.offset= compiled_body->pg_length + 2;
@@ -1095,6 +1096,8 @@ ByteCodeList *compiled_while_loop(AST_node *node) {
     ByteCode *code = init_ByteCode(OFFSET_JUMP);
     code->data.OFFSET_JUMP.offset = (loop_code->pg_length * -1);
     _add_bytecode(loop_code, code);
+
+    add_var_derefs_via_list(loop_code);
 
     return loop_code;
 }
@@ -1150,10 +1153,23 @@ static ByteCodeList *add_var_derefs(AST_List *body, ByteCodeList *target)
     return target;
 }
 
+/* 
+Similar to above function, but performs the derefs on the bytecode, by matching CREATE_VAR bytecodes
+*/
+static void add_var_derefs_via_list(ByteCodeList *list) {
+    for(int i=0; i < list->pg_length; i++) {
+        if(list->code[i]->op_code == CREATE_VAR) {
+            ByteCode *deref = init_ByteCode(DEREF_VAR);
+            deref->data.DEREF_VAR.var= malloc_string_cpy(NULL, list->code[i]->data.CREATE_VAR.new_var_name);
+            _add_bytecode(list, deref);
+        }
+    }
+}
+
 /* Compiles a Code Block body,
 Param: append_exit_pg
 Used to flag if a EXIT_PROGRAM instruction should be appended to body, only used in the global scope */
-ByteCodeList *compile_code_body(AST_List *body, bool is_global_scope)
+ByteCodeList *compile_code_body(AST_List *body, bool is_global_scope, bool add_derefs)
 {
     if (!body)
         return NULL;
@@ -1248,31 +1264,39 @@ ByteCodeList *compile_code_body(AST_List *body, bool is_global_scope)
 
         case RETURN_VAL:
         {
-            if(is_global_scope) 
+            if(!is_global_scope) 
                 add_var_derefs(body, list);
             
             ByteCodeList *return_exp = compile_expression(node->ast_data.exp);
             list = concat_bytecode_lists(list, return_exp);
 
-            ByteCode *return_code = NULL;
+            ByteCode *return_instruction = NULL;
 
             if (is_global_scope)
             {
-                return_code = init_ByteCode(EXIT_PROGRAM);
+                return_instruction = init_ByteCode(EXIT_PROGRAM);
             }
-            else
+            else if(return_exp)
             {
-                return_code = init_ByteCode(FUNCTION_RETURN);
+                return_instruction = init_ByteCode(FUNCTION_RETURN);
+            } else {
+                return_instruction = init_ByteCode(FUNCTION_RETURN_UNDEFINED);
+            }
+            // adds return value if one is not specified
+            if(!return_exp && is_global_scope) {
+                ByteCode *return_val = init_ByteCode(LOAD_CONST);
+                return_val->data.LOAD_CONST.constant=init_RtObject(NUMBER_TYPE);
+                return_val->data.LOAD_CONST.constant->data.Number.number=0;
+                _add_bytecode(list, return_val);
             }
 
-            _add_bytecode(list, return_code);
+            _add_bytecode(list, return_instruction);
             break;
         }
-
+        //continue
         case LOOP_CONTINUATION:
         {
-            if(is_global_scope) 
-                add_var_derefs(body, list);
+            // add_var_derefs(body, list);
 
             ByteCode *jump = init_ByteCode(OFFSET_JUMP);
             jump->data.OFFSET_JUMP.offset = -INT32_MAX;
@@ -1285,8 +1309,7 @@ ByteCodeList *compile_code_body(AST_List *body, bool is_global_scope)
         // break
         case LOOP_TERMINATOR:
         {
-            if(is_global_scope) 
-                add_var_derefs(body, list);
+            // add_var_derefs(body, list);
 
             ByteCode *jump = init_ByteCode(OFFSET_JUMP);
             jump->data.OFFSET_JUMP.offset = INT32_MAX;
@@ -1329,16 +1352,18 @@ ByteCodeList *compile_code_body(AST_List *body, bool is_global_scope)
 
     // Adds variable dereferences
     // If and only if, we are not in the global scope, and body does not contain, control flow nodes
-    // If it does, then this bytecode will be unreachable
-    if (!is_global_scope && 
-        !ast_list_has(body, LOOP_CONTINUATION) && 
-        !ast_list_has(body, LOOP_TERMINATOR) &&
-        !ast_list_has(body, RETURN_VAL))
-        add_var_derefs(body, list);
+    // If it does, then the bytecode will be unreachable
+    if (!is_global_scope && add_derefs)  {
+        list = add_var_derefs(body, list);
+    }
 
-    // Is only added when in global scope
+    // Is only added when in global scope, and no EXIT_PROGRAM is already present 
     if (is_global_scope && !ast_list_has(body, RETURN_VAL))
     {
+        ByteCode *return_code_val = init_ByteCode(LOAD_CONST);
+        return_code_val->data.LOAD_CONST.constant = init_RtObject(NUMBER_TYPE);
+        return_code_val->data.LOAD_CONST.constant->data.Number.number=0;
+        _add_bytecode(list, return_code_val);
         _add_bytecode(list, init_ByteCode(EXIT_PROGRAM));
     }
 

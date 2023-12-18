@@ -114,7 +114,7 @@ int main(int argc, char *argv[])
         // free_GenericSet(set, true);
         // free_GenericSet(set1, true);
         // free_GenericSet(set2, true);
-        ByteCodeList* list = compile_code_body(ast, true);
+        ByteCodeList* list = compile_code_body(ast, true, false);
         deconstruct_bytecode(list,0);
         free_ByteCodeList(list);
     }

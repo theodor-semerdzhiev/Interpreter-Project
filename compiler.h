@@ -288,7 +288,7 @@ ByteCode *compile_func_declaration(AST_node *function);
 ByteCodeList *compile_conditional_chain(AST_node *node);
 ByteCodeList *compiled_while_loop(AST_node *node);
 ByteCodeList *compile_expression(ExpressionNode *root);
-ByteCodeList *compile_code_body(AST_List *body, bool is_global_scope);
+ByteCodeList *compile_code_body(AST_List *body, bool is_global_scope, bool add_derefs);
 
 void free_ByteCodeList(ByteCodeList *list);
 void free_ByteCode(ByteCode *bytecode);

@@ -1,26 +1,12 @@
+let i = 0;
+let j = 0;
 
-let x = 10;
-
-let fib10 = func() {
-    func fib(n) {
-
-        while(n 10 >) {
-            if(n 0 ==) {
-                let x = x 10 -;
-                x = 20;
-            } else if(n 1 ==) {
-                
-                return 1;
-            } else {
-                n = n 1 -;
-            }
-            
-        }
-        return ! (fib(n 1 -) fib(n 2 -) +);
-        
+while(i 20 <) {
+    while(j 20 <) {
+        j = j 1 +;
     }
-    return fib(10) x -;
-};
+    i = i 1 +;
+}
 
-
-         
+return 10;
+ 

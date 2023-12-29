@@ -5,17 +5,17 @@
 #include "lexer.h"
 #include "errors.h"
 
-/* 
-DESCRIPTION:
-This file contains the implementation of the Semantic Analyzer 
-It checks for the following:
-- All referenced variables were declared and exist
-- If, else if, and while block contain NON empty expression
-- If, else if, else blocks are ordered properly 
-(i.e else if block must be preceded by if block, and else block must be preceded by else or else if block)
-- Expression Trees contain valid leaf nodes (expression components)
-- continue, break must be used witin loop blocks
-- Object Declarations must ONLY contain variables, functions, or other object declarations
+/**
+* DESCRIPTION:
+* This file contains the implementation of the Semantic Analyzer 
+* It checks for the following:
+* - All referenced variables were declared and exist
+* - If, else if, and while block contain NON empty expression
+* - If, else if, else blocks are ordered properly 
+* (i.e else if block must be preceded by if block, and else block must be preceded by else or else if block)
+* - Expression Trees contain valid leaf nodes (expression components)
+* - continue, break must be used witin loop blocks
+* - Object Declarations must ONLY contain variables, functions, or other object declarations
 */
 
 static bool is_access_modifier_valid(SemanticAnalyzer *sem_analyzer, AST_node *node);
@@ -943,10 +943,49 @@ bool AST_list_has_consistent_semantics(SemanticAnalyzer *sem_analyzer, AST_List 
         */
         case RETURN_VAL:
         {
-            if (!exp_has_correct_semantics(sem_analyzer, node->ast_data.exp))
+            ExpressionNode *exp = node->ast_data.exp;
+
+            if (!exp_has_correct_semantics(sem_analyzer, exp))
                 // function will print out an error
                 return false;
 
+            // return in global scope cannot have a singular list, string, set, or map constant 
+            if (sem_analyzer->scope_type == GLOBAL_SCOPE && exp && exp->type == VALUE) {
+                switch(exp->component->type) {
+                    case LIST_CONSTANT: {
+                        print_invalid_global_return_value(sem_analyzer, exp->token_num,
+                        "Program cannot return List, exit codes must be integers. \nProper Syntax: return 0;");
+                        return false;
+                    }
+
+                    case STRING_CONSTANT: {
+                        print_invalid_global_return_value(sem_analyzer, exp->token_num,
+                        "Program cannot return Strings, exit codes must be integers. \nProper Syntax: return 0;");
+                        return false;
+                    }
+
+                    case HASHMAP_CONSTANT: {
+                        print_invalid_global_return_value(sem_analyzer, exp->token_num,
+                        "Program cannot return Maps, exit codes must be integers. \nProper Syntax: return 0;");
+                        return false;
+                    }
+
+                    case HASHSET_CONSTANT: {
+                        print_invalid_global_return_value(sem_analyzer, exp->token_num,
+                        "Program cannot return Set, exit codes must be integers. \nProper Syntax: return 0;");
+                        return false;
+                    }
+
+                    case NULL_CONSTANT: {
+                        print_invalid_global_return_value(sem_analyzer, exp->token_num,
+                        "Program cannot return null constants, exit codes must be integers. \nProper Syntax: return 0;");
+                        return false;
+                    }
+
+                    default:
+                        break;
+                }
+            }
             break;
         }
 

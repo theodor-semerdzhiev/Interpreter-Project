@@ -7,6 +7,7 @@
 #include <ctype.h>
 #include "./lexer.h"
 #include "./keywords.h"
+#include "generics/utilities.h"
 
 #define DEFAULT_LEX_ARR_LENGTH 128
 
@@ -17,7 +18,6 @@
 //     "&&", "||", "!", ">", "<", ">=", "<=", "==",             // logical operators
 //     "#"                                                      // comment
 
-static char* cpy_string_helper(const char* str);
 
 /* Checks if string is a number, string must not have whitespace */
 static bool is_token_numeric(char *token)
@@ -412,7 +412,7 @@ TokenList *cpy_token_list(TokenList *list)
         push_token(
             new_list,
             list->list[i]->type,
-            cpy_string_helper(list->list[i]->ident),
+            cpy_string(list->list[i]->ident),
             list->list[i]->line_num,
             list->list[i]->line_pos
         );
@@ -515,7 +515,7 @@ TokenList *tokenize_str(Lexer *lexer, char *file_contents)
 
     clear_buffer(lexer, list);
 
-    push_token(list, END_OF_FILE, cpy_string_helper("End of File"), lexer->cur_line, lexer->prev_pos);
+    push_token(list, END_OF_FILE, cpy_string("End of File"), lexer->cur_line, lexer->prev_pos);
 
     return list;
 }
@@ -664,13 +664,6 @@ char** tokenize_str_by_seperators(const char* input, const char sep, int *count)
     }
 
     return result;
-}
-
-/* Helper function for copying strings */
-static char* cpy_string_helper(const char* str) {
-    char* copy = malloc(sizeof(char)*(strlen(str)+1));
-    strcpy(copy,str);
-    return copy;
 }
 
 /* Mallocs a substring from a base string */

@@ -8,6 +8,7 @@
 #include "parser.h"
 #include "errors.h"
 #include "./generics/utilities.h"
+#include "generics/utilities.h"
 
 /* Makes a long jump and returns to when the parsing function was called */
 static void stop_parsing(Parser *parser)
@@ -142,8 +143,7 @@ bool lexeme_lists_intersect(
 /* Mallocs copy of input string*/
 char *malloc_string_cpy(Parser *parser, const char *str)
 {
-    char *str_cpy = malloc(sizeof(char) * (strlen(str) + 1));
-    strcpy(str_cpy, str);
+    char *str_cpy = cpy_string(str);
 
     if (parser)
         push_to_memtracker(parser->memtracker, str_cpy, free);

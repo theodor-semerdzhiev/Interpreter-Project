@@ -456,3 +456,13 @@ void print_invalid_arg_count_err(
     if (msg)
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);
 }
+
+/* Prints out invalid global return value */
+void print_invalid_global_return_value(SemanticAnalyzer *sa, const int token_ptr, const char *msg)
+{
+    _print_context(sa->token_list->list, token_ptr, sa->filename, sa->lines.lines);
+
+    printf(RED_TEXT
+           "%s \n" RESET_COLOR, msg);
+
+}

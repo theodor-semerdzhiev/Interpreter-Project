@@ -32,7 +32,7 @@ typedef struct GenericMap
     unsigned int (*hash)(const void *);    // function to hash keys
     bool (*are_keys_equal)(const void *, const void *); // function to compare keys
     void (*free_key)(void *);        // function for freeing key
-    void (*free_data) (void *)       // function to free data   
+    void (*free_data) (void *);    // function to free data   
 
 } GenericMap;
 
@@ -272,6 +272,27 @@ void* map_insert(GenericMap *map, void *key, void *value)
 
     return NULL;
 }
+
+/**
+ * Gets value mapped to key, return NULL if key value pair is not in map
+*/
+void *map_get(GenericMap *map, void *key) {
+    unsigned int index = map->hash(key) % map->max_buckets;
+    if (!map->buckets[index])
+        return NULL;
+    
+    ChainNode *tmp = map->buckets[index]->head;
+    while (tmp)
+    {
+        if (map->are_keys_equal(key, tmp->key))
+            return tmp->data;
+
+        tmp = tmp->next;
+    }
+
+    return NULL;
+}
+
 // TODO
 /* Removes element from the map, return NULL if element is not in the map*/
 void *map_remove_via_key(GenericMap *map, void *key, bool free_key)
@@ -363,47 +384,3 @@ static void GenericMap_print_contents(const GenericMap *map) {
     }
 
 }
-
-// for testing purposes (temporary)
-
-static unsigned int hash(const int *i) {
-    return *i;
-}
-
-static bool compare(const int *i1, const int *i2) {
-    return (*i1) == (*i2);
-}
-
-static bool filter(const int *i1) {
-    return (*i1) > 50;
-}
-
-int _main() {
-    GenericMap *map = init_GenericMap(hash,compare,free, free);
-    for(int i=0; i < 100; i++) {
-        int *key = malloc(sizeof(int));
-        *key = i;
-        int *val = malloc(sizeof(int));
-        *val = i ;
-        map_insert(map, key,val);
-    }
-
-    for(int i=0; i < 100; i++) {
-        if(i % 2 == 0) {
-            printf("%d\n", map_contains_key(map, &i));
-        } else {
-            int k = i * 100;
-            printf("%d\n", map_contains_key(map, &k));
-        }
-    }
-    GenericMap_print_contents(map);
-
-    map_filter_data(map, filter, false,true);
-    
-
-    GenericMap_print_contents(map);
-
-    free_GenericMap(map, true, true);
-
-}
-

@@ -7,6 +7,7 @@
 #include "./semanalysis.h"
 #include "./compiler.h"
 #include "generics/hashset.h"
+#include "runtime.h"
 
 /* Abstracts lexing for a given file */
 TokenList *tokenize_file(char *file_contents)
@@ -111,17 +112,26 @@ int main(int argc, char *argv[])
         return_code = 1;
     } else {
 
-        // free_GenericSet(set, true);
-        // free_GenericSet(set1, true);
-        // free_GenericSet(set2, true);
         ByteCodeList* list = compile_code_body(ast, true, false);
+        
+        free_ast_list(ast);
+
         deconstruct_bytecode(list,0);
+
+        // Preps runtime environment 
+        if(!prep_runtime_env(list)) {
+            printf("Error occurred Setting up runtime environment.");
+            return 1;
+        }
+
+        // Runs program
+        return_code = run_program();
+        
+        perform_cleanup();
+        
         free_ByteCodeList(list);
     }
 
-
-    free_ast_list(ast);
     free_keyword_table();
-
     return return_code;
 }

@@ -12,8 +12,12 @@ SRC_FILES = \
   memtracker.c \
   errors.c \
   compiler.c \
+  rtobjects.c \
+  runtime.c \
+  builtins.c \
   generics/hashset.c \
-  generics/utilities.c 
+  generics/hashmap.c \
+  generics/utilities.c  
 
 BUILD_DIR = build
 OBJ_FILES = $(addprefix $(BUILD_DIR)/, $(notdir $(SRC_FILES:.c=.o)))

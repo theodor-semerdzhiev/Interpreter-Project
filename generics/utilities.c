@@ -1,11 +1,21 @@
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
 #include <assert.h>
 
 /* File contains useful set functions that can be used in conjunction with the Generic data structures */
 
 
 /***** Set of useful functions for using hashmap/hashset with primitive types ******/
+
+/**
+ * Useful functions for copying strings onto the heap
+*/
+char* cpy_string(const char* str) {
+    char *cpy = malloc(sizeof(char) * (strlen(str) + 1));
+    strcpy(cpy, str);
+    return cpy;
+}
 
 /* Useful Hash function for hashing strings */
 unsigned int djb2_string_hash(const char *str) {

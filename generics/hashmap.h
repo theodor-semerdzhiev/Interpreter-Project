@@ -12,6 +12,7 @@ GenericMap *init_GenericMap(
 
 bool map_contains_key(const GenericMap *map, void *key);
 void map_insert(GenericMap *map, void *key, void *value);
+void *map_get(GenericMap *map, void *key);
 void *map_remove_via_key(GenericMap *map, void *key, bool free_key);
 void map_filter_data(GenericMap *map, bool (*filter_data)(const void*),bool free_key, bool free_data);
 void free_GenericMap(GenericMap *map, bool free_key, bool free_data);

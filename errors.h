@@ -29,4 +29,5 @@ void print_invalid_arg_count_err(
     SemanticAnalyzer *sa,
     const int arg_count, const int expected_arg_count,
     const int token_ptr, const char *msg);
+void print_invalid_global_return_value(SemanticAnalyzer *sa, const int token_ptr, const char *msg);
     

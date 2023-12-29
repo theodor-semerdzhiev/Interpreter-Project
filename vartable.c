@@ -3,11 +3,14 @@
 #include <string.h>
 #include "vartable.h"
 #include "parser.h"
+#include "builtins.h"
 
 /*
 DESCRIPTION:
 This file contains the implementation of a specialized lookup table used exclusively by the 
 Semantic Analyzer to keep track of bounded variables, and if needed their type.
+
+This variable table keeps into built in functions
 */
 
 #define DEFAULT_BUCKET_SIZE 40
@@ -62,6 +65,9 @@ VarTable *malloc_symbol_table()
     {
         symtable->table[i] = malloc_symbol_chain();
     }
+    
+    init_Builtins();
+    
     return symtable;
 }
 
@@ -124,7 +130,10 @@ bool add_var_to_vartable(
     return true;
 }
 
-/* Checks if symbol is contained within the symbol table */
+/**
+ * 1- Checks if symbol is contained within the symbol table 
+ * 2- Otherwise, check if its a built in function
+ * */
 bool vartable_has_var(VarTable *symtable, const char *ident)
 {
     VarChain *chain = symtable->table[hash(ident) % symtable->bucket_count];
@@ -136,7 +145,8 @@ bool vartable_has_var(VarTable *symtable, const char *ident)
 
         head = head->next;
     }
-    return false;
+
+    return ident_is_builtin(ident);
 }
 
 /* Removes all symbols that have a smaller or equal nesting level */

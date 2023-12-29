@@ -1,6 +1,7 @@
 #pragma once
 #include <stdbool.h>
 
+char* cpy_string(const char* str);
 unsigned int djb2_string_hash(const char *str);
 unsigned int hash_int(const int *integer);
 bool strings_equal(const char* str1, const char* str2);

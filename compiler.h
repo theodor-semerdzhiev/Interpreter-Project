@@ -3,6 +3,7 @@
 #include "generics/hashset.h"
 #include <stdio.h>
 #include "parser.h"
+#include "rtobjects.h"
 
 typedef enum OpCode
 {
@@ -113,66 +114,6 @@ typedef enum OpCode
 
 } OpCode;
 
-// /* Final Runtime ready ByteCode */
-
-// // Possible runtime types
-typedef enum RtType
-{
-    UNDEFINED_TYPE,
-    NULL_TYPE,
-    NUMBER_TYPE,
-    STRING_TYPE,
-    OBJECT_TYPE,
-    FUNCTION_TYPE,
-    LIST_TYPE,
-    HASHMAP_TYPE,
-    HASHSET_TYPE,
-} RtType;
-
-// Forward declaration
-typedef struct RtObject RtObject;
-typedef struct ByteCodeList ByteCodeList;
-
-// Generic object for all variables
-typedef struct RtObject
-{
-    RtType type;
-
-    union RtObject_data
-    {
-        // will contain data about runtime object
-        struct NumberConstant
-        {
-            double number;
-        } Number;
-
-        struct StringConstant
-        {
-            char *string;
-            int string_length;
-        } String;
-
-        struct Function
-        {
-            ByteCodeList *body;
-
-            char **args;
-            int arg_count;
-        } Function;
-
-        // Object *obj;
-        // Function *func;
-        // List *list;
-        // HashMap *map;
-        // HashSet *set;
-    } data;
-
-    // what objects this object references
-    // used in garbage collection
-    RtObject **refs;
-    unsigned int ref_count;
-
-} RtObject;
 
 /* Struct representing a single Bytecode instruction */
 typedef struct ByteCode
@@ -255,9 +196,6 @@ typedef struct ByteCode
         struct CREATE_FUNCTION
         {
             RtObject *function;
-
-            char **closures;
-            int closure_count;
         } CREATE_FUNCTION;
 
     } data;
@@ -277,7 +215,6 @@ typedef struct ByteCodeList
 GenericSet *collect_free_vars(AST_List *body);
 GenericSet *collect_free_vars_ast_node(AST_node *node);
 
-RtObject *init_RtObject(RtType type);
 ByteCodeList *init_ByteCodeList();
 ByteCode *init_ByteCode(OpCode code);
 
@@ -285,7 +222,7 @@ ByteCodeList *concat_bytecode_lists(ByteCodeList *lhs, ByteCodeList *rhs);
 ByteCodeList *compile_exps_sequence(ExpressionNode **exps, int exps_length);
 ByteCodeList *compile_expression_component(ExpressionComponent *cm);
 ByteCode *compile_func_declaration(AST_node *function);
-ByteCodeList *compile_conditional_chain(AST_node *node);
+ByteCodeList *compile_conditional_chain(AST_node *node, bool is_global_scope);
 ByteCodeList *compiled_while_loop(AST_node *node);
 ByteCodeList *compile_expression(ExpressionNode *root);
 ByteCodeList *compile_code_body(AST_List *body, bool is_global_scope, bool add_derefs);
@@ -293,9 +230,7 @@ ByteCodeList *compile_code_body(AST_List *body, bool is_global_scope, bool add_d
 void free_ByteCodeList(ByteCodeList *list);
 void free_ByteCode(ByteCode *bytecode);
 
-void deconstruct_RtObject(RtObject *obj, int offset);
 void deconstruct_bytecode(ByteCodeList *bytecode, int offset);
 
-void free_RtObject(RtObject *obj);
 void free_ByteCodeList(ByteCodeList *list);
 void free_ByteCode(ByteCode *bytecode);

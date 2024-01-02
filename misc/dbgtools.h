@@ -1,5 +1,5 @@
 #pragma once
-#include "parser.h"
+#include "../parser/parser.h"
 
 void print_token_list(TokenList *lexemes);
 

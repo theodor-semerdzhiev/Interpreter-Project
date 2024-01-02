@@ -1,0 +1,41 @@
+
+func fib(n) {
+    if(n == 0) {
+        return 0;
+    }
+    if(n == 1) {
+        return 1;
+    }
+
+    return fib(n-1) + fib(n-2);
+}
+
+func pow(x,n) {
+    let res = x;
+    let i = 0;
+    while(i < n) {
+        res = res * res;
+        i =  i + 1;
+    }
+    return res;
+}
+
+func force(stream) {
+    return stream();
+}
+
+func natural_numbers(n) {
+    return (func () {
+        println(n);
+        return natural_numbers(n + 1);
+    });
+}
+
+let i = 0;
+let tmp = force(natural_numbers(0));
+while(i < 20) {
+    tmp = force(tmp);
+    i = i + 1;
+}
+
+

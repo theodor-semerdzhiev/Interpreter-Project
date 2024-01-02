@@ -22,3 +22,5 @@ void cleanup_builtin();
 
 RtObject *builtin_print(const RtObject **args, int arg_count);
 RtObject *builtin_println(const RtObject **args, int arg_count);
+RtObject *builtin_toString(const RtObject **args, int arg_count);
+RtObject *builtin_typeof(const RtObject **args, int arg_count);

@@ -3,14 +3,12 @@
 #include <string.h>
 #include "vartable.h"
 #include "parser.h"
-#include "builtins.h"
+#include "../runtime/builtins.h"
 
-/*
-DESCRIPTION:
-This file contains the implementation of a specialized lookup table used exclusively by the 
-Semantic Analyzer to keep track of bounded variables, and if needed their type.
-
-This variable table keeps into built in functions
+/**
+ * DESCRIPTION:
+ * This file contains the implementation of a specialized lookup table used exclusively by the 
+ * Semantic Analyzer to keep track of bounded variables, and if needed their type.
 */
 
 #define DEFAULT_BUCKET_SIZE 40

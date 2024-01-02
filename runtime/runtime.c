@@ -1,14 +1,16 @@
-#include "compiler.h"
-#include "builtins.h"
-#include "runtime.h"
-#include "generics/utilities.h"
 #include <stdbool.h>
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "../generics/utilities.h"
+#include "../compiler/compiler.h"
+#include "builtins.h"
+#include "runtime.h"
+
 
 /**
+ * DESCRIPTION:
  * This File contains the implementation of the runtime environment.
  * Includes:
  * - Main code loop
@@ -17,6 +19,7 @@
  */
 
 /**
+ * DESCRIPTION:
  * Below is the implementation for the variable lookup table
  */
 typedef struct Identifier Identifier;
@@ -356,6 +359,7 @@ static bool Runtime_active = false;
 
 #define disposable() env->stk_machine->head->dispose
 #define StackMachine env->stk_machine
+#define CurrentStackFrame callStack[env->stack_ptr];
 
 /**
  * Returns wether Runtime environment is currently running
@@ -374,11 +378,9 @@ CallFrame *getCurrentStackFrame()
     return callStack[env->stack_ptr];
 }
 
-
-
 /**
  * Lookups variable in lookup table
- * 1- Checks if variable exists in current or higher scopes 
+ * 1- Checks if variable exists in current or higher scopes
  * 2- Checks if variable is a built in function
  */
 RtObject *lookup_variable(const char *var)
@@ -427,13 +429,14 @@ void free_CallFrame(CallFrame *call, bool free_rtobj)
  */
 RunTime *init_RunTime()
 {
-    RunTime *runtime = malloc(sizeof(runtime));
+    RunTime *runtime = malloc(sizeof(RunTime));
     if (!runtime)
     {
         printf("Failed to initialize allocate Runtime Environment\n");
         return NULL;
     }
     runtime->stack_ptr = -1;
+    Runtime_active=true;
 
     // creates stack machine
     runtime->stk_machine = init_StackMachine();
@@ -526,16 +529,18 @@ static void perform_binary_operation(
 static void perform_var_mutation()
 {
 
-    bool free_new_val = env->stk_machine->head->dispose;
+    bool new_val_disposable = disposable();
     RtObject *new_val = StackMachine_pop(env->stk_machine, false);
-    bool free_mutable = env->stk_machine->head->dispose;
+    bool mutable_disposable = disposable();
     RtObject *mutable = StackMachine_pop(env->stk_machine, false);
 
-    mutate_obj(mutable, new_val);
+    // if the new_val is disposable, then it will be freed
+    // Therefor, a deep cpy mutation must performed
+    mutate_obj(mutable, new_val, new_val_disposable);
 
-    if (free_new_val)
+    if (new_val_disposable)
         free_RtObject(new_val, false);
-    if (free_mutable)
+    if (mutable_disposable)
         free_RtObject(mutable, false);
 }
 
@@ -552,9 +557,9 @@ static void perform_conditional_jump(int offset, bool condition)
 
     // preforms jump if condition is met
     if (eval_obj(obj) == condition)
-        getCurrentStackFrame()->pg_counter += offset;
+        frame->pg_counter += offset;
     else
-        getCurrentStackFrame()->pg_counter++;
+        frame->pg_counter++;
 
     // frees object if its disposable
     if (dispose)
@@ -567,7 +572,7 @@ static void perform_conditional_jump(int offset, bool condition)
 static void perform_create_function(RtObject *function)
 {
     assert(function->type == FUNCTION_TYPE);
-    RtObject *func = cpy_object(function);
+    RtObject *func = shallow_cpy_rtobject(function);
 
     // adds closure variable objects to function objects
     if (func->data.Function.func_data.user_func.closure_count > 0)
@@ -583,6 +588,8 @@ static void perform_create_function(RtObject *function)
         func->data.Function.func_data.user_func.closure_obj = closures;
     }
 
+    // Function Object can be disposable, since function data (stuff embedded within the bytecode) 
+    // is never freed
     StackMachine_push(StackMachine, func, true);
 }
 
@@ -601,17 +608,14 @@ static int perform_exit()
         return 1;
     }
 
-    int return_code = obj->data.Number.number;
+    int return_code = (int)obj->data.Number.number;
     if (dispose)
     {
         free_RtObject(obj, false);
     }
 
-    return (int)obj->data.Number.number;
+    return return_code;
 }
-
-
-
 
 /**
  * Logic performing function calls
@@ -623,11 +627,15 @@ static CallFrame *perform_regular_func_call(RtObject *function, RtObject **argum
 
 CallFrame *perform_function_call(int arg_count)
 {
+
     // gets the arguments
     RtObject *arguments[arg_count];
-    for (int i = arg_count-1; i >= 0; i--)
+    // bool dispose_arg[arg_count];
+    for (int i = arg_count - 1; i >= 0; i--) {
+        // dispose_arg[i] = disposable();
         arguments[i] = StackMachine_pop(env->stk_machine, false);
-    
+    }
+
     bool func_disposable = disposable();
     RtObject *func = StackMachine_pop(env->stk_machine, false);
 
@@ -638,56 +646,78 @@ CallFrame *perform_function_call(int arg_count)
         return NULL;
         // argument count does not match
     }
+
+    // temporary for now
+    if(env->stack_ptr >= MAX_STACK_SIZE && !func->data.Function.is_builtin) {
+
+        printf("Stack Overflow Error when calling function '%s' \n", 
+        func->data.Function.func_data.user_func.func_name);
+        exit(2);
+        return NULL;
+    }
+
     CallFrame *new_frame = NULL;
     // built in function
-    if(func->data.Function.is_builtin) {
+    if (func->data.Function.is_builtin)
+    {
         perform_builtin_call(func, arguments, arg_count);
 
-    //regular function
-    } else {
+        // regular function
+    }
+    else
+    {
         new_frame = perform_regular_func_call(func, arguments, arg_count);
     }
 
-    if(func_disposable) {
+    // frees function if its disposable
+    if (func_disposable)
         free_RtObject(func, false);
-    }
+    
+    // frees function objects if disposable
+    // for(int i=0 ; i <arg_count; i++) {
+    //     if(dispose_arg[i]) free_RtObject(arguments[i], false);
+    // }
+
+    
     return new_frame;
 }
 
 /**
  * Helper for performing built in function call
  * Adds new Callframe to call stack
-*/
-static void perform_builtin_call(RtObject *builtin, RtObject **args, int arg_count) {
+ */
+static void perform_builtin_call(RtObject *builtin, RtObject **args, int arg_count)
+{
     assert(builtin->data.Function.is_builtin);
 
     // checks argument counts match
     if (
-        (!builtin->data.Function.is_builtin && 
-        builtin->data.Function.func_data.built_in.func->arg_count != arg_count) &&
+        (!builtin->data.Function.is_builtin &&
+         builtin->data.Function.func_data.built_in.func->arg_count != arg_count) &&
         // wether func takes a finite number of args
-        builtin->data.Function.func_data.built_in.func->arg_count >= 0) {
+        builtin->data.Function.func_data.built_in.func->arg_count >= 0)
+    {
 
         printf("Built in function '%s' expects %d arguments, but got %d\n",
-                builtin->data.Function.func_data.built_in.func->builtin_name,
-                builtin->data.Function.func_data.built_in.func->arg_count,
-                arg_count);
+               builtin->data.Function.func_data.built_in.func->builtin_name,
+               builtin->data.Function.func_data.built_in.func->arg_count,
+               arg_count);
         return;
     }
 
-    RtObject *(*func)(const RtObject**, int) = builtin->data.Function.func_data.built_in.func->builtin_func;
+    RtObject *(*func)(const RtObject **, int) = builtin->data.Function.func_data.built_in.func->builtin_func;
     // pushes result of function onto stack machine
-    StackMachine_push(StackMachine, func((const RtObject**)args, arg_count), true);
-    
+    StackMachine_push(StackMachine, func((const RtObject **)args, arg_count), true);
 }
 
 /**
  * Helper for performing logic for handling function calls
-*/
-static CallFrame *perform_regular_func_call(RtObject *function, RtObject **arguments, int arg_count) {
+ */
+static CallFrame *perform_regular_func_call(RtObject *function, RtObject **arguments, int arg_count)
+{
     assert(!function->data.Function.is_builtin);
     // checks argument counts match
-    if (!function->data.Function.is_builtin && 
+    if (!function->data.Function.is_builtin &&
         function->data.Function.func_data.user_func.arg_count != arg_count)
     {
         printf("Function expected %d arguments, but got %d\n", function->data.Function.func_data.user_func.arg_count, arg_count);
@@ -715,18 +745,39 @@ static CallFrame *perform_regular_func_call(RtObject *function, RtObject **argum
             function->data.Function.func_data.user_func.closure_obj[i]);
     }
 
-    // adds function definition to lookup (to allow recursion), if applicable
+    // adds function definition to lookup (to allow recursion), if applicable, 
+    // thats why we perform a shallow copy
     if (function->data.Function.func_data.user_func.func_name)
         Identifier_Table_add_var(
             new_frame->lookup,
             function->data.Function.func_data.user_func.func_name,
-            cpy_object(function));
+            shallow_cpy_rtobject(function));
 
     // add new call frame to call stack
     RunTime_push_callframe(new_frame);
 
     return new_frame;
+}
 
+/******************************************************/
+
+/**
+ * Performs a logic for creating variables
+*/
+void perform_create_var(char *varname) {
+    bool disposable = disposable();
+    RtObject *new_val = StackMachine_pop(StackMachine, false);
+    CallFrame *frame = getCurrentStackFrame();
+    Identifier_Table_add_var(
+        frame->lookup,
+        varname,
+        // If its disposable, then object associated data will be freed
+        // leading to double free error, therefor we create deep cope
+        // otherwise its not problem
+        disposable ? deep_cpy_rtobject(new_val) : shallow_cpy_rtobject(new_val));
+
+    if (disposable)
+        free_RtObject(new_val, false);
 }
 
 int run_program()
@@ -745,7 +796,9 @@ int run_program()
             {
             case LOAD_CONST:
             {
-                StackMachine_push(StackMachine, cpy_object(code->data.LOAD_CONST.constant), true);
+                // contants are imbedded within the bytecode
+                // therefor a deep copy is created
+                StackMachine_push(StackMachine, deep_cpy_rtobject(code->data.LOAD_CONST.constant), true);
                 break;
             }
 
@@ -839,6 +892,18 @@ int run_program()
                 break;
             }
 
+            case LOGICAL_AND_VARS_OP:
+            {
+                perform_binary_operation(logical_and_op);
+                break;
+            }
+
+            case LOGICAL_OR_VARS_OP:
+            {
+                perform_binary_operation(logical_or_op);
+                break;
+            }
+
             case LOGICAL_NOT_VARS_OP:
             {
                 logical_not_op(StackMachine->head->obj);
@@ -847,19 +912,14 @@ int run_program()
 
             case CREATE_VAR:
             {
-                RtObject *new_val = StackMachine_pop(StackMachine, false);
-                Identifier_Table_add_var(
-                    frame->lookup,
-                    code->data.CREATE_VAR.new_var_name,
-                    new_val);
+                perform_create_var(code->data.CREATE_VAR.new_var_name);
                 break;
             }
 
             case LOAD_VAR:
             {
-                RtObject *var = lookup_variable(code->data.LOAD_VAR.variable);
-                // built in functions are always disposed 
-                StackMachine_push(StackMachine, var, ident_is_builtin(code->data.LOAD_VAR.variable));
+                // looked up variables are always
+                StackMachine_push(StackMachine, lookup_variable(code->data.LOAD_VAR.variable), false);
                 break;
             }
 
@@ -877,14 +937,15 @@ int run_program()
             }
 
             case FUNCTION_CALL:
-            {   
+            {
                 // checks wether a new call frame was created
                 // if it was, then it ends the inner loop
                 // otherwise, it was a built in function, in which case we continue the inner loop as usual
-                if(perform_function_call(code->data.FUNCTION_CALL.arg_count)) {
-                    loop = false; //ends loop
-                } 
-                
+                if (perform_function_call(code->data.FUNCTION_CALL.arg_count))
+                {
+                    loop = false; // ends loop
+                }
+
                 break;
             }
 
@@ -972,6 +1033,7 @@ void perform_cleanup()
         free_RunTime(env);
         env = NULL;
     }
+
     cleanup_builtin();
     Runtime_active = false;
 }

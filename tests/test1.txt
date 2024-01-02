@@ -1,0 +1,44 @@
+
+func pow(x,n) {
+    if(n == 0) {
+        return 1;
+    }
+    let i =0;
+    while(i < n) {
+        x = x * x;
+        i = i + 1;
+    }
+    return x;
+}
+
+func fact(n) {
+    let res = 1;
+    while(n > 0) {
+        res = res * n;
+        n = n - 1;
+    }
+    return res;
+}
+let PI = 3.1415926;
+
+func cos(x) {
+    let res = x;
+    let term = x;
+    let sign = -1;
+    let i = 2;
+    while(i <= 10) {
+        term = term * ((x * x) / ((i + 1) * i));
+        #println(term);
+        res = res + sign * term;
+        sign = sign * -1.0;
+        i = i + 2;
+    }
+    return res;
+}
+
+func toRad(deg) {
+    return (deg / 360) * 2 * PI;
+}
+
+println(toRad(60));
+print(cos(toRad(60)));

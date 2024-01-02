@@ -4,17 +4,16 @@
 #include <assert.h>
 #include <math.h>
 #include "rtobjects.h"
-#include "compiler.h"
-#include "generics/utilities.h"
+#include "../compiler/compiler.h"
+#include "../generics/utilities.h"
 
 /**
- * This file contains the implementation of runtime objects, and the corresponding operations on them 
+ * This file contains the implementation of runtime objects, and the corresponding operations on them
  */
 
 static RtObject *multiply_obj_by_multiplier(double multiplier, RtObject *obj);
 static void print_offset(int offset);
 static char *repeat_string(int repeated, const char *str, int strlen);
-
 
 /* Helper for printing offset */
 static void print_offset(int offset)
@@ -25,6 +24,7 @@ static void print_offset(int offset)
     }
 }
 
+__attribute__((warn_unused_result))
 /**
  * Helper for creating repeated string
  */
@@ -44,10 +44,11 @@ static char *repeat_string(int repeated, const char *str, int strlen)
     return string;
 }
 
+__attribute__((warn_unused_result))
 /**
- * Mallocs Runtime object 
+ * Mallocs Runtime object
  * Function type are set to non built in by default
-*/
+ */
 RtObject *init_RtObject(RtType type)
 {
     RtObject *obj = malloc(sizeof(RtObject));
@@ -55,20 +56,20 @@ RtObject *init_RtObject(RtType type)
         return NULL;
     obj->type = type;
 
-    if(obj->type == FUNCTION_TYPE)
+    if (obj->type == FUNCTION_TYPE)
         obj->data.Function.is_builtin = false;
 
     obj->outrefs = NULL;
     obj->max_outref = 0;
     obj->outref_count = 0;
-    obj->mark = true;
+    obj->mark = false;
     return obj;
 }
 
 /**
  * Helper function for getting name of the object's type
  */
-char *obj_type_toString(const RtObject *obj)
+const char *obj_type_toString(const RtObject *obj)
 {
     switch (obj->type)
     {
@@ -93,68 +94,87 @@ char *obj_type_toString(const RtObject *obj)
     }
 }
 
+__attribute__((warn_unused_result))
 /**
  * Converts a string into its corresponding string representation
  * String is allocated on the heap
-*/
-char *RtObject_to_String(const RtObject *obj) {
+ */
+char *RtObject_to_String(const RtObject *obj)
+{
     switch (obj->type)
     {
     case UNDEFINED_TYPE:
         return cpy_string("undefined");
 
-    case NULL_TYPE: 
+    case NULL_TYPE:
         return cpy_string("null");
 
-    case NUMBER_TYPE: {
-        
+    case NUMBER_TYPE:
+    {
+
         char buffer[65];
         snprintf(buffer, sizeof(buffer), "%lf", obj->data.Number.number);
         return cpy_string(buffer);
-        
     }
 
     case STRING_TYPE:
         return cpy_string(obj->data.String.string);
-    
-    case FUNCTION_TYPE: {
-        if(obj->data.Function.is_builtin) {
+
+    case FUNCTION_TYPE:
+    {
+        if (obj->data.Function.is_builtin)
+        {
             Builtin *func = obj->data.Function.func_data.built_in.func;
-            size_t buffer_length = 65 + strlen(func->builtin_name) + 2 * sizeof(void*) + 1;
+            size_t buffer_length = 65 + strlen(func->builtin_name) + 2 * sizeof(void *) + 1;
             char buffer[buffer_length];
             snprintf(buffer, sizeof(buffer), "%s.func@%p", func->builtin_name, func->builtin_func);
 
             return cpy_string(buffer);
-        } else {
+
+            // for named functions
+        }
+        else if (obj->data.Function.func_data.user_func.func_name)
+        {
             char *funcname = obj->data.Function.func_data.user_func.func_name;
-            size_t buffer_length = 65 + strlen(funcname) + 2 * sizeof(void*) + 1;
+            size_t buffer_length = 65 + strlen(funcname) + 2 * sizeof(void *) + 1;
             char buffer[buffer_length];
             snprintf(buffer, sizeof(buffer), "%s.func@%p", funcname, obj->data.Function.func_data.built_in.func);
 
             return cpy_string(buffer);
         }
+        else
+        {
+            size_t buffer_length = 80 + 2 * sizeof(void *) + 1;
+            char buffer[buffer_length];
+            snprintf(buffer, sizeof(buffer), "func@%p", obj->data.Function.func_data.built_in.func);
+
+            return cpy_string(buffer);
+        }
     }
 
-
-    case OBJECT_TYPE: {
-        return NULL;
-    }
-    
-    case LIST_TYPE: {
-        return NULL;
-    }
-    
-    case HASHMAP_TYPE: {
-        return NULL;
-    }
-    
-    case HASHSET_TYPE: {
+    case OBJECT_TYPE:
+    {
         return NULL;
     }
 
+    case LIST_TYPE:
+    {
+        return NULL;
+    }
+
+    case HASHMAP_TYPE:
+    {
+        return NULL;
+    }
+
+    case HASHSET_TYPE:
+    {
+        return NULL;
+    }
     }
 }
 
+__attribute__((warn_unused_result))
 /**
  * This function is a helper for applying multiplication on a runtime object and creating a new object
  * For Functions, Bytecode is never copied, and therefor will never be freed
@@ -209,6 +229,7 @@ static RtObject *multiply_obj_by_multiplier(double multiplier, RtObject *obj)
     }
 }
 
+__attribute__((warn_unused_result))
 /**
  * Defines multiplication between runtime objects
  */
@@ -252,6 +273,7 @@ RtObject *multiply_objs(RtObject *obj1, RtObject *obj2)
     return NULL;
 }
 
+__attribute__((warn_unused_result))
 /**
  * Defines addition between runtime objects
  */
@@ -288,6 +310,7 @@ RtObject *add_objs(RtObject *obj1, RtObject *obj2)
             break;
         }
         }
+        break;
     }
 
     case STRING_TYPE:
@@ -322,6 +345,7 @@ RtObject *add_objs(RtObject *obj1, RtObject *obj2)
             printf("Cannot perform addition on String and %s\n", obj_type_toString(obj2));
             break;
         }
+        break;
     }
 
     case NULL_TYPE:
@@ -351,6 +375,7 @@ RtObject *add_objs(RtObject *obj1, RtObject *obj2)
             printf("Cannot perform addtion for Null and %s", obj_type_toString(obj1));
             return NULL;
         }
+        break;
     }
 
     case LIST_TYPE:
@@ -369,6 +394,7 @@ RtObject *add_objs(RtObject *obj1, RtObject *obj2)
             return NULL;
         }
         }
+        break;
     }
 
     case HASHSET_TYPE:
@@ -384,6 +410,7 @@ RtObject *add_objs(RtObject *obj1, RtObject *obj2)
             printf("Cannot add Map and %s", obj_type_toString(obj2));
             return NULL;
         }
+        break;
     }
 
     case FUNCTION_TYPE:
@@ -396,6 +423,7 @@ RtObject *add_objs(RtObject *obj1, RtObject *obj2)
     return NULL;
 }
 
+__attribute__((warn_unused_result))
 /**
  * Defines substraction for runtime object
  */
@@ -490,6 +518,7 @@ RtObject *substract_objs(RtObject *obj1, RtObject *obj2)
     return NULL;
 }
 
+__attribute__((warn_unused_result))
 /**
  * Defines division for runtime objects
  */
@@ -508,6 +537,7 @@ RtObject *divide_objs(RtObject *obj1, RtObject *obj2)
     }
 }
 
+__attribute__((warn_unused_result))
 /**
  * Defines modulus for runtime objects
  */
@@ -516,7 +546,9 @@ RtObject *modulus_objs(RtObject *obj1, RtObject *obj2)
     if (obj1->type == NUMBER_TYPE && obj2->type == NUMBER_TYPE)
     {
         RtObject *obj = init_RtObject(NUMBER_TYPE);
-        obj->data.Number.number = ((int)obj1->data.Number.number) % ((int)obj2->data.Number.number);
+        double x = obj1->data.Number.number;
+        double y = obj2->data.Number.number;
+        obj->data.Number.number = x - ((int)(x / y) * y);
         return obj;
     }
     else
@@ -526,193 +558,261 @@ RtObject *modulus_objs(RtObject *obj1, RtObject *obj2)
     }
 }
 
+__attribute__((warn_unused_result))
 /**
  * Defines bitwise AND for runtime objects
-*/
-RtObject *bitwise_and_objs(RtObject *obj1, RtObject *obj2) {
-    if(obj1->type == NUMBER_TYPE && obj2->type == NUMBER_TYPE) {
+ */
+RtObject *bitwise_and_objs(RtObject *obj1, RtObject *obj2)
+{
+    if (obj1->type == NUMBER_TYPE && obj2->type == NUMBER_TYPE)
+    {
         RtObject *obj = init_RtObject(NUMBER_TYPE);
         obj->data.Number.number = ((int)obj1->data.Number.number) & ((int)obj2->data.Number.number);
         return obj;
-    } else {
+    }
+    else
+    {
         printf("Cannot perform bitwise AND on %s and %s.", obj_type_toString(obj1), obj_type_toString(obj2));
         return NULL;
     }
 }
 
+__attribute__((warn_unused_result))
 /**
  * Defines bitwise OR for runtime objects
-*/
-RtObject *bitwise_or_objs(RtObject *obj1, RtObject *obj2) {
-    if(obj1->type == NUMBER_TYPE && obj2->type == NUMBER_TYPE) {
+ */
+RtObject *bitwise_or_objs(RtObject *obj1, RtObject *obj2)
+{
+    if (obj1->type == NUMBER_TYPE && obj2->type == NUMBER_TYPE)
+    {
         RtObject *obj = init_RtObject(NUMBER_TYPE);
         obj->data.Number.number = ((int)obj1->data.Number.number) | ((int)obj2->data.Number.number);
         return obj;
-    } else {
+    }
+    else
+    {
         printf("Cannot perform bitwise OR on %s and %s.", obj_type_toString(obj1), obj_type_toString(obj2));
         return NULL;
     }
 }
 
+__attribute__((warn_unused_result))
 /**
  * Defines bitwise XOR for runtime objects
-*/
-RtObject *bitwise_xor_objs(RtObject *obj1, RtObject *obj2) {
-    if(obj1->type == NUMBER_TYPE && obj2->type == NUMBER_TYPE) {
+ */
+RtObject *bitwise_xor_objs(RtObject *obj1, RtObject *obj2)
+{
+    if (obj1->type == NUMBER_TYPE && obj2->type == NUMBER_TYPE)
+    {
         RtObject *obj = init_RtObject(NUMBER_TYPE);
         obj->data.Number.number = ((int)obj1->data.Number.number) ^ ((int)obj2->data.Number.number);
         return obj;
-    } else {
+    }
+    else
+    {
         printf("Cannot perform bitwise XOR on %s and %s.", obj_type_toString(obj1), obj_type_toString(obj2));
         return NULL;
     }
 }
 
+__attribute__((warn_unused_result))
 /**
  * Defines SHIFT LEFT (<<) for runtime objects
-*/
-RtObject *shift_left_objs(RtObject *obj1, RtObject *obj2) {
-    if(obj1->type == NUMBER_TYPE && obj2->type == NUMBER_TYPE) {
+ */
+RtObject *shift_left_objs(RtObject *obj1, RtObject *obj2)
+{
+    if (obj1->type == NUMBER_TYPE && obj2->type == NUMBER_TYPE)
+    {
         RtObject *obj = init_RtObject(NUMBER_TYPE);
         obj->data.Number.number = ((int)obj1->data.Number.number) << ((int)obj2->data.Number.number);
         return obj;
-    } else {
+    }
+    else
+    {
         printf("Cannot perform left shift on %s and %s.", obj_type_toString(obj1), obj_type_toString(obj2));
         return NULL;
     }
 }
 
-
+__attribute__((warn_unused_result))
 /**
  * Defines SHIFT RIGHT (>>) for runtime objects
-*/
-RtObject *shift_right_objs(RtObject *obj1, RtObject *obj2) {
-    if(obj1->type == NUMBER_TYPE && obj2->type == NUMBER_TYPE) {
+ */
+RtObject *shift_right_objs(RtObject *obj1, RtObject *obj2)
+{
+    if (obj1->type == NUMBER_TYPE && obj2->type == NUMBER_TYPE)
+    {
         RtObject *obj = init_RtObject(NUMBER_TYPE);
         obj->data.Number.number = ((int)obj1->data.Number.number) >> ((int)obj2->data.Number.number);
         return obj;
-    } else {
+    }
+    else
+    {
         printf("Cannot perform left right on %s and %s.", obj_type_toString(obj1), obj_type_toString(obj2));
         return NULL;
     }
 }
 
+__attribute__((warn_unused_result))
 /**
  *  Defines a greater than operation (i.e wether obj1 > obj2)
-*/
-RtObject *greater_than_op(RtObject *obj1, RtObject *obj2) {
-    if(obj1->type == NUMBER_TYPE && obj2->type == NUMBER_TYPE) {
+ */
+RtObject *greater_than_op(RtObject *obj1, RtObject *obj2)
+{
+    if (obj1->type == NUMBER_TYPE && obj2->type == NUMBER_TYPE)
+    {
         RtObject *obj = init_RtObject(NUMBER_TYPE);
         obj->data.Number.number = ((int)obj1->data.Number.number) > ((int)obj2->data.Number.number);
         return obj;
-    } else if(obj1->type == STRING_TYPE && obj2->type == STRING_TYPE) {
+    }
+    else if (obj1->type == STRING_TYPE && obj2->type == STRING_TYPE)
+    {
         RtObject *obj = init_RtObject(NUMBER_TYPE);
         obj->data.Number.number = strcmp(obj1->data.String.string, obj2->data.String.string) > 0;
         return obj;
-    } else {
+    }
+    else
+    {
         printf("Cannot perform greater than on %s and %s.", obj_type_toString(obj1), obj_type_toString(obj2));
         return NULL;
     }
 }
 
+__attribute__((warn_unused_result))
 /**
  *  Defines a greater equal  operation (i.e wether obj1 >= obj2)
-*/
-RtObject *greater_equal_op(RtObject *obj1, RtObject *obj2) {
-    if(obj1->type == NUMBER_TYPE && obj2->type == NUMBER_TYPE) {
+ */
+RtObject *greater_equal_op(RtObject *obj1, RtObject *obj2)
+{
+    if (obj1->type == NUMBER_TYPE && obj2->type == NUMBER_TYPE)
+    {
         RtObject *obj = init_RtObject(NUMBER_TYPE);
         obj->data.Number.number = ((int)obj1->data.Number.number) >= ((int)obj2->data.Number.number);
         return obj;
-    } else if(obj1->type == STRING_TYPE && obj2->type == STRING_TYPE) {
+    }
+    else if (obj1->type == STRING_TYPE && obj2->type == STRING_TYPE)
+    {
         RtObject *obj = init_RtObject(NUMBER_TYPE);
         obj->data.Number.number = strcmp(obj1->data.String.string, obj2->data.String.string) >= 0;
         return obj;
-    } else {
+    }
+    else
+    {
         printf("Cannot perform greater than or equal on %s and %s.", obj_type_toString(obj1), obj_type_toString(obj2));
         return NULL;
     }
 }
 
-
+__attribute__((warn_unused_result))
 /**
  *  Defines a lesser than operation (i.e wether obj1 > obj2)
-*/
-RtObject *lesser_than_op(RtObject *obj1, RtObject *obj2) {
-    if(obj1->type == NUMBER_TYPE && obj2->type == NUMBER_TYPE) {
+ */
+RtObject *lesser_than_op(RtObject *obj1, RtObject *obj2)
+{
+    if (obj1->type == NUMBER_TYPE && obj2->type == NUMBER_TYPE)
+    {
         RtObject *obj = init_RtObject(NUMBER_TYPE);
         obj->data.Number.number = ((int)obj1->data.Number.number) < ((int)obj2->data.Number.number);
         return obj;
-    } else if(obj1->type == STRING_TYPE && obj2->type == STRING_TYPE) {
+    }
+    else if (obj1->type == STRING_TYPE && obj2->type == STRING_TYPE)
+    {
         RtObject *obj = init_RtObject(NUMBER_TYPE);
         obj->data.Number.number = strcmp(obj1->data.String.string, obj2->data.String.string) < 0;
         return obj;
-    } else {
+    }
+    else
+    {
         printf("Cannot perform lesser than on %s and %s.", obj_type_toString(obj1), obj_type_toString(obj2));
         return NULL;
     }
 }
 
+__attribute__((warn_unused_result))
 /**
  *  Defines a lesser equal operation (i.e wether obj1 >= obj2)
-*/
-RtObject *lesser_equal_op(RtObject *obj1, RtObject *obj2) {
-    if(obj1->type == NUMBER_TYPE && obj2->type == NUMBER_TYPE) {
+ */
+RtObject *lesser_equal_op(RtObject *obj1, RtObject *obj2)
+{
+    if (obj1->type == NUMBER_TYPE && obj2->type == NUMBER_TYPE)
+    {
         RtObject *obj = init_RtObject(NUMBER_TYPE);
         obj->data.Number.number = ((int)obj1->data.Number.number) <= ((int)obj2->data.Number.number);
         return obj;
-    } else if(obj1->type == STRING_TYPE && obj2->type == STRING_TYPE) {
+    }
+    else if (obj1->type == STRING_TYPE && obj2->type == STRING_TYPE)
+    {
         RtObject *obj = init_RtObject(NUMBER_TYPE);
         obj->data.Number.number = strcmp(obj1->data.String.string, obj2->data.String.string) <= 0;
         return obj;
-    } else {
+    }
+    else
+    {
         printf("Cannot perform lesser than or equal on %s and %s.", obj_type_toString(obj1), obj_type_toString(obj2));
         return NULL;
     }
 }
 
+__attribute__((warn_unused_result))
 /**
  *  Defines a lesser equal operation (i.e wether obj1 >= obj2)
-*/
-RtObject *equal_op(RtObject *obj1, RtObject *obj2) {
-    if(obj1->type == NUMBER_TYPE && obj2->type == NUMBER_TYPE) {
+ */
+RtObject *equal_op(RtObject *obj1, RtObject *obj2)
+{
+    if (obj1->type == NUMBER_TYPE && obj2->type == NUMBER_TYPE)
+    {
         RtObject *obj = init_RtObject(NUMBER_TYPE);
         obj->data.Number.number = ((int)obj1->data.Number.number) == ((int)obj2->data.Number.number);
         return obj;
-    } else if(obj1->type == STRING_TYPE && obj2->type == STRING_TYPE) {
+    }
+    else if (obj1->type == STRING_TYPE && obj2->type == STRING_TYPE)
+    {
         RtObject *obj = init_RtObject(NUMBER_TYPE);
         obj->data.Number.number = strings_equal(obj1->data.String.string, obj2->data.String.string);
         return obj;
-    } else {
+    }
+    else
+    {
         printf("Cannot perform lesser than or equal on %s and %s.", obj_type_toString(obj1), obj_type_toString(obj2));
         return NULL;
     }
 }
 
+__attribute__((warn_unused_result))
 /**
  * Defines logical and on runtime objects
-*/
-RtObject *logical_and_op(RtObject *obj1, RtObject *obj2) {
+ */
+RtObject *logical_and_op(RtObject *obj1, RtObject *obj2)
+{
     RtObject *result = init_RtObject(NUMBER_TYPE);
     result->data.Number.number = eval_obj(obj1) && eval_obj(obj2);
     return result;
 }
 
+
+__attribute__((warn_unused_result))
 /**
  * Defines logical and on runtime objects
-*/
-RtObject *logical_or_op(RtObject *obj1, RtObject *obj2) {
+ */
+RtObject *logical_or_op(RtObject *obj1, RtObject *obj2)
+{
     RtObject *result = init_RtObject(NUMBER_TYPE);
     result->data.Number.number = eval_obj(obj1) || eval_obj(obj2);
     return result;
 }
 
+__attribute__((warn_unused_result))
 /**
  * Performs logical not on object, in place
-*/
-RtObject *logical_not_op(RtObject *target) {
-    if(target->type == NUMBER_TYPE) {
-        target->data.Number.number=!target->data.Number.number;
-    } else {
+ */
+RtObject *logical_not_op(RtObject *target)
+{
+    if (target->type == NUMBER_TYPE)
+    {
+        target->data.Number.number = !target->data.Number.number;
+    }
+    else
+    {
         printf("Cannot perform logical NOT on %s", obj_type_toString(target));
     }
 
@@ -753,16 +853,27 @@ bool eval_obj(RtObject *obj)
     }
 }
 
+__attribute__((warn_unused_result))
 /**
- * Creates a new copy of a Runtime Object
- * NOTE: For Function Type, List type, Set Type, Object Type and Map type, a shallow copy is always performed, therefor references are also added
+ * Creates a new shallow copy of a Runtime Object,
+ * Out references are malloced
+ * NOTE: For Function Type, a shallow copy is always peformed, since there is only one function instance
  */
-RtObject *cpy_object(const RtObject *obj)
+RtObject *shallow_cpy_rtobject(const RtObject *obj)
 {
     RtObject *cpy = init_RtObject(obj->type);
     if (!cpy)
         return NULL;
 
+    if(cpy->max_outref > 0) {
+        // adds refs
+        cpy->max_outref = obj->max_outref;
+        cpy->outref_count = obj->outref_count;
+        cpy->outrefs = malloc(sizeof(RtObject *) * obj->max_outref);
+        for (unsigned int i = 0; i < obj->outref_count; i++)
+            cpy->outrefs[i] = obj->outrefs[i];
+    }
+    
     switch (obj->type)
     {
     case NUMBER_TYPE:
@@ -773,12 +884,7 @@ RtObject *cpy_object(const RtObject *obj)
 
     case STRING_TYPE:
     {
-        cpy->data.String.string = cpy_string(obj->data.String.string);
-        if (!cpy->data.String.string)
-        {
-            free(cpy);
-            return NULL;
-        }
+        cpy->data.String.string = obj->data.String.string;
         cpy->data.String.string_length = obj->data.String.string_length;
         return cpy;
     }
@@ -799,36 +905,35 @@ RtObject *cpy_object(const RtObject *obj)
         // performs shallow copy
         cpy->data.Function.is_builtin = obj->data.Function.is_builtin;
 
-        if(obj->data.Function.is_builtin) {
-            cpy->data.Function.func_data.built_in.func = 
-            obj->data.Function.func_data.built_in.func;
+        if (obj->data.Function.is_builtin)
+        {
+            cpy->data.Function.func_data.built_in.func =
+                obj->data.Function.func_data.built_in.func;
+        }
+        else
+        {
+            cpy->data.Function.func_data.user_func.func_name =
+                obj->data.Function.func_data.user_func.func_name;
 
-        } else {
-            cpy->data.Function.func_data.user_func.func_name = 
-            obj->data.Function.func_data.user_func.func_name;
-
-            cpy->data.Function.func_data.user_func.args = 
-            obj->data.Function.func_data.user_func.args;
+            cpy->data.Function.func_data.user_func.args =
+                obj->data.Function.func_data.user_func.args;
 
             cpy->data.Function.func_data.user_func.closures =
-            obj->data.Function.func_data.user_func.closures;
-            
-            cpy->data.Function.func_data.user_func.closure_obj = NULL; // does are determined during runtime
+                obj->data.Function.func_data.user_func.closures;
 
-            cpy->data.Function.func_data.user_func.closure_count = 
-            obj->data.Function.func_data.user_func.closure_count;
+            cpy->data.Function.func_data.user_func.closure_obj =
+                obj->data.Function.func_data.user_func.closure_obj; // does are determined during runtime
 
-            cpy->data.Function.func_data.user_func.arg_count = 
-            obj->data.Function.func_data.user_func.arg_count;
+            cpy->data.Function.func_data.user_func.closure_count =
+                obj->data.Function.func_data.user_func.closure_count;
+
+            cpy->data.Function.func_data.user_func.arg_count =
+                obj->data.Function.func_data.user_func.arg_count;
 
             cpy->data.Function.func_data.user_func.body =
-            obj->data.Function.func_data.user_func.body;
+                obj->data.Function.func_data.user_func.body;
         }
 
-        // adds refs
-        cpy->max_outref=obj->max_outref;
-        cpy->outref_count=obj->outref_count;
-        cpy->outrefs=obj->outrefs;
         return cpy;
     }
 
@@ -864,12 +969,123 @@ RtObject *cpy_object(const RtObject *obj)
     }
 }
 
-#define DEFAULT_REF 8
+__attribute__((warn_unused_result))
+/**
+ * Creates a new deep copy of a Runtime Object,
+ * NOTE: For Function Type, a shallow copy is always peformed, since there is only one function instance
+ */
+RtObject *deep_cpy_rtobject(const RtObject *obj)
+{
+    RtObject *cpy = init_RtObject(obj->type);
+    if (!cpy)
+        return NULL;
+
+    // adds refs
+    cpy->max_outref = obj->max_outref;
+    cpy->outref_count = obj->outref_count;
+    cpy->outrefs = malloc(sizeof(RtObject *) * obj->max_outref);
+    
+    for (unsigned int i = 0; i < obj->outref_count; i++)
+        cpy->outrefs[i] = obj->outrefs[i];
+
+    switch (obj->type)
+    {
+    case NUMBER_TYPE:
+    {
+        cpy->data.Number.number = obj->data.Number.number;
+        return cpy;
+    }
+
+    case STRING_TYPE:
+    {
+        cpy->data.String.string = cpy_string(obj->data.String.string);
+        cpy->data.String.string_length = obj->data.String.string_length;
+        return cpy;
+    }
+
+    case NULL_TYPE:
+    {
+        cpy->data.Number.number = 0;
+        return cpy;
+    }
+
+    case UNDEFINED_TYPE:
+    {
+        return cpy;
+    }
+
+    case FUNCTION_TYPE:
+    {
+        // performs shallow copy
+        cpy->data.Function.is_builtin = obj->data.Function.is_builtin;
+
+        if (obj->data.Function.is_builtin)
+        {
+            cpy->data.Function.func_data.built_in.func =
+                obj->data.Function.func_data.built_in.func;
+        }
+        else
+        {
+            cpy->data.Function.func_data.user_func.func_name =
+                obj->data.Function.func_data.user_func.func_name;
+
+            cpy->data.Function.func_data.user_func.args =
+                obj->data.Function.func_data.user_func.args;
+
+            cpy->data.Function.func_data.user_func.closures =
+                obj->data.Function.func_data.user_func.closures;
+
+            cpy->data.Function.func_data.user_func.closure_obj =
+                obj->data.Function.func_data.user_func.closure_obj; 
+
+            cpy->data.Function.func_data.user_func.closure_count =
+                obj->data.Function.func_data.user_func.closure_count;
+
+            cpy->data.Function.func_data.user_func.arg_count =
+                obj->data.Function.func_data.user_func.arg_count;
+
+            cpy->data.Function.func_data.user_func.body =
+                obj->data.Function.func_data.user_func.body;
+        }
+
+        return cpy;
+    }
+
+    case LIST_TYPE:
+    {
+        // TODO
+        return NULL;
+    }
+
+    case HASHMAP_TYPE:
+    {
+
+        // TODO
+        return NULL;
+    }
+
+    case HASHSET_TYPE:
+    {
+
+        // TODO
+        return NULL;
+    }
+
+    case OBJECT_TYPE:
+    {
+
+        // TODO
+        return NULL;
+    }
+    }
+}
+
 
 /**
  * Performs a mutation on the target, with the new value
+ * deepcpy: wether target's data should deep copied or shallow copied from new_value
  */
-RtObject *mutate_obj(RtObject *target, const RtObject *new_value)
+RtObject *mutate_obj(RtObject *target, const RtObject *new_value, bool deepcpy)
 {
     assert(target && new_value);
     free_RtObject_data(target, false);
@@ -884,12 +1100,9 @@ RtObject *mutate_obj(RtObject *target, const RtObject *new_value)
 
     case STRING_TYPE:
     {
-        target->data.String.string = cpy_string(new_value->data.String.string);
-        if (!target->data.String.string)
-        {
-            free(target);
-            return NULL;
-        }
+        target->data.String.string = 
+        deepcpy? cpy_string(new_value->data.String.string): new_value->data.String.string;
+
         target->data.String.string_length = new_value->data.String.string_length;
         break;
     }
@@ -907,32 +1120,36 @@ RtObject *mutate_obj(RtObject *target, const RtObject *new_value)
 
     case FUNCTION_TYPE:
     {
-        // performs shallow copy
+        // performs shallow copy every time
         target->data.Function.is_builtin = new_value->data.Function.is_builtin;
-        
-        if(new_value->data.Function.is_builtin) {
-            target->data.Function.func_data.built_in.func = 
-            new_value->data.Function.func_data.built_in.func;
-        } else {
-            target->data.Function.func_data.user_func.func_name = 
-            new_value->data.Function.func_data.user_func.func_name;
 
-            target->data.Function.func_data.user_func.args = 
-            new_value->data.Function.func_data.user_func.args;
+        if (new_value->data.Function.is_builtin)
+        {
+            target->data.Function.func_data.built_in.func =
+                new_value->data.Function.func_data.built_in.func;
+        }
+        else
+        {
+            target->data.Function.func_data.user_func.func_name =
+                new_value->data.Function.func_data.user_func.func_name;
 
-            target->data.Function.func_data.user_func.closures = 
-            new_value->data.Function.func_data.user_func.closures;
+            target->data.Function.func_data.user_func.args =
+                new_value->data.Function.func_data.user_func.args;
 
-            target->data.Function.func_data.user_func.closure_obj = NULL; // determined during runtime
+            target->data.Function.func_data.user_func.closures =
+                new_value->data.Function.func_data.user_func.closures;
 
-            target->data.Function.func_data.user_func.closure_count = 
-            new_value->data.Function.func_data.user_func.closure_count;
+            target->data.Function.func_data.user_func.closure_obj =
+                new_value->data.Function.func_data.user_func.closure_obj;
 
-            target->data.Function.func_data.user_func.arg_count = 
-            new_value->data.Function.func_data.user_func.arg_count;
+            target->data.Function.func_data.user_func.closure_count =
+                new_value->data.Function.func_data.user_func.closure_count;
 
-            target->data.Function.func_data.user_func.body = 
-            new_value->data.Function.func_data.user_func.body;
+            target->data.Function.func_data.user_func.arg_count =
+                new_value->data.Function.func_data.user_func.arg_count;
+
+            target->data.Function.func_data.user_func.body =
+                new_value->data.Function.func_data.user_func.body;
         }
         break;
     }
@@ -969,6 +1186,19 @@ RtObject *mutate_obj(RtObject *target, const RtObject *new_value)
     }
 
     target->type = new_value->type;
+    free(target->outrefs);
+    
+    if(new_value->outrefs) {
+        target->outrefs = malloc(sizeof(RtObject*) * new_value->outref_count);
+        for(unsigned int i=0; i < new_value->outref_count; i++) 
+            target->outrefs[i] = new_value->outrefs[i];
+
+        target->max_outref = new_value->max_outref;
+        target->outref_count = new_value->outref_count;
+    } else {
+        target->outrefs=NULL;
+    }
+
     return target;
 }
 
@@ -982,7 +1212,9 @@ void add_ref(RtObject *target, RtObject *ref)
     {
         target->outrefs = malloc(sizeof(RtObject *) * DEFAULT_REF);
         target->max_outref = DEFAULT_REF;
+        memset(target->outrefs, 0, sizeof(RtObject *) * DEFAULT_REF);
     }
+    assert(target->outref_count < target->max_outref);
 
     target->outrefs[target->outref_count] = ref;
     target->outref_count++;
@@ -993,15 +1225,18 @@ void add_ref(RtObject *target, RtObject *ref)
         target->outrefs = new_arr;
         target->max_outref *= 2;
     }
+
+    target->outrefs[target->outref_count] = NULL;
 }
 
 /**
  *  Frees objects associated data, but not object itself
  * */
-void free_RtObject_data(RtObject *obj, bool free_immutable) {
-    if(!obj) return;
+void free_RtObject_data(RtObject *obj, bool free_immutable)
+{
+    if (!obj)
+        return;
 
-    
     switch (obj->type)
     {
     case UNDEFINED_TYPE:
@@ -1039,15 +1274,18 @@ void free_RtObject_data(RtObject *obj, bool free_immutable) {
         break;
     }
 
-    case LIST_TYPE: {
-        // TODO 
-        break;
-    }
-    case HASHMAP_TYPE: {
+    case LIST_TYPE:
+    {
         // TODO
         break;
     }
-    case HASHSET_TYPE: {
+    case HASHMAP_TYPE:
+    {
+        // TODO
+        break;
+    }
+    case HASHSET_TYPE:
+    {
         // TODO
         break;
     }
@@ -1057,7 +1295,7 @@ void free_RtObject_data(RtObject *obj, bool free_immutable) {
 /**
  * Frees Runtime object, functions and objects are immutable
  * free_immutable: if true, it will metadata associated with the object
-*/
+ */
 void free_RtObject(RtObject *obj, bool free_immutable)
 {
     if (!obj)
@@ -1089,16 +1327,18 @@ void deconstruct_RtObject(RtObject *obj, int offset)
         printf(" NULL \n");
         break;
     case FUNCTION_TYPE:
-    {   
-        printf("BuiltIn: %s\n", obj->data.Function.is_builtin? "true": "false");
+    {
+        printf("BuiltIn: %s\n", obj->data.Function.is_builtin ? "true" : "false");
         print_offset(offset);
 
-        if(obj->data.Function.is_builtin) {
+        if (obj->data.Function.is_builtin)
+        {
             printf("Name: %s\n", obj->data.Function.func_data.built_in.func->builtin_name);
             print_offset(offset);
-
-        } else {
-            printf("Name: %s\n",obj->data.Function.func_data.user_func.func_name);
+        }
+        else
+        {
+            printf("Name: %s\n", obj->data.Function.func_data.user_func.func_name);
             print_offset(offset);
             // prints closures
             printf("Closures:");

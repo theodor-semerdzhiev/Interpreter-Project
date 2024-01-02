@@ -1,28 +1,40 @@
-#include "./keywords.h"
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include "./keywords.h"
 
 #define INITIAL_BUCKET_SIZE 25
 
 
-/* 
-This file contains the Keyword table implementation used by the lexer and parser.
-Provides a practical API for recognizing keywords.
-Lookup Table uses chaining.
+/**
+ * DESCRIPTION:
+ * This file contains the Keyword table implementation used by the lexer and parser.
+ * Provides a practical API for recognizing keywords.
+ * Lookup Table uses chaining for collisions.
 */
 
+/**
+ * Forward Declaration
+*/
 typedef struct Keyword Keyword;
 
+/**
+ * DESCRIPTION:
+ * Defines a struct for storing keywords
+ * Also acts as a linked list node
+*/
 typedef struct Keyword
 {
-    char *keyword;
-    KeywordType type;
-    Keyword *next;
+    char *keyword; // keyword
+    KeywordType type; // Defines the tyoe of key word
+    Keyword *next;  // next element in the linked list
 } Keyword;
 
+/**
+ * Defines the linked list used for the Hash table
+*/
 typedef struct keyword_linked_list
 {
     Keyword *head;
@@ -30,20 +42,33 @@ typedef struct keyword_linked_list
 
 } KeywordLList;
 
+/**
+ * DESCRIPTION:
+ * Defines the Top level struct for the Keyword hash table
+*/
 typedef struct KeywordTable
 {
-    KeywordLList **buckets;
+    KeywordLList **buckets; // the buckets used by KeywordTable
     int nb_of_buckets;
 } KeywordTable;
 
-
+/**
+ * Forward Declarations
+*/
 static unsigned int hash(const char *keywords);
 static void insert_keyword_to_table(char *keyword, KeywordType type);
 
-/* Global keyword table */
+/**
+ * DESCRIPTION:
+ * Global instance of keyword table
+ * Default value is NULL
+*/
 static KeywordTable *keyword_table = NULL;
 
-// Initializes keyword table
+/**
+ * DESCRIPTION:
+ * Initializes keyword table and populates it
+*/
 void init_keyword_table()
 {
     keyword_table = (KeywordTable *)malloc(sizeof(KeywordTable));
@@ -74,6 +99,14 @@ void init_keyword_table()
     insert_keyword_to_table("map", MAP_KEYWORD); 
 }
 
+
+/**
+ * DESCRIPTION:
+ * Returns the string associated the keyword table
+ * 
+ * PARAMS:
+ * keyword: keyword type
+*/
 const char* get_keyword_string(enum keyword_type keyword) {
     switch(keyword) {
         case LET_KEYWORD: 
@@ -109,7 +142,11 @@ const char* get_keyword_string(enum keyword_type keyword) {
     }
 }
 
-/* Frees the keyword table */
+/**
+ * DESCRIPTION:
+ * Frees the global instance of the keyword table
+ * After its freed, the glocal static instance is set to NULL
+*/
 void free_keyword_table()
 {
     if (keyword_table == NULL)
@@ -152,7 +189,14 @@ void free_keyword_table()
     return false;
 }
 
-/* Gets the type of keyword */
+/**
+ * DESCRIPTION:
+ * Takes a string and looks it up in the static Keyworld table, and returns its type
+ * If intput string s not contained within keyword table, NOT_A_KEYWORD is returned 
+ * 
+ * PARAMS:
+ * token: string to lookup in the keyword table
+*/
 KeywordType get_keyword_type(const char *token)
 {
     if (token == NULL)
@@ -173,7 +217,14 @@ KeywordType get_keyword_type(const char *token)
     return NOT_A_KEYWORD;
 }
 
-// Inserts new keyword into table
+/**
+ * DESCRIPTION:
+ * Helper for inserting a keyword and its corresponding type inside the global instance of the keyword table
+ * 
+ * PARAMS:
+ * keyword: keyword string 
+ * type: the keywords corresponding type
+*/
 static void insert_keyword_to_table(char *keyword, KeywordType type)
 {
     unsigned int index = hash(keyword) % keyword_table->nb_of_buckets;
@@ -196,7 +247,10 @@ static void insert_keyword_to_table(char *keyword, KeywordType type)
     }
 }
 
-// hash function: string -> int
+/**
+ * DESCRIPTION:
+ * hash function for strings
+*/
 static unsigned int hash(const char *keywords)
 {
     unsigned int hash = 7; // prime number

@@ -2,14 +2,41 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <stdio.h>  
+#include "utilities.h"
 
-/* File contains useful set functions that can be used in conjunction with the Generic data structures */
+/**
+ * DESCRIPTION:
+ * File contains useful set of general purpose functions 
+ * */
 
+
+/**
+ * DESCRIPTION:
+ * Forcefully exits program with given error enum (i.e int)
+ * Useful for handling errors that cant be recovered from.
+*/
+void exitprogram(ErrorCode code) {
+    switch(code) {
+        case FAILED_MEMORY_ALLOCATION: 
+            printf("MEMORY ERROR: memory allocation return NULL");
+            break;
+        default:
+            printf("Exited with error %d", (int)code);
+            break;
+    }
+    exit(code);
+}
 
 /***** Set of useful functions for using hashmap/hashset with primitive types ******/
 
+__attribute__((warn_unused_result))
 /**
- * Useful functions for copying strings onto the heap
+ * DESCRIPTION:
+ * Useful functions for dynamically copying strings 
+ * 
+ * PARAMS:
+ * str: string to copy
 */
 char* cpy_string(const char* str) {
     char *cpy = malloc(sizeof(char) * (strlen(str) + 1));
@@ -17,7 +44,12 @@ char* cpy_string(const char* str) {
     return cpy;
 }
 
-/* Useful Hash function for hashing strings */
+/**
+ * DESCRIPTION:
+ * Hash function for strings
+ * PARAMS:
+ * str: string to be hashed
+*/
 unsigned int djb2_string_hash(const char *str) {
     assert(str);
     unsigned int hash = 5381;
@@ -26,18 +58,29 @@ unsigned int djb2_string_hash(const char *str) {
     while ((c = *str++)) {
         hash = ((hash << 5) + hash) + c; // hash * 33 + c
     }
-
     return hash;
 }
 
-/* Hash function for integers */
+/**
+ * DESCRIPTION:
+ * Hash function for integers
+ * 
+ * PARAMS:
+ * integer: int to be hashed
+*/
 unsigned int hash_int(const int *integer) {
     assert(integer);
     const unsigned int A = 2654435769;  // A is a constant fraction close to (sqrt(5) - 1) / 2
     return (unsigned int)(A * (*integer));
 }
 
-/* Compares if two strings are equal */
+/**
+ * DESCRIPTION:
+ * Function for checking if two strings are equal
+ * 
+ * PARAMS:
+ * str1 and str2: 2 strings that will be compared
+*/
 bool strings_equal(const char* str1, const char* str2) {
     if(!str1 && !str2) return true;
     if(!str1 || !str2) return false;
@@ -56,27 +99,95 @@ bool strings_equal(const char* str1, const char* str2) {
     }
 }
 
-/* Gets the length of the argument list (ends with a NULL pointer)*/
-int get_pointer_list_length(void **args)
+/**
+ * DESCRIPTION:
+ * Returns the length of a NULL terminated generic 2D Array
+ * 
+ * PARAMS:
+ * arr: array to get length from
+ * 
+ * IMPORTANT:
+ * Array MUST be NULL TERMINATED, otherwise it leads to undefined behaviour 
+*/
+
+int get_pointer_list_length(void **arr)
 {
     int length = 0;
-    for (int i = 0; args[i] != NULL; i++)
+    for (int i = 0; arr[i] != NULL; i++)
         length++;
     return length;
 }
 
-/* Compares if two integers are equal */
+/**
+ * DESCRIPTION:
+ * Takes 2 integer pointers and checks if both are equal 
+ * If either one is NULL, function returns false
+ * 
+ * PARAMS:
+ * integer1: int 
+ * integer2: int
+ * 
+ * NOTE:
+ * These type of functions are useful for using the Generic map or set
+*/
 bool integers_equal(const int *integer1, const int *integer2) {
     if (integer1 == NULL || integer2 == NULL) return false;
     return (*integer1) == (*integer2);
 }
 
-/* Returns a function that will check if int is larger/equal to the 'cutoff' */
-
-typedef bool (*IntFilter)(const int*);
+/**
+ * DESCRIPTION:
+ * Simple function for comparing if an int is larger or equal to the static integer variable
+ * PARAMS:
+ * integer: int to be compared
+*/
 static int _compare_val = 0;
 static bool _integer_filter(const int *integer) { return (*integer) >= _compare_val;}
+
+/**
+ * DESCRIPTION:
+ * Returns a function pointer that will check if int is larger/equal to the 'cutoff' 
+ * 
+ * PARAMS:
+ * cutoff: what value should the function check with
+ * 
+ * */
+typedef bool (*IntFilter)(const int*);
 IntFilter integer_bge_than(int cutoff) {
     _compare_val=cutoff;
     return _integer_filter;
+}
+
+__attribute__((warn_unused_result))
+/**
+ * DESCRIPTION:
+ * Dynamically concatenates two strings, returned string is allocated on the heap
+ * input strings are NOT freed
+ * 
+ * One of the input strings can be null, but AT LEAST one must not be NULL
+ * 
+ * PARAMS:
+ * str1, str2: strings to be concatenated
+ * 
+ * NOTE:
+ * Returns NULL if malloc returns NULL
+*/
+char* concat_strings(char *str1, char *str2) {
+    assert(str1 || str2);
+
+    // If either string is NULL, return a copy of the non-NULL string
+    if (!str1) 
+        return cpy_string(str2);
+    if (!str2)
+        return cpy_string(str1);
+
+    size_t len = strlen(str1) + strlen(str2);
+    char *concat_str = malloc(len + 1);
+    if (!concat_str)
+        return NULL;
+
+    strcpy(concat_str, str1);
+    strcat(concat_str, str2);
+
+    return concat_str;
 }

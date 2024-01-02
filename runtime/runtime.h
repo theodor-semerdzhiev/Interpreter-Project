@@ -1,7 +1,7 @@
 #pragma once
-#include "compiler.h"
+#include "../compiler/compiler.h"
+#include "../generics/hashmap.h"
 #include "rtobjects.h"
-#include "generics/hashmap.h"
 
 #define MAX_STACK_SIZE 5000
 

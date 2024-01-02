@@ -23,9 +23,9 @@ GenericSet *init_GenericSet(
     void (*free_data)(void *));
 
 bool set_contains(const GenericSet *set, const void *data);
-void *set_insert(GenericSet *set, void *data);
-void *set_remove(GenericSet *set, void *data);
-void free_GenericSet(GenericSet *set, bool free_data);
-void set_filter_remove(GenericSet *set, bool (*filter)(void *), bool free_data);
-void GenericSet_print_contents(const GenericSet *map, void (*print_data)(const void*));
-void** GenericSet_to_list(const GenericSet *set);
+void *GenericSet_insert(GenericSet *set, void *data, bool free_duplicate_data);
+void *GenericSet_remove(GenericSet *set, void *data);
+void GenericSet_free(GenericSet *set, bool free_data);
+void GenericSet_filter(GenericSet *set, bool (*filter)(void *), bool free_data);
+void GenericSet_print_contents(const GenericSet *map, void (*print_data)(const void *));
+void **GenericSet_to_list(const GenericSet *set);

@@ -23,3 +23,4 @@ void clear_memtracker_pointers(MemoryTracker *memtracker);
 void clear_memtracker_without_pointers(MemoryTracker *memtracker);
 void free_memtracker(MemoryTracker *memtracker);
 void free_memtracker_without_pointers(MemoryTracker *memtracker);
+void remove_ptr_from_memtracker(MemoryTracker *memtracker, void *ptr, bool free_ptr);

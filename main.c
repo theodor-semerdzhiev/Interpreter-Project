@@ -2,12 +2,12 @@
 #include <stdlib.h>
 #include <setjmp.h>
 #include <assert.h>
-#include "./keywords.h"
-#include "./dbgtools.h"
-#include "./semanalysis.h"
-#include "./compiler.h"
+#include "parser/keywords.h"
+#include "misc/dbgtools.h"
+#include "parser/semanalysis.h"
+#include "compiler/compiler.h"
 #include "generics/hashset.h"
-#include "runtime.h"
+#include "runtime/runtime.h"
 
 /* Abstracts lexing for a given file */
 TokenList *tokenize_file(char *file_contents)
@@ -45,7 +45,7 @@ AST_List *parse_file(char *filename)
 
     jmp_buf before_parsing;
 
-    Parser *parser = malloc_parser();
+    Parser *parser = init_Parser();
     parser->token_list = tokens;
     parser->lines.lines =
         tokenize_str_by_seperators(file_contents, '\n', &parser->lines.line_count);
@@ -105,8 +105,9 @@ int return_code = 0;
 int main(int argc, char *argv[])
 {
     init_keyword_table();
+    init_Precedence();
 
-    AST_List *ast = parse_file("test.txt");
+    AST_List *ast = parse_file("tests/test1.txt");
 
     if(!ast) {
         return_code = 1;

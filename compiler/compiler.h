@@ -1,9 +1,9 @@
 #pragma once
 
-#include "generics/hashset.h"
 #include <stdio.h>
-#include "parser.h"
-#include "rtobjects.h"
+#include "../generics/hashset.h"
+#include "../parser/parser.h"
+#include "../runtime/rtobjects.h"
 
 typedef enum OpCode
 {
@@ -217,6 +217,8 @@ GenericSet *collect_free_vars_ast_node(AST_node *node);
 
 ByteCodeList *init_ByteCodeList();
 ByteCode *init_ByteCode(OpCode code);
+
+ExpressionNode *simplify_expression(ExpressionNode *root);
 
 ByteCodeList *concat_bytecode_lists(ByteCodeList *lhs, ByteCodeList *rhs);
 ByteCodeList *compile_exps_sequence(ExpressionNode **exps, int exps_length);

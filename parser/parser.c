@@ -7,18 +7,73 @@
 #include "keywords.h"
 #include "parser.h"
 #include "errors.h"
-#include "./generics/utilities.h"
-#include "generics/utilities.h"
+#include "../generics/utilities.h"
+#include "../generics/linkedlist.h"
 
-/* Makes a long jump and returns to when the parsing function was called */
+/**
+ * DESCRIPTION:
+ * This array maps enums (i.e there int values) WITH a value representing its precedence
+ * For example, VALUES is the only one with precedence 0
+ * PLUS, MINUS, have precedence one and so one
+ *
+ * This function is crucial for expression parsing algorithm
+ */
+
+static short Precedence[25];
+
+/**
+ * DESCRIPTION:
+ * Should always be called before parsing to initialize the precedence table
+ */
+void init_Precedence()
+{
+    Precedence[VALUE] = 0;
+
+    Precedence[PLUS] = 1;
+    Precedence[MINUS] = 1;
+
+    Precedence[MULT] = 2;
+    Precedence[DIV] = 2;
+    Precedence[MOD] = 2;
+    Precedence[BITWISE_AND] = 2;
+    Precedence[BITWISE_OR] = 2;
+    Precedence[BITWISE_XOR] = 2;
+    Precedence[SHIFT_LEFT] = 2;
+    Precedence[SHIFT_RIGHT] = 2;
+
+    Precedence[GREATER_THAN] = 3;
+    Precedence[GREATER_EQUAL] = 3;
+    Precedence[LESSER_THAN] = 3;
+    Precedence[LESSER_EQUAL] = 3;
+    Precedence[EQUAL_TO] = 3;
+
+    Precedence[LOGICAL_AND] = 4;
+    Precedence[LOGICAL_OR] = 4;
+}
+
+/** DESCRIPTION:
+ * Makes a long jump and returns to when the parsing function was called
+ * Skipping over all the recursive nesting
+ *
+ * PARAMS:
+ * parser: parser instance, used for getting the jump buffer
+ *
+ * */
 static void stop_parsing(Parser *parser)
 {
     parser->error_indicator = true;
     longjmp(*parser->error_handler, 1);
 }
 
-/* Parses access modifer, ["private" | "global"] [KEYWORD] */
-static AccessModifier parse_access_modifer(Parser *parser, enum keyword_type next_keyword)
+/**
+ * DESCRIPTION:
+ * Parses access modifers, ["private" | "global" ] [KEYWORD]
+ *
+ * PARAMS:
+ * parser: parser instance
+ * next_keyword: what keyword the access modifer keyword should followed by
+ * */
+static AccessModifier parse_access_modifer(Parser *parser, KeywordType next_keyword)
 {
     assert(parser);
 
@@ -58,7 +113,14 @@ static AccessModifier parse_access_modifer(Parser *parser, enum keyword_type nex
     return PUBLIC_ACCESS;
 }
 
-/* Skips all recurrent tokens */
+/**
+ * DESCRIPTION:
+ * Useful function for skipping recurrent tokens
+ *
+ * PARAMS:
+ * parser: parser instance
+ * type: token type that should be skipped
+ */
 static void skip_recurrent_tokens(Parser *parser, enum token_type type)
 {
     Token **list = parser->token_list->list;
@@ -66,17 +128,43 @@ static void skip_recurrent_tokens(Parser *parser, enum token_type type)
         parser->token_ptr++;
 }
 
-/* Mallocs Parser struct */
-Parser *malloc_parser()
+/**
+ * DESCRIPTION:
+ * Initializes parser struct
+ * 
+ * DEFAULTS:
+ * error_indicator: false
+ * token_list: NULL
+ * memtracker: creates new intance
+ * token_ptr: 0
+ * file_name: NULL
+ * ctx: REGULAR_CTX
+ * error_handler: NULL
+ * 
+ * lines_count: 0
+ * lines: NULL
+ * 
+ * NOTE:
+ * Returns NULL if malloc returns null
+ */
+Parser *init_Parser()
 {
     Parser *parser = malloc(sizeof(Parser));
+    if (!parser)
+        return NULL;
     parser->error_indicator = false;
     parser->token_list = NULL;
     parser->memtracker = init_memtracker();
+    if(!parser->memtracker) {
+        free(parser);
+        return NULL;
+    }
     parser->token_ptr = 0;
     parser->file_name = NULL;
-    parser->ctx=REGUALR_CTX;
-    parser->error_handler=NULL;
+    parser->ctx = REGUALR_CTX;
+    parser->error_handler = NULL;
+    parser->lines.line_count=0;
+    parser->lines.lines=NULL;
     return parser;
 }
 
@@ -110,8 +198,8 @@ bool is_numeric_const_fractional(Parser *parser, int index)
 /* Checks if lexeme_type enum is in list */
 bool is_lexeme_in_list(
     enum token_type type,
-    enum token_type list[],
-    const int list_length)
+    const enum token_type list[],
+    int list_length)
 {
 
     for (int i = 0; i < list_length; i++)
@@ -169,7 +257,7 @@ ExpressionComponent *malloc_expression_component(Parser *parser)
     component->sub_component = NULL;
     component->top_component = NULL;
     component->type = -1;
-    component->token_num = parser->token_ptr;
+    component->token_num = parser? parser->token_ptr: -1;
 
     if (parser)
         push_to_memtracker(parser->memtracker, component, free);
@@ -205,9 +293,9 @@ bool is_preliminary_expression_token(Token *token)
            token->type == NUMERIC_LITERAL ||
            token->type == STRING_LITERALS ||
            (token->type == KEYWORD && (get_keyword_type(token->ident) == FUNC_KEYWORD ||
-                                        get_keyword_type(token->ident) == NULL_KEYWORD ||
-                                        get_keyword_type(token->ident) == MAP_KEYWORD ||
-                                        get_keyword_type(token->ident) == SET_KEYWORD));
+                                       get_keyword_type(token->ident) == NULL_KEYWORD ||
+                                       get_keyword_type(token->ident) == MAP_KEYWORD ||
+                                       get_keyword_type(token->ident) == SET_KEYWORD));
 }
 
 /* Recursively frees expression component struct */
@@ -337,7 +425,8 @@ ExpressionNode **parse_expressions_by_seperator(
     // iterates until end_of_exp lexeme is reached
     while (parser->token_list->list[parser->token_ptr - 1]->type != end_of_exp)
     {
-        ExpressionNode *tmp = parse_expression(parser, NULL, NULL, seperators, 2);
+        // ExpressionNode *tmp = parse_expression(parser, NULL, NULL, seperators, 2);
+        ExpressionNode *tmp = parse_expression(parser, seperators, 2);
 
         // if all argument tokens have been consumed
         if (!tmp)
@@ -384,8 +473,11 @@ KeyValue **parser_key_value_pair_exps(
     // iterates until end_of_exp lexeme is reached
     while (parser->token_list->list[parser->token_ptr - 1]->type != end_of_exp)
     {
-        ExpressionNode *key = parse_expression(parser, NULL, NULL, seperators1, 1);
-        ExpressionNode *value = parse_expression(parser, NULL, NULL, seperators2, 2);
+        // ExpressionNode *key = parse_expression(parser, NULL, NULL, seperators1, 1);
+        // ExpressionNode *value = parse_expression(parser, NULL, NULL, seperators2, 2);
+
+        ExpressionNode *key = parse_expression(parser, seperators1, 1);
+        ExpressionNode *value = parse_expression(parser, seperators2, 2);
 
         KeyValue *pair = malloc(sizeof(KeyValue));
         pair->key = key;
@@ -447,7 +539,7 @@ ExpressionComponent *parse_expression_component(
     {
 
         if (
-      
+
             list[parser->token_ptr]->type != OPEN_PARENTHESIS &&
             list[parser->token_ptr]->type != OPEN_CURLY_BRACKETS &&
             list[parser->token_ptr]->type != OPEN_SQUARE_BRACKETS &&
@@ -460,9 +552,10 @@ ExpressionComponent *parse_expression_component(
     bool preceded_by_arrow = false;
 
     // skips token if needed
-    if (list[parser->token_ptr]->type == ATTRIBUTE_ARROW) {
+    if (list[parser->token_ptr]->type == ATTRIBUTE_ARROW)
+    {
         parser->token_ptr++;
-        preceded_by_arrow=true;
+        preceded_by_arrow = true;
     }
 
     ExpressionComponent *component = malloc_expression_component(parser);
@@ -482,11 +575,11 @@ ExpressionComponent *parse_expression_component(
 
         parser->token_ptr += 2;
         ParsingContext tmp = parser->ctx;
-        parser->ctx=MAP_CTX;
+        parser->ctx = MAP_CTX;
 
         KeyValue **keyval_pairs = parser_key_value_pair_exps(parser, COLON, COMMA, CLOSING_CURLY_BRACKETS);
         component->meta_data.HashMap.pairs = keyval_pairs;
-        component->meta_data.HashMap.size = get_pointer_list_length((void**)keyval_pairs);
+        component->meta_data.HashMap.size = get_pointer_list_length((void **)keyval_pairs);
 
         parser->ctx = tmp;
     }
@@ -504,13 +597,13 @@ ExpressionComponent *parse_expression_component(
         parser->token_ptr += 2;
 
         ParsingContext tmp = parser->ctx;
-        parser->ctx=SET_CTX;
+        parser->ctx = SET_CTX;
 
         ExpressionNode **elements = parse_expressions_by_seperator(parser, COMMA, CLOSING_CURLY_BRACKETS);
         component->meta_data.HashSet.values = elements;
         component->meta_data.HashSet.size = get_pointer_list_length((void **)elements);
 
-        parser->ctx= tmp;
+        parser->ctx = tmp;
     }
     // void pointer (null pointer)
     else if (get_keyword_type(list[parser->token_ptr]->ident) == NULL_KEYWORD)
@@ -532,7 +625,7 @@ ExpressionComponent *parse_expression_component(
         component->meta_data.list_const.list_elements = elements;
         component->meta_data.list_const.list_length = get_pointer_list_length((void **)elements);
 
-        parser->ctx=tmp;
+        parser->ctx = tmp;
     }
 
     // Parses inline declared functions (Cannot have parent component)
@@ -578,7 +671,8 @@ ExpressionComponent *parse_expression_component(
         component->type = LIST_INDEX;
         parser->token_ptr++;
         enum token_type end_of_exp[] = {CLOSING_SQUARE_BRACKETS};
-        component->meta_data.list_index = parse_expression(parser, NULL, NULL, end_of_exp, 1);
+        component->meta_data.list_index = parse_expression(parser, end_of_exp, 1);
+        // component->meta_data.list_index = parse_expression(parser, NULL, NULL, end_of_exp, 1);
     }
     // function call
     else if (rec_lvl > 0 && !preceded_by_arrow && list[parser->token_ptr]->type == OPEN_PARENTHESIS)
@@ -633,7 +727,7 @@ ExpressionComponent *parse_expression_component(
         stop_parsing(parser);
         return NULL;
     }
-    
+
     component->sub_component = parent;
     if (parent)
         parent->top_component = component;
@@ -641,162 +735,368 @@ ExpressionComponent *parse_expression_component(
     return parse_expression_component(parser, component, ++rec_lvl);
 }
 
-// uses reverse polish notation
+/**
+ * DESCRIPTION:
+ * Checks whether a token type is an operator token
+ */
+bool isOpToken(enum token_type type)
+{
+    switch (type)
+    {
+    case MULT_OP:
+    case MINUS_OP:
+    case PLUS_OP:
+    case DIV_OP:
+    case MOD_OP:
+    case GREATER_THAN_OP:
+    case GREATER_EQUAL_OP:
+    case LESSER_THAN_OP:
+    case LESSER_EQUAL_OP:
+    case EQUAL_TO_OP:
+    case LOGICAL_AND_OP:
+    case LOGICAL_OR_OP:
+    case BITWISE_AND_OP:
+    case BITWISE_OR_OP:
+    case BITWISE_XOR_OP:
+    case SHIFT_LEFT_OP:
+    case SHIFT_RIGHT_OP:
+    case LOGICAL_NOT_OP:
+        return true;
+
+    default:
+        return false;
+    }
+}
+
+/**
+ * DESCRIPTION:
+ * Converts token type to an expression node type
+*/
+static enum expression_token_type convertTokenToOp(enum token_type type) {
+    switch (type)
+    {
+    case MULT_OP:
+        return MULT;
+    case MINUS_OP:
+        return MINUS;
+    case PLUS_OP:
+        return PLUS;
+    case DIV_OP:
+        return DIV;
+    case MOD_OP:
+        return MOD;
+    case GREATER_THAN_OP:
+        return GREATER_THAN;
+    case GREATER_EQUAL_OP:
+        return GREATER_EQUAL;
+    case LESSER_THAN_OP:
+        return LESSER_THAN;
+    case LESSER_EQUAL_OP:
+        return LESSER_EQUAL;
+    case EQUAL_TO_OP:
+        return EQUAL_TO;
+    case LOGICAL_AND_OP:
+        return LOGICAL_AND;
+    case LOGICAL_OR_OP:
+        return LOGICAL_OR;
+    case BITWISE_AND_OP:
+        return BITWISE_AND;
+    case BITWISE_OR_OP:
+        return BITWISE_OR;
+    case BITWISE_XOR_OP:
+        return BITWISE_XOR;
+    case SHIFT_LEFT_OP:
+        return SHIFT_LEFT;
+    case SHIFT_RIGHT_OP:
+        return SHIFT_RIGHT;
+
+    default:
+        return -1;
+    }
+}
+
+/**
+ * DESCRIPTION:
+ * Wrapper for freeing linkedlist
+ * Needed for memory tracker to match function type signature
+ */
+static void _free_LList(GenericLList *list) { GenericLList_free(list, false); }
+
+#define precedence(type) Precedence[type] // macro for getting precedence of operators
+#define endOfExp(type) is_lexeme_in_list(type, ends_of_exp, ends_of_exp_length)
+
+/* Forward Delcaration */
+static ExpressionNode *construct_expression_tree(GenericLList *inputList, GenericLList *opList);
+
+/**
+ * DESCRIPTION:
+ * This function is responsible for parsing infix expressions 
+ * It uses a recursive descent approach where a ordered list of expression components and operators are collected
+ * And, from the top-down, the expression is recursively constructed
+ * 
+ * PREVARIANT: the parser instance token pointer MUST point to first token of the expression
+ * 
+ * POSTVARIANT: the parser instance token pointer MUST point to next token AFTER the end of expression token 
+ * 
+ * PARAMS:
+ * parser: instance of the parser
+ * ends_of_exp: the list of possible tokens that represent then end of the expression
+ * ends_of_exp_length: the length of the array above 
+*/
 ExpressionNode *parse_expression(
     Parser *parser,
-    ExpressionNode *LHS,
-    ExpressionNode *RHS,
-    enum token_type ends_of_exp[],
+    const enum token_type ends_of_exp[],
     const int ends_of_exp_length)
 {
-    assert(parser);
-
     Token **list = parser->token_list->list;
 
+    // If we encounter a end of file token mid expression, this is NOT valid
     if (list[parser->token_ptr]->type == END_OF_FILE)
     {
         print_unexpected_end_of_file_err(parser, NULL);
         stop_parsing(parser);
-        return LHS;
     }
 
-    // Base case (meet end of expression token)
-    if (is_lexeme_in_list(list[parser->token_ptr]->type, ends_of_exp, ends_of_exp_length))
+    // If expression is empty
+    if (endOfExp(list[parser->token_ptr]->type))
     {
-        // ONLY LHS should be non-NULL when expression ends
-        // If not, an operator is missing
-        if (LHS && RHS)
+        parser->token_ptr++;
+        return NULL;
+    }
+
+    GenericLList *inputList = init_GenericLList(NULL,free);
+    if(!inputList) stop_parsing(parser);
+    GenericLList *opList = init_GenericLList(NULL,free);
+    if(!opList) {
+        _free_LList(inputList);
+        stop_parsing(parser);
+    }
+
+    push_to_memtracker(parser->memtracker, inputList, (void (*)(void *))_free_LList);
+    push_to_memtracker(parser->memtracker, opList, (void (*)(void *))_free_LList);
+
+    // this loop populates the inputList and the opList
+    while (
+        list[parser->token_ptr]->type != END_OF_FILE &&
+        !endOfExp(list[parser->token_ptr]->type))
+    {
+        bool is_mult_minus_1 = false; // handles numeric negation like -(10 +20)
+        bool is_exp_negated = false; // handles ! logical not operator
+
+        // handles multiple negation operator (i.e '!')
+        while (list[parser->token_ptr]->type == MINUS_OP)
         {
-            parser->error_indicator = true;
-            print_missing_operator_err(parser, NULL);
+            is_mult_minus_1 = !is_mult_minus_1;
+            parser->token_ptr++;
+        }
+
+        // handles multiple negation operator (i.e '!')
+        while (list[parser->token_ptr]->type == LOGICAL_NOT_OP)
+        {
+            is_exp_negated = !is_exp_negated;
+            parser->token_ptr++;
+        }
+
+        ExpressionNode *leaf = NULL;
+
+        // Case 1: Sub Expression
+        if(list[parser->token_ptr]->type == OPEN_PARENTHESIS) {
+            parser->token_ptr++;
+            enum token_type end_of_exp[] = {CLOSING_PARENTHESIS};
+            leaf = parse_expression(parser, end_of_exp, 1);
+
+        // Case 2: Expression component
+        } else if(is_preliminary_expression_token(list[parser->token_ptr])){
+
+            ExpressionComponent *exp_component =  parse_expression_component(parser, NULL, 0);
+            leaf = malloc_expression_node(parser);
+            leaf->type=VALUE;
+            leaf->component = exp_component;
+
+        // we do not have a valid expression component  
+        } else {
+
+            print_missing_exp_component_err(parser, 
+            "Unexpected end of expression. Expected expression component.");
+            stop_parsing(parser);
+            return NULL;
+        }
+
+        // handles numerical negation by multiplying by -1
+        if(is_mult_minus_1) {
+            ExpressionNode *negative_1 = malloc_expression_node(parser);
+            negative_1->type = VALUE;
+            negative_1->component=malloc_expression_component(parser);
+            negative_1->component->type = NUMERIC_CONSTANT;
+            negative_1->component->meta_data.numeric_const=-1;
+
+            ExpressionNode *mult_node = malloc_expression_node(parser);
+            mult_node->type = MULT;
+            mult_node->LHS=leaf;
+            mult_node->RHS=negative_1;
+            leaf = mult_node;
+        }
+
+
+        // if encounter a end of file token, means an error
+        if (list[parser->token_ptr]->type == END_OF_FILE) {
+            print_unexpected_end_of_file_err(parser, NULL);
             stop_parsing(parser);
         }
 
-        parser->token_ptr++;
-        return LHS;
-    }
+        leaf->negation=is_exp_negated;
 
-    bool is_exp_negated = false;
+        // adds Expression node to input list
+        GenericLList_addLast(inputList, leaf);
 
-    // handles negation operator (i.e '!')
-    while (list[parser->token_ptr]->type == LOGICAL_NOT_OP)
-    {
-        is_exp_negated = !is_exp_negated;
-        parser->token_ptr++;
-    }
+        // if we encounter a end of expression after expression component, 
+        // then it MUST be the end of the expression
+        if (endOfExp(list[parser->token_ptr]->type))
+            break;
 
-    // Handles and Computes sub expressions
-    if (list[parser->token_ptr]->type == OPEN_PARENTHESIS)
-    {
-        parser->token_ptr++;
-        enum token_type end_of_exp[] = {CLOSING_PARENTHESIS};
-        ExpressionNode *sub_exp = parse_expression(parser, NULL, NULL, end_of_exp, 1);
-        sub_exp->negation = is_exp_negated ^ sub_exp->negation;
+        ExpressionNode *oproot = NULL;
 
-        if (!LHS)
-            return parse_expression(parser, sub_exp, RHS, ends_of_exp, ends_of_exp_length);
+        // if we encountered a leaf, and its not the end of the expression yet,
+        // then we MUST have an operator
+        if (isOpToken(list[parser->token_ptr]->type))
+        {
+            oproot = malloc_expression_node(parser);
+            oproot->type = convertTokenToOp(list[parser->token_ptr]->type);
+            parser->token_ptr++;
+        }
         else
-            return parse_expression(parser, LHS, sub_exp, ends_of_exp, ends_of_exp_length);
+        {
+            print_missing_operator_err(parser, NULL);
+            parser->error_indicator = true;
+            stop_parsing(parser);
+            return NULL;
+        }
+
+        //adds operator to list
+        GenericLList_addLast(opList, oproot);
+
+
+        if (list[parser->token_ptr]->type == END_OF_FILE)
+        {
+            print_unexpected_end_of_file_err(parser, NULL);
+            stop_parsing(parser);
+            return NULL;
+        }
+
+        // an operator MUST be followed by an other expression component
+        // or a minus sign, if its a negative number
+        if(!is_preliminary_expression_token(list[parser->token_ptr]) && 
+            list[parser->token_ptr]->type != LOGICAL_NOT_OP &&
+            list[parser->token_ptr]->type != MINUS_OP) {
+            parser->error_indicator = true;
+            print_missing_exp_component_err(
+                parser,
+                "Unexpected end of expression, expected expression component.");
+            stop_parsing(parser);
+        }
     }
-
-    ExpressionNode *node = malloc_expression_node(parser);
-    node->negation = is_exp_negated;
-
-    // checks if we encountered a expression component
-    if (is_preliminary_expression_token(list[parser->token_ptr]))
+    
+    // If we encounter a end of file token mid expression, this is NOT valid expression
+    if (list[parser->token_ptr]->type == END_OF_FILE)
     {
-
-        node->component = parse_expression_component(parser, NULL, 0);
-        node->type = VALUE;
-
-        if (!LHS)
-            return parse_expression(parser, node, RHS, ends_of_exp, ends_of_exp_length);
-        else
-            return parse_expression(parser, LHS, node, ends_of_exp, ends_of_exp_length);
-    }
-
-    // operator must have two sub trees
-    if (!LHS || !RHS)
-    {
-        parser->error_indicator = true;
-        print_missing_exp_component_err(
-            parser, 
-            "Unexpected end of expression, expected expression component.");
+        print_unexpected_end_of_file_err(parser, NULL);
         stop_parsing(parser);
         return NULL;
     }
 
-    // Handles ALL math/bitwise/logical operators
-    switch (list[parser->token_ptr]->type)
-    {
-    case MULT_OP:
-        node->type = MULT;
-        break;
-    case MINUS_OP:
-        node->type = MINUS;
-        break;
-    case PLUS_OP:
-        node->type = PLUS;
-        break;
-    case DIV_OP:
-        node->type = DIV;
-        break;
-    case MOD_OP:
-        node->type = MOD;
-        break;
-    case GREATER_THAN_OP:
-        node->type = GREATER_THAN;
-        break;
-    case GREATER_EQUAL_OP:
-        node->type = GREATER_EQUAL;
-        break;
-    case LESSER_THAN_OP:
-        node->type = LESSER_THAN;
-        break;
-    case LESSER_EQUAL_OP:
-        node->type = LESSER_EQUAL;
-        break;
-    case EQUAL_TO_OP:
-        node->type = EQUAL_TO;
-        break;
-    case LOGICAL_AND_OP:
-        node->type = LOGICAL_AND;
-        break;
-    case LOGICAL_OR_OP:
-        node->type = LOGICAL_OR;
-        break;
-    case BITWISE_AND_OP:
-        node->type = BITWISE_AND;
-        break;
-    case BITWISE_OR_OP:
-        node->type = BITWISE_OR;
-        break;
-    case BITWISE_XOR_OP:
-        node->type = BITWISE_XOR;
-        break;
-    case SHIFT_LEFT_OP:
-        node->type = SHIFT_LEFT;
-        break;
-    case SHIFT_RIGHT_OP:
-        node->type = SHIFT_RIGHT;
-        break;
-
-    case LOGICAL_NOT_OP:
-    default:
-    {
-        print_missing_operator_err(parser, NULL);
-        parser->error_indicator = true;
-        return LHS;
-    }
-    }
-
-    node->LHS = LHS;
-    node->RHS = RHS;
-
     parser->token_ptr++;
 
-    return parse_expression(parser, node, NULL, ends_of_exp, ends_of_exp_length);
+    /**
+     * ASSUMPTIONS:
+     * If we got to this point, then we should have a valid expression
+     * Therefor, # of operators = # number of leafs  - 1
+    */
+
+    // Using the operator Stack and input List, we recursively construct the tree
+    ExpressionNode *root = construct_expression_tree(inputList, opList);
+    assert(inputList->length == 0 && opList->length == 0);
+
+    // free lists
+    remove_ptr_from_memtracker(parser->memtracker, inputList, true);
+    remove_ptr_from_memtracker(parser->memtracker, opList, true);
+    return root;
 }
+
+/**
+ * DESCRIPTION:
+ * This a type of recursive descent parser for constructing the expression tree from the list of operands (operators) and inputs (i.e expression components), 
+ * properly ordered by position in the expression 
+ * Example: (A * B + C) ==> Inputs: [A,B,C], Operands: [*, +]
+ * 
+ * The algorithm relies on the following invariant: 
+ *      length of inputList - 1 = length of opStack
+ * 
+ * This is true for any valid expression, i.e the number of operators == the number of inputs - 1
+ * For each recursive case, given the initial inputs are valid, this invariant is always maintained
+ * Proof: Case 3,4 both pop an equal number of elements from input and operator lists
+ * 
+ * When the algorithm reaches a base case, # of inputs popped = # of outputs popped + 1
+ * Thereby, making sure both lists are empty after the termination of the alg
+ * 
+ * The correctness of this alg can self evidently be proved by induction
+ * 
+ * PARAMS:
+ * inputList: Properly ordered Linked list of all inputs to an expression (act as leafs)
+ * opList: Properly ordered Linked list of all operators to an expression 
+ * 
+*/
+static ExpressionNode *construct_expression_tree(GenericLList *inputList, GenericLList *opList) {
+    assert(inputList && opList);
+    assert(inputList->length - 1 == opList->length);
+
+    ExpressionNode *operator = (ExpressionNode *)GenericLList_popFirst(opList, false);
+    const ExpressionNode *next_operator = (ExpressionNode*) GenericLList_head(opList);
+    
+    // Bases Cases
+
+    // Case 1: Expression is a single expression component with no operators
+    if(!operator) {
+        return (ExpressionNode*) GenericLList_popFirst(inputList, false);
+    }
+
+    // Case 2: Expression is of the following format (A [op] B)
+    if(!next_operator) {
+        operator->LHS = (ExpressionNode*) GenericLList_popFirst(inputList, false);
+        operator->RHS = (ExpressionNode*) GenericLList_popFirst(inputList, false);
+
+        return operator;
+    }
+
+    // Recursive cases
+
+    // Case 3: Expression as the following structure A [op1] B [op2] C, 
+    // where op1 > op2 in terms of precedence and A,B,C are leafs or sub expressions
+    // Therefor current operator (op1) takes the first 2 expression components (A, B) as its children, 
+    // And then the next operator (op2) becomes the parent of current one (op1), and the rest of the expression (C)
+    if(precedence(operator->type) >= precedence(next_operator->type)) {    
+        operator->LHS = (ExpressionNode*) GenericLList_popFirst(inputList, false);
+        operator->RHS = (ExpressionNode*) GenericLList_popFirst(inputList, false);
+    
+        ExpressionNode *next = (ExpressionNode *)GenericLList_popFirst(opList, false);
+        next->LHS = operator;
+        next->RHS = construct_expression_tree(inputList, opList);
+        return next;
+        
+
+    // Case 4: Expression as the following structure: A [op1] B [op2] C, 
+    // where op1 <= op2 in terms of precedence and A,B,C are leafs or sub expressions
+    // Therefor, current operator (op1) takes the first expression components(A) as its left child
+    // and the sub expression (B [op2] C), as its right node
+    } else {
+        
+        operator->LHS = (ExpressionNode*) GenericLList_popFirst(inputList, false);
+        operator->RHS = construct_expression_tree(inputList, opList);
+        return operator;
+        
+    }
+
+}
+
 
 /* Mallocs abstract syntac tree node */
 AST_node *malloc_ast_node(Parser *parser)
@@ -990,7 +1290,7 @@ void push_to_ast_list(AST_List *list, AST_node *node)
 }
 
 /* Creates AST node and parses variable declaration */
-AST_node *parse_variable_declaration(Parser *parser, int rec_lvl  __attribute__((unused)))
+AST_node *parse_variable_declaration(Parser *parser, int rec_lvl __attribute__((unused)))
 {
     assert(parser);
     Token **list = parser->token_list->list;
@@ -1028,7 +1328,7 @@ AST_node *parse_variable_declaration(Parser *parser, int rec_lvl  __attribute__(
     {
         char *identifier = list[parser->token_ptr + 1]->ident;
         char *tmp_str = malloc(sizeof(char) * (40 + strlen(identifier)));
-        sprintf(tmp_str, "Proper Syntax: let %s = ... ;", identifier);
+        snprintf(tmp_str, 40 + strlen(identifier) + 1, "Proper Syntax: let %s = ... ;", identifier);
         parser->token_ptr += 2;
         print_expected_token_err(parser, "Assignment Operator ('=')", false, tmp_str);
         free(tmp_str);
@@ -1039,7 +1339,9 @@ AST_node *parse_variable_declaration(Parser *parser, int rec_lvl  __attribute__(
     // parses its assignment value (i.e an expression)
     parser->token_ptr += 3;
     enum token_type end_of_exp[] = {SEMI_COLON};
-    node->ast_data.exp = parse_expression(parser, NULL, NULL, end_of_exp, 1);
+    // node->ast_data.exp = parse_expression(parser, NULL, NULL, end_of_exp, 1);
+    node->ast_data.exp = parse_expression(parser, end_of_exp, 1);
+
 
     skip_recurrent_tokens(parser, end_of_exp[0]);
     return node;
@@ -1073,7 +1375,8 @@ AST_node *parse_while_loop(Parser *parser, int rec_lvl)
 
     // parse conditional expression
     enum token_type end_of_exp[] = {CLOSING_PARENTHESIS};
-    node->ast_data.exp = parse_expression(parser, NULL, NULL, end_of_exp, 1);
+    // node->ast_data.exp = parse_expression(parser, NULL, NULL, end_of_exp, 1);
+    node->ast_data.exp = parse_expression(parser, end_of_exp, 1);
 
     // checks for open curly brackets
     if (list[parser->token_ptr]->type != OPEN_CURLY_BRACKETS)
@@ -1120,7 +1423,8 @@ AST_node *parse_if_conditional(Parser *parser, int rec_lvl)
 
     // parses conditional expression
     enum token_type end_of_exp[] = {CLOSING_PARENTHESIS};
-    node->ast_data.exp = parse_expression(parser, NULL, NULL, end_of_exp, 1);
+    node->ast_data.exp = parse_expression(parser, end_of_exp, 1);
+    // node->ast_data.exp = parse_expression(parser, NULL, NULL, end_of_exp, 1);
 
     // checks for open curly brackets
     if (list[parser->token_ptr]->type != OPEN_CURLY_BRACKETS)
@@ -1141,7 +1445,7 @@ AST_node *parse_if_conditional(Parser *parser, int rec_lvl)
 }
 
 /* Parse loop termination (i.e break) */
-AST_node *parse_loop_termination(Parser *parser, int rec_lvl  __attribute__((unused)))
+AST_node *parse_loop_termination(Parser *parser, int rec_lvl __attribute__((unused)))
 {
     assert(parser);
     Token **list = parser->token_list->list;
@@ -1171,7 +1475,7 @@ AST_node *parse_loop_termination(Parser *parser, int rec_lvl  __attribute__((unu
 }
 
 /* Parses loop continuation (i.e continue )*/
-AST_node *parse_loop_continuation(Parser *parser, int rec_lvl  __attribute__((unused)))
+AST_node *parse_loop_continuation(Parser *parser, int rec_lvl __attribute__((unused)))
 {
     assert(parser);
     Token **list = parser->token_list->list;
@@ -1199,7 +1503,7 @@ AST_node *parse_loop_continuation(Parser *parser, int rec_lvl  __attribute__((un
 }
 
 /* Parses return expression (i.e return keyword )*/
-AST_node *parse_return_expression(Parser *parser, int rec_lvl  __attribute__((unused)))
+AST_node *parse_return_expression(Parser *parser, int rec_lvl __attribute__((unused)))
 {
     assert(parser);
     Token **list = parser->token_list->list;
@@ -1213,7 +1517,8 @@ AST_node *parse_return_expression(Parser *parser, int rec_lvl  __attribute__((un
     parser->token_ptr++;
 
     enum token_type end_of_exp[] = {SEMI_COLON};
-    node->ast_data.exp = parse_expression(parser, NULL, NULL, end_of_exp, 1);
+    node->ast_data.exp = parse_expression(parser, end_of_exp, 1);
+    // node->ast_data.exp = parse_expression(parser, NULL, NULL, end_of_exp, 1);
     skip_recurrent_tokens(parser, end_of_exp[0]);
     return node;
 }
@@ -1248,7 +1553,8 @@ AST_node *parse_else_conditional(Parser *parser, int rec_lvl)
         // parse conditional expression
         enum token_type end_of_exp[] = {CLOSING_PARENTHESIS};
         parser->token_ptr += 3;
-        node->ast_data.exp = parse_expression(parser, NULL, NULL, end_of_exp, 1);
+        // node->ast_data.exp = parse_expression(parser, NULL, NULL, end_of_exp, 1);
+        node->ast_data.exp = parse_expression(parser, end_of_exp, 1);
 
         // checks for open curly brackets
         if (list[parser->token_ptr]->type != OPEN_CURLY_BRACKETS)
@@ -1502,13 +1808,14 @@ AST_node *parse_variable_assignment_exp_func_component(Parser *parser, int rec_l
         node->type = EXPRESSION_COMPONENT;
         parser->token_ptr++;
     }
-    // var assignment 
+    // var assignment
     else if (list[parser->token_ptr]->type == ASSIGNMENT_OP)
     {
         node->type = VAR_ASSIGNMENT;
         parser->token_ptr++;
         enum token_type end_of_exp[] = {SEMI_COLON};
-        node->ast_data.exp = parse_expression(parser, NULL, NULL, end_of_exp, 1);
+        // node->ast_data.exp = parse_expression(parser, NULL, NULL, end_of_exp, 1);
+        node->ast_data.exp = parse_expression(parser, end_of_exp, 1);
     }
 
     skip_recurrent_tokens(parser, SEMI_COLON);

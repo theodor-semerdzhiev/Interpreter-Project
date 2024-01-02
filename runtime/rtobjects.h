@@ -16,6 +16,8 @@ typedef enum RtType
     HASHSET_TYPE,
 } RtType;
 
+#define DEFAULT_REF 8
+
 // Forward declaration
 typedef struct RtObject RtObject;
 typedef struct ByteCodeList ByteCodeList;
@@ -89,7 +91,7 @@ typedef struct RtObject
 
 RtObject *init_RtObject(RtType type);
 char *RtObject_to_String(const RtObject *obj);
-char *obj_type_toString(const RtObject *obj);
+const char *obj_type_toString(const RtObject *obj);
 RtObject *multiply_objs(RtObject *obj1, RtObject *obj2);
 RtObject *add_objs(RtObject *obj1, RtObject *obj2);
 RtObject *substract_objs(RtObject *obj1, RtObject *obj2);
@@ -105,11 +107,16 @@ RtObject *greater_equal_op(RtObject *obj1, RtObject *obj2);
 RtObject *lesser_than_op(RtObject *obj1, RtObject *obj2);
 RtObject *lesser_equal_op(RtObject *obj1, RtObject *obj2);
 RtObject *equal_op(RtObject *obj1, RtObject *obj2);
+RtObject *logical_and_op(RtObject *obj1, RtObject *obj2);
+RtObject *logical_or_op(RtObject *obj1, RtObject *obj2);
 RtObject *logical_not_op(RtObject *target);
 
 bool eval_obj(RtObject *obj);
-RtObject *cpy_object(const RtObject *obj);
-RtObject *mutate_obj(RtObject *target, const RtObject *new_value);
+RtObject *shallow_cpy_rtobject(const RtObject *obj);
+RtObject *deep_cpy_rtobject(const RtObject *obj);
+
+RtObject *mutate_obj(RtObject *target, const RtObject *new_value, bool deepcpy);
+
 void add_ref(RtObject *target, RtObject *ref);
 void free_RtObject_data(RtObject *obj, bool free_immutable);
 void free_RtObject(RtObject *obj, bool free_immutable);

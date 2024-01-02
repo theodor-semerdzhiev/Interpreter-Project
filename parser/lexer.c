@@ -5,9 +5,9 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <ctype.h>
-#include "./lexer.h"
-#include "./keywords.h"
-#include "generics/utilities.h"
+#include "lexer.h"
+#include "keywords.h"
+#include "../generics/utilities.h"
 
 #define DEFAULT_LEX_ARR_LENGTH 128
 
@@ -363,7 +363,6 @@ static void push_char_to_buffer(Lexer *lexer, char c)
     {
         char *resized_buffer = realloc(lexer->buffer, lexer->buffer_size * 2 + 1);
         if(resized_buffer) {
-            free(lexer->buffer);
             lexer->buffer = resized_buffer;
             lexer->buffer_size *= 2;
         } else {

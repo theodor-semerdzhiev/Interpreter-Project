@@ -3,7 +3,7 @@
 #include <stdbool.h>
 #include <setjmp.h>
 #include "lexer.h"
-#include "memtracker.h"
+#include "../misc/memtracker.h"
 
 typedef enum ParsingContext
 {
@@ -35,7 +35,7 @@ typedef struct Parser
     ParsingContext ctx;
 } Parser;
 
-enum expression_token_type
+typedef enum expression_token_type
 {
     PLUS,
     MINUS,
@@ -54,11 +54,10 @@ enum expression_token_type
     EQUAL_TO,
     LOGICAL_AND,
     LOGICAL_OR,
-    LOGICAL_NOT,
     VALUE
-};
+} ExpressionTokenType;
 
-enum expression_component_type
+typedef enum expression_component_type
 {
     NUMERIC_CONSTANT,
     STRING_CONSTANT,
@@ -72,7 +71,7 @@ enum expression_component_type
     LIST_INDEX,
     FUNC_CALL,
     INLINE_FUNC,
-};
+} ExpressionComponentType;
 
 /* pre defines some structs */
 typedef struct expression_node ExpressionNode;
@@ -270,10 +269,11 @@ typedef struct ast_list
     AST_node *parent_block;
 } AST_List;
 
-Parser *malloc_parser();
+void init_Precedence();
+Parser *init_Parser();
 void free_parser(Parser *parser);
 bool is_numeric_const_fractional(Parser *parser, int index);
-bool is_lexeme_in_list(enum token_type type, enum token_type list[], const int list_length);
+bool is_lexeme_in_list(enum token_type type, const enum token_type list[], int list_length);
 
 bool lexeme_lists_intersect(
     enum token_type list1[], const int list1_length, enum token_type list2[], const int list2_length);
@@ -302,10 +302,12 @@ int get_pointer_list_length(void **args);
 
 ExpressionNode *parse_expression(
     Parser *parser,
-    ExpressionNode *LHS,
-    ExpressionNode *RHS,
-    enum token_type ends_of_exp[],
+    const enum token_type ends_of_exp[],
     const int ends_of_exp_length);
+
+bool isOpToken(enum token_type type);
+
+
 
 AST_node *malloc_ast_node(Parser *parser);
 AST_List *malloc_ast_list(Parser *parser);

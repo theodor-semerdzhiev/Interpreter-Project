@@ -998,7 +998,7 @@ bool AST_list_has_consistent_semantics(SemanticAnalyzer *sem_analyzer, AST_List 
         {
             if (!sem_analyzer->is_in_loop)
             {
-                print_invalid_ast_node(sem_analyzer, node, node->token_num, 
+                print_invalid_ast_node(sem_analyzer, node->token_num, 
                 "break Keyword can only be used within a loop."
                 );         
                 return false;
@@ -1015,7 +1015,7 @@ bool AST_list_has_consistent_semantics(SemanticAnalyzer *sem_analyzer, AST_List 
         {
             if (!sem_analyzer->is_in_loop)
             {
-                print_invalid_ast_node(sem_analyzer, node, node->token_num, 
+                print_invalid_ast_node(sem_analyzer, node->token_num, 
                 "continue Keyword can only be used within a loop."
                 ); 
                 return false;

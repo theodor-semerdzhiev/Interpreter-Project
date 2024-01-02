@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include "parser.h"
+#include "../parser/parser.h"
 #include "dbgtools.h"
 
 /* Converts AccessModifer to readable string */
@@ -389,12 +389,6 @@ void print_expression_tree(ExpressionNode *root, char *buffer, int rec_lvl)
 
     case LOGICAL_OR:
         printf("- LOGICAL_OR(||):\n");
-        print_expression_tree(root->LHS, buffer, rec_lvl + 1);
-        print_expression_tree(root->RHS, buffer, rec_lvl + 1);
-        break;
-
-    case LOGICAL_NOT:
-        printf("- LOGICAL_NOT(!):\n");
         print_expression_tree(root->LHS, buffer, rec_lvl + 1);
         print_expression_tree(root->RHS, buffer, rec_lvl + 1);
         break;

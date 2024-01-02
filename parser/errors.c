@@ -223,7 +223,7 @@ void print_invalid_access_modifer_err(Parser *parser, const char *keyword, const
 
     if (parser->token_ptr < (int)parser->token_list->len)
     {
-        char *next_identifier = list[parser->token_ptr + 1]->ident;
+        char* next_identifier = list[parser->token_ptr + 1]->ident;
 
         printf(RED_TEXT "Invalid use of '%s' Access Modifier, '%s' must be followed by a variable, function, or Object declaration, but got %s '%s'\n" RESET_COLOR,
                keyword,
@@ -397,7 +397,7 @@ void print_invalid_else_block_err(SemanticAnalyzer *sa, AST_node *node, const in
 }
 
 /* Prints out invalid ast node  */
-void print_invalid_ast_node(SemanticAnalyzer *sa, AST_node *node, const int token_ptr, const char *msg)
+void print_invalid_ast_node(SemanticAnalyzer *sa, const int token_ptr, const char *msg)
 {
     _print_context(sa->token_list->list, token_ptr, sa->filename, sa->lines.lines);
 

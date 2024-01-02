@@ -4,9 +4,14 @@
 #include <stdio.h>
 #include <assert.h>
 #include "hashset.h"
+#include "utilities.h"
 
-/* Generic HashSet Implementation using Chaining */
+/* Generic HashSet Implementation using Chaining to handle hashing collisions */
 
+/**
+ * DESCRIPTION:
+ * Defines node that stores data inside linked list (i.e Chaining list )
+ */
 typedef struct Node Node;
 typedef struct Node
 {
@@ -15,6 +20,9 @@ typedef struct Node
 
 } Node;
 
+/**
+ * DESCRIPTION: Defines Linked list used for chaining
+ */
 typedef struct ChainList
 {
     Node *head;
@@ -22,29 +30,64 @@ typedef struct ChainList
     int length;
 } ChainList;
 
-
-/* Mallocs chain Node */
+__attribute__((warn_unused_result))
+/**
+ * DESCRIPTION:
+ * Helper function for allocating memory for Linked list (chain) node
+ *
+ * PARAMS:
+ * data: initial value for the data stored by node
+ *
+ * NOTE: If malloc returns NULL, function return NULL
+ *
+ */
 static Node *_malloc_chain_node(void *data)
 {
     Node *node = malloc(sizeof(Node));
+    if (!node)
+        return NULL;
     node->data = data;
     node->next = NULL;
     return node;
 }
 
-/* Malloc Chain list */
+__attribute__((warn_unused_result))
+/**
+ * DESCRIPTION:
+ * Helper function for allocating memory for Linked list (chain)
+ *
+ * NOTE: If malloc returns NULL, function returns NULL
+ */
 static ChainList *_malloc_chain_list()
 {
     ChainList *list = malloc(sizeof(ChainList));
+    if (!list)
+        return NULL;
     list->head = NULL;
     list->tail = NULL;
     list->length = 0;
     return list;
 }
 
-#define DEFAULT_BUCKET_SIZE 100
+/**
+ * DESCRIPTION: Initial value for number of buckets set will contain
+ */
+#define DEFAULT_BUCKET_SIZE 32
 
-/* Mallocs Set struct, return NULL if allocation was not successful */
+__attribute__((warn_unused_result))
+/**
+ * DESCRIPTION:
+ * Initializes Generic Set
+ *
+ * PARAMS:
+ * is_equal: function pointer to equality function
+ * hash: hash function
+ * free_data: function for freeing elements contained by set
+ *
+ * NOTE:
+ * 1- is_equal function must return true if both pointers are considered to be equal, false otherwise
+ * 2- If malloc error occurs, then function will return NULL
+ */
 GenericSet *init_GenericSet(
     bool (*is_equal)(const void *, const void *),
     unsigned int (*hash)(const void *),
@@ -52,10 +95,9 @@ GenericSet *init_GenericSet(
 {
 
     GenericSet *set = malloc(sizeof(GenericSet));
+    // handles malloc error
     if (!set)
-    {
         return NULL;
-    }
 
     set->free_data = free_data;
     set->hash = hash;
@@ -65,6 +107,7 @@ GenericSet *init_GenericSet(
 
     set->max_buckets = DEFAULT_BUCKET_SIZE;
     set->buckets = malloc(sizeof(ChainList *) * DEFAULT_BUCKET_SIZE);
+    // handles malloc error
     if (!set->buckets)
     {
         free(set);
@@ -77,7 +120,14 @@ GenericSet *init_GenericSet(
     return set;
 }
 
-/* Checks if element is contained within the set */
+/**
+ * DESCRIPTION:
+ * Returns wether set contains data
+ *
+ * PARAMS:
+ * set: GenericSet to query
+ * data: data used to query set
+ */
 bool set_contains(const GenericSet *set, const void *data)
 {
     unsigned int index = set->hash(data) % set->max_buckets;
@@ -99,8 +149,25 @@ bool set_contains(const GenericSet *set, const void *data)
     return false;
 }
 
-/* Adds element to the set, return element that was added */
-void *set_insert(GenericSet *set, void *data)
+/**
+ * DESCRIPTION:
+ * Adds element to the set, should always return data argument that inputed,
+ * Will only return NULL if malloc error occurs, make sure to handle this case properly
+ *
+ * PARAMS:
+ * set: Generic Set to insert into
+ * data: data to insert
+ * free_duplicate_data: wether the data should be freed, if duplicate inside set is found
+ *
+ *
+ * NOTE:
+ * if duplicate value is found, then new data replaces old data
+ * is_equal function pointer is used to determine duplicates
+ *
+ * IMPORTANT:
+ * Make sure to free duplicate data properly since duplicates are not returned by this function
+ * */
+void *GenericSet_insert(GenericSet *set, void *data, bool free_duplicate_data)
 {
     unsigned int index = set->hash(data) % set->max_buckets;
 
@@ -108,6 +175,8 @@ void *set_insert(GenericSet *set, void *data)
     if (!set->buckets[index])
     {
         set->buckets[index] = _malloc_chain_list();
+        if (!set->buckets[index])
+            return NULL;
     }
 
     Node *node = set->buckets[index]->head;
@@ -115,6 +184,8 @@ void *set_insert(GenericSet *set, void *data)
     if (!node)
     {
         Node *new_node = _malloc_chain_node(data);
+        if (!new_node)
+            return NULL;
 
         set->buckets[index]->head = new_node;
         set->buckets[index]->tail = new_node;
@@ -127,6 +198,11 @@ void *set_insert(GenericSet *set, void *data)
         // if element already in set, then function terminates
         if (set->is_equal(node->data, data))
         {
+            if (free_duplicate_data)
+                set->free_data(node->data);
+
+            node->data = data;
+
             return data;
         }
         node = node->next;
@@ -134,15 +210,29 @@ void *set_insert(GenericSet *set, void *data)
 
     // if element not in set, then we add it to the tail of the list
     Node *new_node = _malloc_chain_node(data);
+    if (!new_node)
+        return NULL;
+
     set->buckets[index]->tail->next = new_node;
     set->buckets[index]->tail = new_node;
     set->size++;
     return data;
 }
 
-/* Removes element from set, returns the element contained within the set
-If element is not found, NULL is returned */
-void *set_remove(GenericSet *set, void *data)
+__attribute__((warn_unused_result))
+/**
+ * DESCRIPTION:
+ * Removes element from set, returns the data itself
+ * Return NULL if element is not found inside set
+ *
+ * PARAMS:
+ * set: Set to remove from
+ * data: data that should be removed
+ *
+ * NOTE:
+ * 'is_equal' function pointer stored inside GenericSet struct is used to find element inside set
+ */
+void *GenericSet_remove(GenericSet *set, void *data)
 {
     unsigned int index = set->hash(data) % set->max_buckets;
 
@@ -191,12 +281,19 @@ void *set_remove(GenericSet *set, void *data)
     return NULL;
 }
 
-/* Frees memory for Generic set,
-free_data: flag to indicate wether elements should be freed or not */
-void free_GenericSet(GenericSet *set, bool free_data)
+/**
+ * DESCRIPTION:
+ * Frees all memory associated with the input set
+ *
+ * PARAMS:
+ * set: GenericSet to be freed
+ * free_data: Wether the elements stored by the set should be freed
+ */
+void GenericSet_free(GenericSet *set, bool free_data)
 {
-    if(!set) return;
-    
+    if (!set)
+        return;
+
     for (int i = 0; i < set->max_buckets; i++)
     {
         if (!set->buckets[i])
@@ -223,11 +320,16 @@ void free_GenericSet(GenericSet *set, bool free_data)
     free(set);
 }
 
-/* Removes all elements where the filter function evals to true
-filter: filter function predicate
-free_data: flag to indicate whether data should be freed when removed
-*/
-void set_filter_remove(GenericSet *set, bool (*filter)(void *), bool free_data)
+/**
+ * DESCRIPTION:
+ * Removes all elements from input set that return true on the input filter function
+ * 
+ * PARAMS:
+ * set: GenericSet to filter
+ * filter: filter function
+ * free_data: Whether the data should be freed when removed from set
+ */
+void GenericSet_filter(GenericSet *set, bool (*filter)(void *), bool free_data)
 {
     for (int i = 0; i < set->max_buckets; i++)
     {
@@ -254,7 +356,7 @@ void set_filter_remove(GenericSet *set, bool (*filter)(void *), bool free_data)
                         set->buckets[i]->tail = NULL;
 
                     free(node);
-                    node=set->buckets[i]->head;
+                    node = set->buckets[i]->head;
                     continue;
                 }
                 else
@@ -277,17 +379,33 @@ void set_filter_remove(GenericSet *set, bool (*filter)(void *), bool free_data)
     }
 }
 
-/* Collects all the contents of the set and creates (mallocs) a list, same size as the set */
-void** GenericSet_to_list(const GenericSet *set) {
-    void** list = malloc(sizeof(void*) * (set->size+1));
-    list[set->size]=NULL;
+__attribute__((warn_unused_result))
+/**
+ * DESCRIPTION:
+ * Aggregates all the elements of a set into a NULL terminated list 
+ * 
+ * PARAMS:
+ * set: Generic Set to aggregate
+ * 
+ * NOTE:
+ * returns NULL, if malloc return NULL 
+ * */
+void **GenericSet_to_list(const GenericSet *set)
+{
+    void **list = malloc(sizeof(void *) * (set->size + 1));
+    if (!list)
+        return NULL;
+    list[set->size] = NULL;
     int list_length = 0;
-    for(int i=0; i < set->max_buckets; i++) {
-        if(!set->buckets[i]) continue;
-        
+    for (int i = 0; i < set->max_buckets; i++)
+    {
+        if (!set->buckets[i])
+            continue;
+
         Node *ptr = set->buckets[i]->head;
-        while(ptr) {
-            list[list_length]=ptr->data;
+        while (ptr)
+        {
+            list[list_length] = ptr->data;
             ptr = ptr->next;
             list_length++;
         }
@@ -296,64 +414,24 @@ void** GenericSet_to_list(const GenericSet *set) {
     return list;
 }
 
-
-
-
 /* Used for debugging purposes */
-void GenericSet_print_contents(const GenericSet *map, void (*print_data)(const void*)) {
+void GenericSet_print_contents(const GenericSet *map, void (*print_data)(const void *))
+{
 
     printf("Size: %d \n Max Buckets: %d\n", map->size, map->max_buckets);
-    for(int i=0; i < map->max_buckets; i++) {
-        if(map->buckets[i]) { 
-            Node* node = map->buckets[i]->head;
+    for (int i = 0; i < map->max_buckets; i++)
+    {
+        if (map->buckets[i])
+        {
+            Node *node = map->buckets[i]->head;
 
-            while(node) {
+            while (node)
+            {
                 print_data(node->data);
 
-                node=node->next;
+                node = node->next;
             }
         }
         printf("NULL\n");
     }
-
-}
-
-
-/* For testing purposes */
-//////////////////////////
-static bool integers_equal(const int *integer1, const int *integer2) {
-    if (integer1 == NULL || integer2 == NULL) return false;
-    return (*integer1) == (*integer2);
-}
-
-/* Hash function for integers */
-static unsigned int hash_int(const int *integer) {
-    // assert(integer);
-    // const unsigned int A = 2654435769;  // A is a constant fraction close to (sqrt(5) - 1) / 2
-    // return (unsigned int)(A * (*integer));
-    return (*integer);
-}
-
-static bool filter(const int *integer) {
-    return (*integer) < 50;
-}
-
-int _main() {
-    GenericSet *set = init_GenericSet(
-        (bool (*)(const void *, const void *))integers_equal, 
-        (unsigned int (*)(const void *))hash_int, 
-        free);
-
-    for(int i=0; i < 5000; i++) {
-        int *num = malloc(sizeof(int));
-        *num=i;
-        set_insert(set, num);
-    }
-
-    // GenericSet_print_contents(set);
-    set_filter_remove(set, (bool (*)(void *))filter, true);
-    // GenericSet_print_contents(set);
-
-    free_GenericSet(set, true);
-    return 0;
 }

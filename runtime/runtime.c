@@ -432,7 +432,7 @@ RunTime *init_RunTime()
     RunTime *runtime = malloc(sizeof(RunTime));
     if (!runtime)
     {
-        printf("Failed to initialize allocate Runtime Environment\n");
+        printf("Failed to allocate memory for Runtime Environment\n");
         return NULL;
     }
     runtime->stack_ptr = -1;
@@ -444,14 +444,6 @@ RunTime *init_RunTime()
     {
         free(runtime);
         printf("Failed to initialize Runtime Stack Machine\n");
-        return NULL;
-    }
-
-    // initializes built in functions
-    if (init_Builtins())
-    {
-        free_StackMachine(runtime->stk_machine, true);
-        free(runtime);
         return NULL;
     }
 

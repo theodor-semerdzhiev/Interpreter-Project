@@ -572,6 +572,7 @@ static void _collect_free_vars_from_body(
  *
  * **/
 
+
 static bool ast_list_has(AST_List *body, enum ast_node_type type);
 static ByteCodeList *add_var_derefs(AST_List *body, ByteCodeList *target);
 static void add_var_derefs_via_list(ByteCodeList *list);

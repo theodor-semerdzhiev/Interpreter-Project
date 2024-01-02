@@ -71,6 +71,8 @@ static KeywordTable *keyword_table = NULL;
 */
 void init_keyword_table()
 {
+    if(keyword_table) return;
+
     keyword_table = (KeywordTable *)malloc(sizeof(KeywordTable));
     keyword_table->nb_of_buckets = INITIAL_BUCKET_SIZE;
     keyword_table->buckets = (KeywordLList **)malloc(sizeof(KeywordLList *) * INITIAL_BUCKET_SIZE);
@@ -199,6 +201,9 @@ void free_keyword_table()
 */
 KeywordType get_keyword_type(const char *token)
 {
+    // lazy initialization
+    init_keyword_table();
+
     if (token == NULL)
         return NOT_A_KEYWORD;
 
@@ -227,6 +232,9 @@ KeywordType get_keyword_type(const char *token)
 */
 static void insert_keyword_to_table(char *keyword, KeywordType type)
 {
+    // lazy initialization
+    init_keyword_table();
+    
     unsigned int index = hash(keyword) % keyword_table->nb_of_buckets;
 
     KeywordLList *list = keyword_table->buckets[index];

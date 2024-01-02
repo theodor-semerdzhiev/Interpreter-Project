@@ -108,7 +108,9 @@ int main(int argc, char *argv[])
     init_Precedence();
 
     AST_List *ast = parse_file("tests/test2.txt");
-
+    
+    free_keyword_table();
+    
     if(!ast) {
         return_code = 1;
     } else {

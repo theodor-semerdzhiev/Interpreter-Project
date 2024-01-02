@@ -41,14 +41,14 @@ void init_Precedence()
     Precedence[SHIFT_LEFT] = 2;
     Precedence[SHIFT_RIGHT] = 2;
 
-    Precedence[GREATER_THAN] = 3;
-    Precedence[GREATER_EQUAL] = 3;
-    Precedence[LESSER_THAN] = 3;
-    Precedence[LESSER_EQUAL] = 3;
-    Precedence[EQUAL_TO] = 3;
-
-    Precedence[LOGICAL_AND] = 4;
-    Precedence[LOGICAL_OR] = 4;
+    Precedence[LOGICAL_AND] = 3;
+    Precedence[LOGICAL_OR] = 3;
+    
+    Precedence[GREATER_THAN] = 4;
+    Precedence[GREATER_EQUAL] = 4;
+    Precedence[LESSER_THAN] = 4;
+    Precedence[LESSER_EQUAL] = 4;
+    Precedence[EQUAL_TO] = 4;
 }
 
 /** DESCRIPTION:

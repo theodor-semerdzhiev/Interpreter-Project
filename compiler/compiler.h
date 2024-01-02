@@ -119,21 +119,22 @@ typedef enum OpCode
 typedef struct ByteCode
 {
     OpCode op_code;
+    int line_nb; // line number associated with instruction, if not applicable, it will be set to -1
 
-    union bytecode_data
+    union
     {
-        struct OFFSET_JUMP_IF_FALSE
+        struct
         {
             int offset;
         } OFFSET_JUMP_IF_FALSE;
 
-        struct OFFSET_JUMP_IF_TRUE
+        struct
         {
             int offset;
         } OFFSET_JUMP_IF_TRUE;
 
         /* Used any sort of program counter jump */
-        struct OFFSET_JUMP
+        struct
         {
             int offset;
         } OFFSET_JUMP;
@@ -142,58 +143,58 @@ typedef struct ByteCode
             char* var;
         } DEREF_VAR;
 
-        struct LOAD_CONST
+        struct
         {
             RtObject *constant;
         } LOAD_CONST;
 
-        struct CREATE_LIST
+        struct
         {
             int list_length;
         } CREATE_LIST;
 
-        struct CREATE_SET
+        struct
         {
             int set_size;
         } CREATE_SET;
 
-        struct CREATE_MAP
+        struct
         {
             // the number of key value pairs
             // So if size is 4, it will pop 8 elements from the stack
             int map_size;
         } CREATE_MAP;
 
-        struct LOAD_VAR
+        struct
         {
             char *variable;
             int str_length;
         } LOAD_VAR;
 
-        struct CREATE_VAR
+        struct
         {
             char *new_var_name;
             int str_length;
         } CREATE_VAR;
 
-        struct LOAD_ATTR
+        struct
         {
             char *attribute_name;
             int str_length;
         } LOAD_ATTR;
 
-        struct CLOSURES
+        struct
         {
             char **closure_vars;
             int closure_count;
         } CLOSURE;
 
-        struct FUNCTION_CALL
+        struct
         {
             int arg_count;
         } FUNCTION_CALL;
 
-        struct CREATE_FUNCTION
+        struct
         {
             RtObject *function;
         } CREATE_FUNCTION;

@@ -64,8 +64,6 @@ VarTable *malloc_symbol_table()
         symtable->table[i] = malloc_symbol_chain();
     }
     
-    init_Builtins();
-    
     return symtable;
 }
 
@@ -108,13 +106,6 @@ bool add_var_to_vartable(
     int nesting_lvl,
     VariableType symtype)
 {
-    // if symbol already exists
-    // it gets replaced
-    // if (vartable_has_var(symtable, ident))
-    // {
-    //     remove_var_from_vartable(symtable, ident);
-    // }
-
     unsigned int index = hash(ident);
     Variable *sym = malloc_symbol(ident, filename);
     sym->nesting_lvl = nesting_lvl;

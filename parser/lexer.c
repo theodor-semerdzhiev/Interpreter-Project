@@ -18,153 +18,93 @@
 //     "&&", "||", "!", ">", "<", ">=", "<=", "==",             // logical operators
 //     "#"                                                      // comment
 
-
-/* Checks if string is a number, string must not have whitespace */
-static bool is_token_numeric(char *token)
-{
-    int i = 0;
-    if (token[0] == '-' || token[0] == '+')
-        i++;
-
-    for (; i < (int)strlen(token); i++)
-    {
-        if (!isdigit(token[i]))
-            return false;
-    }
-    return true;
-}
-
 /* Mallocs string for token */
-static char* token_to_str(enum token_type type) {
-    char* type_in_str=NULL;;
+static char *token_to_str(enum token_type type)
+{
+    char *type_in_str = NULL;
+    ;
 
     switch (type)
     {
     case UNDEFINED:
-      type_in_str = "UNDEFINED";
-      break;
+        return cpy_string("UNDEFINED");
     case WHITESPACE:
-      type_in_str = "WHITESPACE";
-      break;
+        return cpy_string("WHITESPACE");
     case HASHTAG:
-      type_in_str = "#";
-      break;
+        return cpy_string("#");
     case DOT:
-      type_in_str = ".";
-      break;
+        return cpy_string(".");
     case SEMI_COLON:
-      type_in_str = ";";
-      break;
+        return cpy_string(";");
     case QUOTES:
-      type_in_str = "\"";
-      break;
+        return cpy_string("\"");
     case COMMA:
-      type_in_str = ",";
-      break;
+        return cpy_string(",");
     case OPEN_CURLY_BRACKETS:
-      type_in_str = "{";
-      break;
+        return cpy_string("{");
     case CLOSING_CURLY_BRACKETS:
-      type_in_str = "}";
-      break;
+        return cpy_string("}");
     case OPEN_PARENTHESIS:
-      type_in_str = "(";
-      break;
+        return cpy_string("(");
     case CLOSING_PARENTHESIS:
-      type_in_str = ")";
-      break;
+        return cpy_string(")");
     case OPEN_SQUARE_BRACKETS:
-      type_in_str = "[";
-      break;
+        return cpy_string("[");
     case CLOSING_SQUARE_BRACKETS:
-      type_in_str = "]";
-      break;
+        return cpy_string("]");
     case ASSIGNMENT_OP:
-      type_in_str = "=";
-      break;
+        return cpy_string("=");
     case MULT_OP:
-      type_in_str = "*";
-      break;
+        return cpy_string("*");
     case DIV_OP:
-      type_in_str = "/";
-      break;
+        return cpy_string("/");
     case PLUS_OP:
-      type_in_str = "+";
-      break;
+        return cpy_string("+");
     case MINUS_OP:
-      type_in_str = "-";
-      break;
+        return cpy_string("-");
     case MOD_OP:
-      type_in_str = "%";
-      break;
+        return cpy_string("%");
     case SHIFT_LEFT_OP:
-      type_in_str = "<<";
-      break;
+        return cpy_string("<<");
     case SHIFT_RIGHT_OP:
-      type_in_str = ">>";
-      break;
+        return cpy_string(">>");
     case BITWISE_AND_OP:
-      type_in_str = "&";
-      break;
+        return cpy_string("&");
     case BITWISE_OR_OP:
-      type_in_str = "|";
-      break;
+        return cpy_string("|");
     case BITWISE_XOR_OP:
-      type_in_str = "^";
-      break;
+        return cpy_string("^");
     case COLON:
-      type_in_str = ":";
-      break;
+        return cpy_string(":");
     case ATTRIBUTE_ARROW:
-      type_in_str = "->";
-      break;
+        return cpy_string("->");
     case LOGICAL_AND_OP:
-      type_in_str = "&&";
-      break;
+        return cpy_string("&&");
     case LOGICAL_OR_OP:
-      type_in_str = "||";
-      break;
+        return cpy_string("||");
     case LOGICAL_NOT_OP:
-      type_in_str = "!";
-      break;
+        return cpy_string("!");
     case GREATER_THAN_OP:
-      type_in_str = ">";
-      break;
+        return cpy_string(">");
     case LESSER_THAN_OP:
-      type_in_str = "<";
-      break;
+        return cpy_string("<");
     case GREATER_EQUAL_OP:
-      type_in_str = ">=";
-      break;
+        return cpy_string(">=");
     case LESSER_EQUAL_OP:
-      type_in_str = "<=";
-      break;
+        return cpy_string("<=");
     case EQUAL_TO_OP:
-      type_in_str = "==";
-      break;
+        return cpy_string("==");
     case END_OF_FILE:
-      type_in_str = "END_OF_FILE";
-      break;
+        return cpy_string("END_OF_FILE");
     case KEYWORD:
-      type_in_str = "KEYWORD";
-      break;
+        return cpy_string("KEYWORD");
     case STRING_LITERALS:
-      type_in_str = "STRING LITERALS";
-      break;
+        return cpy_string("STRING LITERALS");
     case NUMERIC_LITERAL:
-      type_in_str = "NUMERIC_LITERAL";
-      break;
+        return cpy_string("NUMERIC_LITERAL");
     case IDENTIFIER:
-      type_in_str = "IDENTIFIER";
-      break;
+        return cpy_string("IDENTIFIER");
     }
-
-    assert(type_in_str);
-
-    char* malloced_str = malloc(sizeof(char)*4);
-    strcpy(malloced_str,type_in_str);
-
-    return malloced_str;
 }
 
 /* Returns the special token pointed to the lexer,
@@ -350,11 +290,11 @@ static void push_char_to_buffer(Lexer *lexer, char c)
 {
     lexer->buffer[lexer->buffer_ptr] = c;
     lexer->cur_pos++;
-    
+
     // resets prev_pos and cur_pos if buffer is empty
-    if(lexer->buffer_ptr == 0) 
-        lexer->prev_pos=lexer->cur_pos;
-    
+    if (lexer->buffer_ptr == 0)
+        lexer->prev_pos = lexer->cur_pos;
+
     lexer->buffer_ptr++;
     lexer->buffer[lexer->buffer_ptr] = '\0';
 
@@ -362,10 +302,13 @@ static void push_char_to_buffer(Lexer *lexer, char c)
     if (lexer->buffer_ptr == lexer->buffer_size)
     {
         char *resized_buffer = realloc(lexer->buffer, lexer->buffer_size * 2 + 1);
-        if(resized_buffer) {
+        if (resized_buffer)
+        {
             lexer->buffer = resized_buffer;
             lexer->buffer_size *= 2;
-        } else {
+        }
+        else
+        {
             fprintf(stderr, "Memory Error");
             return;
         }
@@ -373,10 +316,11 @@ static void push_char_to_buffer(Lexer *lexer, char c)
 
     lexer->buffer[lexer->buffer_ptr] = '\0';
 
-    if (c == '\n') {
+    if (c == '\n')
+    {
         lexer->cur_line++;
-        lexer->prev_pos=0;
-        lexer->cur_pos=0;
+        lexer->prev_pos = 0;
+        lexer->cur_pos = 0;
     }
 }
 
@@ -398,30 +342,33 @@ static void clear_buffer(Lexer *lexer, TokenList *list)
     strcpy(str, lexer->buffer);
     push_token(list, UNDEFINED, str, lexer->cur_line, lexer->prev_pos);
     reset_buffer(lexer);
-    lexer->prev_pos=lexer->cur_pos;
+    lexer->prev_pos = lexer->cur_pos;
 }
 
+__attribute__((warn_unused_result))
 /* Creates new token list thats a copy */
-TokenList *cpy_token_list(TokenList *list)
+TokenList *
+cpy_token_list(TokenList *list)
 {
     TokenList *new_list = malloc_token_list();
 
     for (int i = 0; i < (int)list->len; i++)
-    {   
+    {
         push_token(
             new_list,
             list->list[i]->type,
             cpy_string(list->list[i]->ident),
             list->list[i]->line_num,
-            list->list[i]->line_pos
-        );
+            list->list[i]->line_pos);
     }
 
     return new_list;
 }
 
+__attribute__((warn_unused_result))
 /* Parses file contents into a list of tokens */
-TokenList *tokenize_str(Lexer *lexer, char *file_contents)
+TokenList *
+tokenize_str(Lexer *lexer, char *file_contents)
 {
     TokenList *list = malloc_token_list();
 
@@ -436,9 +383,9 @@ TokenList *tokenize_str(Lexer *lexer, char *file_contents)
         if (type != UNDEFINED)
         {
             clear_buffer(lexer, list);
-            lexer->prev_pos=lexer->cur_pos;
+            lexer->prev_pos = lexer->cur_pos;
             push_token(list, type, token_to_str(type), lexer->cur_line, lexer->prev_pos);
-            
+
             continue;
         }
 
@@ -452,11 +399,22 @@ TokenList *tokenize_str(Lexer *lexer, char *file_contents)
                 file_contents[lexer->text_ptr] != '"' &&
                 file_contents[lexer->text_ptr] != '\0')
             {
-                // handles character negation 
-                if(file_contents[lexer->text_ptr] == '\\') {
-                    push_char_to_buffer(lexer, file_contents[++lexer->text_ptr]);
+                // handles character negation
+                if (file_contents[lexer->text_ptr] == '\\')
+                {
+                    if (file_contents[lexer->text_ptr + 1] == 'n')
+                    {
+                        push_char_to_buffer(lexer, '\n');
+                        lexer->text_ptr++;
+                    }
+                    else
+                    {
+                        push_char_to_buffer(lexer, file_contents[++lexer->text_ptr]);
+                    }
                     lexer->text_ptr++;
-                } else {
+                }
+                else
+                {
                     push_char_to_buffer(lexer, file_contents[lexer->text_ptr++]);
                 }
             }
@@ -486,22 +444,24 @@ TokenList *tokenize_str(Lexer *lexer, char *file_contents)
                 lexer->text_ptr++;
             }
 
-            lexer->prev_pos=lexer->cur_pos;
+            lexer->prev_pos = lexer->cur_pos;
             reset_buffer(lexer);
 
             continue;
         }
         // handles comments
-        else if(file_contents[lexer->text_ptr] == '#') {
-            while(file_contents[lexer->text_ptr] != '\n' && file_contents[lexer->text_ptr] != '\0') {
-                push_char_to_buffer(lexer,file_contents[lexer->text_ptr]);
+        else if (file_contents[lexer->text_ptr] == '#')
+        {
+            while (file_contents[lexer->text_ptr] != '\n' && file_contents[lexer->text_ptr] != '\0')
+            {
+                push_char_to_buffer(lexer, file_contents[lexer->text_ptr]);
                 lexer->text_ptr++;
             }
 
             // pushes '/n' (to update fields within the lexer struct)
-            push_char_to_buffer(lexer,file_contents[lexer->text_ptr]);
+            push_char_to_buffer(lexer, file_contents[lexer->text_ptr]);
 
-            lexer->prev_pos=lexer->cur_pos;
+            lexer->prev_pos = lexer->cur_pos;
             reset_buffer(lexer);
         }
         else
@@ -521,8 +481,10 @@ TokenList *tokenize_str(Lexer *lexer, char *file_contents)
 
 #define DEFAULT_LEXER_BUFFER_SIZE 100
 
+__attribute__((warn_unused_result))
 /* Mallocs lexer */
-Lexer *malloc_lexer()
+Lexer *
+malloc_lexer()
 {
     Lexer *lexer = malloc(sizeof(Lexer));
     lexer->buffer = malloc(sizeof(char) * (DEFAULT_LEXER_BUFFER_SIZE + 1));
@@ -530,8 +492,8 @@ Lexer *malloc_lexer()
     lexer->buffer_ptr = 0;
     lexer->text_ptr = 0;
     lexer->cur_line = 1;
-    lexer->cur_pos=0;
-    lexer->prev_pos=0;
+    lexer->cur_pos = 0;
+    lexer->prev_pos = 0;
     return lexer;
 }
 
@@ -544,8 +506,10 @@ void free_lexer(Lexer *lexer)
 
 ////////////////////////////////////////////////////
 
+__attribute__((warn_unused_result))
 /* Mallocs token list */
-TokenList *malloc_token_list()
+TokenList *
+malloc_token_list()
 {
     TokenList *token_list = (TokenList *)malloc(sizeof(TokenList));
     token_list->len = 0;
@@ -554,8 +518,10 @@ TokenList *malloc_token_list()
     return token_list;
 }
 
+__attribute__((warn_unused_result))
 /* Mallocs lexeme struct */
-Token *malloc_token_struct(
+Token *
+malloc_token_struct(
     enum token_type type,
     char *ident,
     int line_num,
@@ -566,7 +532,7 @@ Token *malloc_token_struct(
     token->ident = ident;
     token->line_num = line_num;
     token->type = type;
-    token->line_pos=line_pos;
+    token->line_pos = line_pos;
     return token;
 }
 
@@ -596,7 +562,7 @@ void push_token(
     // Checks the type of token
     if (type == UNDEFINED && ident)
     {
-        if (is_token_numeric(ident))
+        if (is_token_integer(ident))
             type = NUMERIC_LITERAL;
         else if (is_keyword(ident))
             type = KEYWORD;
@@ -630,28 +596,34 @@ void push_token(
 }
 
 /* Tokenize string by a set of seperators */
-char** tokenize_str_by_seperators(const char* input, const char sep, int *count) {
+char **tokenize_str_by_seperators(const char *input, const char sep, int *count)
+{
     int i, j, len = strlen(input);
     int numSeparators = 0;
 
-    for (i = 0; i < len; i++) {
-        if (input[i] == sep) {
+    for (i = 0; i < len; i++)
+    {
+        if (input[i] == sep)
+        {
             numSeparators++;
         }
     }
 
-    char **result = (char **)malloc((numSeparators + 2) * sizeof(char *));  // +2 to include the last substring
+    char **result = (char **)malloc((numSeparators + 2) * sizeof(char *)); // +2 to include the last substring
     *count = 0;
 
     int start = 0;
 
     // Iterate through the string to separate it
-    for (i = 0; i <= len; i++) {
-        if (input[i] == sep || input[i] == '\0') {
+    for (i = 0; i <= len; i++)
+    {
+        if (input[i] == sep || input[i] == '\0')
+        {
             result[*count] = (char *)malloc((i - start + 1) * sizeof(char));
 
             // Copy the substring to the result array
-            for (j = start; j < i; j++) {
+            for (j = start; j < i; j++)
+            {
                 result[*count][j - start] = input[j];
             }
 
@@ -665,8 +637,10 @@ char** tokenize_str_by_seperators(const char* input, const char sep, int *count)
     return result;
 }
 
+__attribute__((warn_unused_result))
 /* Mallocs a substring from a base string */
-char *malloc_substring(char *str, int start, int end)
+char *
+malloc_substring(char *str, int start, int end)
 {
     // the substring includes index start but does not include the end index.
     char *substr = malloc(sizeof(char) * (end - start) + 1);
@@ -677,26 +651,32 @@ char *malloc_substring(char *str, int start, int end)
     return substr;
 }
 
+__attribute__((warn_unused_result))
 /* Creates a deep copy of 2D string array */
-char** cpy_2D_string_arr(char** strs, int strs_length) {
-    char** arr = malloc(sizeof(char*)*(strs_length+1));
+char **
+cpy_2D_string_arr(char **strs, int strs_length)
+{
+    char **arr = malloc(sizeof(char *) * (strs_length + 1));
     int len, i;
 
-    for(i=0; i < strs_length; i++) {
+    for (i = 0; i < strs_length; i++)
+    {
         len = strlen(strs[i]);
-        arr[i] = malloc(sizeof(char)*(len+1));
-        strcpy(arr[i],strs[i]);
-        arr[i][len]='\0';
+        arr[i] = malloc(sizeof(char) * (len + 1));
+        strcpy(arr[i], strs[i]);
+        arr[i][len] = '\0';
     }
 
-    arr[strs_length]=NULL;
+    arr[strs_length] = NULL;
     return arr;
 }
 
 #define DEFAULT_BUFFER_LENGTH 512
 
+__attribute__((warn_unused_result))
 /* Gets contents of file and stores it in heap */
-char *get_file_contents(const char *f_name)
+char *
+get_file_contents(const char *f_name)
 {
     FILE *file = fopen(f_name, "r");
     if (file == NULL)
@@ -725,7 +705,7 @@ char *get_file_contents(const char *f_name)
             free(buffer);
             buffer = tmp_buffer;
         }
-    } 
+    }
     buffer[cur_buffer_len] = '\0';
     fclose(file);
     return buffer;

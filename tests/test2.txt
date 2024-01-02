@@ -1,13 +1,7 @@
 
-func unfold(function, n, iteration) {
-    if(iteration == 0) {
-        return n;
-    } else {
-        return unfold(function, function(n), iteration - 1);
-    }
-}
-print(unfold(
-    func (n) {
-        return n + " " + string(n);
-    }, string(1), 4));
+
+let x = "2.23123";
+let y = "3";
+
+print(Number(x)+Number(y));
 

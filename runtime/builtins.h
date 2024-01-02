@@ -24,3 +24,5 @@ RtObject *builtin_print(const RtObject **args, int arg_count);
 RtObject *builtin_println(const RtObject **args, int arg_count);
 RtObject *builtin_toString(const RtObject **args, int arg_count);
 RtObject *builtin_typeof(const RtObject **args, int arg_count);
+RtObject *builtin_input(const RtObject **args, int arg_count);
+RtObject *builtin_toNumber(const RtObject **args, int arg_count);

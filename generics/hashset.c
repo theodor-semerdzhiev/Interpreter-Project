@@ -41,7 +41,8 @@ __attribute__((warn_unused_result))
  * NOTE: If malloc returns NULL, function return NULL
  *
  */
-static Node *_malloc_chain_node(void *data)
+static Node *
+_malloc_chain_node(void *data)
 {
     Node *node = malloc(sizeof(Node));
     if (!node)
@@ -58,7 +59,8 @@ __attribute__((warn_unused_result))
  *
  * NOTE: If malloc returns NULL, function returns NULL
  */
-static ChainList *_malloc_chain_list()
+static ChainList *
+_malloc_chain_list()
 {
     ChainList *list = malloc(sizeof(ChainList));
     if (!list)
@@ -88,7 +90,8 @@ __attribute__((warn_unused_result))
  * 1- is_equal function must return true if both pointers are considered to be equal, false otherwise
  * 2- If malloc error occurs, then function will return NULL
  */
-GenericSet *init_GenericSet(
+GenericSet *
+init_GenericSet(
     bool (*is_equal)(const void *, const void *),
     unsigned int (*hash)(const void *),
     void (*free_data)(void *))
@@ -128,7 +131,7 @@ GenericSet *init_GenericSet(
  * set: GenericSet to query
  * data: data used to query set
  */
-bool set_contains(const GenericSet *set, const void *data)
+bool GenericSet_get(const GenericSet *set, const void *data)
 {
     unsigned int index = set->hash(data) % set->max_buckets;
     // if chain list was not created
@@ -232,7 +235,8 @@ __attribute__((warn_unused_result))
  * NOTE:
  * 'is_equal' function pointer stored inside GenericSet struct is used to find element inside set
  */
-void *GenericSet_remove(GenericSet *set, void *data)
+void *
+GenericSet_remove(GenericSet *set, void *data)
 {
     unsigned int index = set->hash(data) % set->max_buckets;
 
@@ -323,7 +327,7 @@ void GenericSet_free(GenericSet *set, bool free_data)
 /**
  * DESCRIPTION:
  * Removes all elements from input set that return true on the input filter function
- * 
+ *
  * PARAMS:
  * set: GenericSet to filter
  * filter: filter function
@@ -365,8 +369,9 @@ void GenericSet_filter(GenericSet *set, bool (*filter)(void *), bool free_data)
                     if (!node->next)
                         set->buckets[i]->tail = prev;
 
+                    Node *next = node->next;
                     free(node);
-                    node = node->next;
+                    node = next;
                     continue;
                 }
 
@@ -382,15 +387,16 @@ void GenericSet_filter(GenericSet *set, bool (*filter)(void *), bool free_data)
 __attribute__((warn_unused_result))
 /**
  * DESCRIPTION:
- * Aggregates all the elements of a set into a NULL terminated list 
- * 
+ * Aggregates all the elements of a set into a NULL terminated list
+ *
  * PARAMS:
  * set: Generic Set to aggregate
- * 
+ *
  * NOTE:
- * returns NULL, if malloc return NULL 
+ * returns NULL, if malloc return NULL
  * */
-void **GenericSet_to_list(const GenericSet *set)
+void **
+GenericSet_to_list(const GenericSet *set)
 {
     void **list = malloc(sizeof(void *) * (set->size + 1));
     if (!list)

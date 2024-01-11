@@ -42,6 +42,7 @@ typedef enum expression_token_type
     MULT,
     DIV,
     MOD,
+    EXPONENT,
     BITWISE_AND,
     BITWISE_OR,
     BITWISE_XOR,
@@ -307,8 +308,6 @@ ExpressionNode *parse_expression(
 
 bool isOpToken(enum token_type type);
 
-
-
 AST_node *malloc_ast_node(Parser *parser);
 AST_List *malloc_ast_list(Parser *parser);
 void free_ast_list(AST_List *list);
@@ -334,4 +333,3 @@ AST_List *parse_code_block(
     int rec_lvl,
     enum token_type ends_of_exp[],
     const int ends_of_exp_length);
-

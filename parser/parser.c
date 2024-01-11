@@ -41,14 +41,17 @@ void init_Precedence()
     Precedence[SHIFT_LEFT] = 2;
     Precedence[SHIFT_RIGHT] = 2;
 
-    Precedence[LOGICAL_AND] = 3;
-    Precedence[LOGICAL_OR] = 3;
-    
-    Precedence[GREATER_THAN] = 4;
-    Precedence[GREATER_EQUAL] = 4;
-    Precedence[LESSER_THAN] = 4;
-    Precedence[LESSER_EQUAL] = 4;
-    Precedence[EQUAL_TO] = 4;
+    Precedence[EXPONENT] = 3;
+
+    Precedence[LOGICAL_AND] = 4;
+    Precedence[LOGICAL_OR] = 4;
+
+    Precedence[GREATER_THAN] = 5;
+    Precedence[GREATER_EQUAL] = 5;
+    Precedence[LESSER_THAN] = 5;
+    Precedence[LESSER_EQUAL] = 5;
+    Precedence[EQUAL_TO] = 5;
+
 }
 
 /** DESCRIPTION:
@@ -131,7 +134,7 @@ static void skip_recurrent_tokens(Parser *parser, enum token_type type)
 /**
  * DESCRIPTION:
  * Initializes parser struct
- * 
+ *
  * DEFAULTS:
  * error_indicator: false
  * token_list: NULL
@@ -140,10 +143,10 @@ static void skip_recurrent_tokens(Parser *parser, enum token_type type)
  * file_name: NULL
  * ctx: REGULAR_CTX
  * error_handler: NULL
- * 
+ *
  * lines_count: 0
  * lines: NULL
- * 
+ *
  * NOTE:
  * Returns NULL if malloc returns null
  */
@@ -155,7 +158,8 @@ Parser *init_Parser()
     parser->error_indicator = false;
     parser->token_list = NULL;
     parser->memtracker = init_memtracker();
-    if(!parser->memtracker) {
+    if (!parser->memtracker)
+    {
         free(parser);
         return NULL;
     }
@@ -163,8 +167,8 @@ Parser *init_Parser()
     parser->file_name = NULL;
     parser->ctx = REGUALR_CTX;
     parser->error_handler = NULL;
-    parser->lines.line_count=0;
-    parser->lines.lines=NULL;
+    parser->lines.line_count = 0;
+    parser->lines.lines = NULL;
     return parser;
 }
 
@@ -257,7 +261,7 @@ ExpressionComponent *malloc_expression_component(Parser *parser)
     component->sub_component = NULL;
     component->top_component = NULL;
     component->type = -1;
-    component->token_num = parser? parser->token_ptr: -1;
+    component->token_num = parser ? parser->token_ptr : -1;
 
     if (parser)
         push_to_memtracker(parser->memtracker, component, free);
@@ -748,6 +752,7 @@ bool isOpToken(enum token_type type)
     case PLUS_OP:
     case DIV_OP:
     case MOD_OP:
+    case EXPONENT_OP:
     case GREATER_THAN_OP:
     case GREATER_EQUAL_OP:
     case LESSER_THAN_OP:
@@ -771,8 +776,9 @@ bool isOpToken(enum token_type type)
 /**
  * DESCRIPTION:
  * Converts token type to an expression node type
-*/
-static enum expression_token_type convertTokenToOp(enum token_type type) {
+ */
+static enum expression_token_type convertOpTokenToOp(enum token_type type)
+{
     switch (type)
     {
     case MULT_OP:
@@ -785,6 +791,8 @@ static enum expression_token_type convertTokenToOp(enum token_type type) {
         return DIV;
     case MOD_OP:
         return MOD;
+    case EXPONENT_OP:
+        return EXPONENT;
     case GREATER_THAN_OP:
         return GREATER_THAN;
     case GREATER_EQUAL_OP:
@@ -830,19 +838,19 @@ static ExpressionNode *construct_expression_tree(GenericLList *inputList, Generi
 
 /**
  * DESCRIPTION:
- * This function is responsible for parsing infix expressions 
+ * This function is responsible for parsing infix expressions
  * It uses a recursive descent approach where a ordered list of expression components and operators are collected
  * And, from the top-down, the expression is recursively constructed
- * 
+ *
  * PREVARIANT: the parser instance token pointer MUST point to first token of the expression
- * 
- * POSTVARIANT: the parser instance token pointer MUST point to next token AFTER the end of expression token 
- * 
+ *
+ * POSTVARIANT: the parser instance token pointer MUST point to next token AFTER the end of expression token
+ *
  * PARAMS:
  * parser: instance of the parser
  * ends_of_exp: the list of possible tokens that represent then end of the expression
- * ends_of_exp_length: the length of the array above 
-*/
+ * ends_of_exp_length: the length of the array above
+ */
 ExpressionNode *parse_expression(
     Parser *parser,
     const enum token_type ends_of_exp[],
@@ -864,10 +872,12 @@ ExpressionNode *parse_expression(
         return NULL;
     }
 
-    GenericLList *inputList = init_GenericLList(NULL,free);
-    if(!inputList) stop_parsing(parser);
-    GenericLList *opList = init_GenericLList(NULL,free);
-    if(!opList) {
+    GenericLList *inputList = init_GenericLList(NULL, free);
+    if (!inputList)
+        stop_parsing(parser);
+    GenericLList *opList = init_GenericLList(NULL, free);
+    if (!opList)
+    {
         _free_LList(inputList);
         stop_parsing(parser);
     }
@@ -881,7 +891,7 @@ ExpressionNode *parse_expression(
         !endOfExp(list[parser->token_ptr]->type))
     {
         bool is_mult_minus_1 = false; // handles numeric negation like -(10 +20)
-        bool is_exp_negated = false; // handles ! logical not operator
+        bool is_exp_negated = false;  // handles ! logical not operator
 
         // handles multiple negation operator (i.e '!')
         while (list[parser->token_ptr]->type == MINUS_OP)
@@ -900,56 +910,62 @@ ExpressionNode *parse_expression(
         ExpressionNode *leaf = NULL;
 
         // Case 1: Sub Expression
-        if(list[parser->token_ptr]->type == OPEN_PARENTHESIS) {
+        if (list[parser->token_ptr]->type == OPEN_PARENTHESIS)
+        {
             parser->token_ptr++;
             enum token_type end_of_exp[] = {CLOSING_PARENTHESIS};
             leaf = parse_expression(parser, end_of_exp, 1);
 
-        // Case 2: Expression component
-        } else if(is_preliminary_expression_token(list[parser->token_ptr])){
+            // Case 2: Expression component
+        }
+        else if (is_preliminary_expression_token(list[parser->token_ptr]))
+        {
 
-            ExpressionComponent *exp_component =  parse_expression_component(parser, NULL, 0);
+            ExpressionComponent *exp_component = parse_expression_component(parser, NULL, 0);
             leaf = malloc_expression_node(parser);
-            leaf->type=VALUE;
+            leaf->type = VALUE;
             leaf->component = exp_component;
 
-        // we do not have a valid expression component  
-        } else {
+            // we do not have a valid expression component
+        }
+        else
+        {
 
-            print_missing_exp_component_err(parser, 
-            "Unexpected end of expression. Expected expression component.");
+            print_missing_exp_component_err(parser,
+                                            "Unexpected end of expression. Expected expression component.");
             stop_parsing(parser);
             return NULL;
         }
 
         // handles numerical negation by multiplying by -1
-        if(is_mult_minus_1) {
+        if (is_mult_minus_1)
+        {
             ExpressionNode *negative_1 = malloc_expression_node(parser);
             negative_1->type = VALUE;
-            negative_1->component=malloc_expression_component(parser);
+            negative_1->component = malloc_expression_component(parser);
             negative_1->component->type = NUMERIC_CONSTANT;
-            negative_1->component->meta_data.numeric_const=-1;
+            negative_1->component->meta_data.numeric_const = -1;
 
             ExpressionNode *mult_node = malloc_expression_node(parser);
             mult_node->type = MULT;
-            mult_node->LHS=leaf;
-            mult_node->RHS=negative_1;
+            mult_node->LHS = leaf;
+            mult_node->RHS = negative_1;
             leaf = mult_node;
         }
 
-
         // if encounter a end of file token, means an error
-        if (list[parser->token_ptr]->type == END_OF_FILE) {
+        if (list[parser->token_ptr]->type == END_OF_FILE)
+        {
             print_unexpected_end_of_file_err(parser, NULL);
             stop_parsing(parser);
         }
 
-        leaf->negation=is_exp_negated;
+        leaf->negation = is_exp_negated;
 
         // adds Expression node to input list
         GenericLList_addLast(inputList, leaf);
 
-        // if we encounter a end of expression after expression component, 
+        // if we encounter a end of expression after expression component,
         // then it MUST be the end of the expression
         if (endOfExp(list[parser->token_ptr]->type))
             break;
@@ -961,7 +977,7 @@ ExpressionNode *parse_expression(
         if (isOpToken(list[parser->token_ptr]->type))
         {
             oproot = malloc_expression_node(parser);
-            oproot->type = convertTokenToOp(list[parser->token_ptr]->type);
+            oproot->type = convertOpTokenToOp(list[parser->token_ptr]->type);
             parser->token_ptr++;
         }
         else
@@ -972,9 +988,8 @@ ExpressionNode *parse_expression(
             return NULL;
         }
 
-        //adds operator to list
+        // adds operator to list
         GenericLList_addLast(opList, oproot);
-
 
         if (list[parser->token_ptr]->type == END_OF_FILE)
         {
@@ -985,9 +1000,10 @@ ExpressionNode *parse_expression(
 
         // an operator MUST be followed by an other expression component
         // or a minus sign, if its a negative number
-        if(!is_preliminary_expression_token(list[parser->token_ptr]) && 
+        if (!is_preliminary_expression_token(list[parser->token_ptr]) &&
             list[parser->token_ptr]->type != LOGICAL_NOT_OP &&
-            list[parser->token_ptr]->type != MINUS_OP) {
+            list[parser->token_ptr]->type != MINUS_OP)
+        {
             parser->error_indicator = true;
             print_missing_exp_component_err(
                 parser,
@@ -995,7 +1011,7 @@ ExpressionNode *parse_expression(
             stop_parsing(parser);
         }
     }
-    
+
     // If we encounter a end of file token mid expression, this is NOT valid expression
     if (list[parser->token_ptr]->type == END_OF_FILE)
     {
@@ -1010,7 +1026,7 @@ ExpressionNode *parse_expression(
      * ASSUMPTIONS:
      * If we got to this point, then we should have a valid expression
      * Therefor, # of operators = # number of leafs  - 1
-    */
+     */
 
     // Using the operator Stack and input List, we recursively construct the tree
     ExpressionNode *root = construct_expression_tree(inputList, opList);
@@ -1024,79 +1040,81 @@ ExpressionNode *parse_expression(
 
 /**
  * DESCRIPTION:
- * This a type of recursive descent parser for constructing the expression tree from the list of operands (operators) and inputs (i.e expression components), 
- * properly ordered by position in the expression 
+ * This a type of recursive descent parser for constructing the expression tree from the list of operands (operators) and inputs (i.e expression components),
+ * properly ordered by position in the expression
  * Example: (A * B + C) ==> Inputs: [A,B,C], Operands: [*, +]
- * 
- * The algorithm relies on the following invariant: 
+ *
+ * The algorithm relies on the following invariant:
  *      length of inputList - 1 = length of opStack
- * 
+ *
  * This is true for any valid expression, i.e the number of operators == the number of inputs - 1
  * For each recursive case, given the initial inputs are valid, this invariant is always maintained
  * Proof: Case 3,4 both pop an equal number of elements from input and operator lists
- * 
+ *
  * When the algorithm reaches a base case, # of inputs popped = # of outputs popped + 1
  * Thereby, making sure both lists are empty after the termination of the alg
- * 
+ *
  * The correctness of this alg can self evidently be proved by induction
- * 
+ *
  * PARAMS:
  * inputList: Properly ordered Linked list of all inputs to an expression (act as leafs)
- * opList: Properly ordered Linked list of all operators to an expression 
- * 
-*/
-static ExpressionNode *construct_expression_tree(GenericLList *inputList, GenericLList *opList) {
+ * opList: Properly ordered Linked list of all operators to an expression
+ *
+ */
+static ExpressionNode *construct_expression_tree(GenericLList *inputList, GenericLList *opList)
+{
     assert(inputList && opList);
     assert(inputList->length - 1 == opList->length);
 
-    ExpressionNode *operator = (ExpressionNode *)GenericLList_popFirst(opList, false);
-    const ExpressionNode *next_operator = (ExpressionNode*) GenericLList_head(opList);
-    
+    ExpressionNode *operator=(ExpressionNode *) GenericLList_popFirst(opList, false);
+    const ExpressionNode *next_operator = (ExpressionNode *)GenericLList_head(opList);
+
     // Bases Cases
 
     // Case 1: Expression is a single expression component with no operators
-    if(!operator) {
-        return (ExpressionNode*) GenericLList_popFirst(inputList, false);
+    if (!operator)
+    {
+        return (ExpressionNode *)GenericLList_popFirst(inputList, false);
     }
 
     // Case 2: Expression is of the following format (A [op] B)
-    if(!next_operator) {
-        operator->LHS = (ExpressionNode*) GenericLList_popFirst(inputList, false);
-        operator->RHS = (ExpressionNode*) GenericLList_popFirst(inputList, false);
+    if (!next_operator)
+    {
+        operator->LHS =(ExpressionNode *) GenericLList_popFirst(inputList, false);
+        operator->RHS =(ExpressionNode *) GenericLList_popFirst(inputList, false);
 
         return operator;
     }
 
     // Recursive cases
 
-    // Case 3: Expression as the following structure A [op1] B [op2] C, 
+    // Case 3: Expression as the following structure A [op1] B [op2] C,
     // where op1 > op2 in terms of precedence and A,B,C are leafs or sub expressions
-    // Therefor current operator (op1) takes the first 2 expression components (A, B) as its children, 
+    // Therefor current operator (op1) takes the first 2 expression components (A, B) as its children,
     // And then the next operator (op2) becomes the parent of current one (op1), and the rest of the expression (C)
-    if(precedence(operator->type) >= precedence(next_operator->type)) {    
-        operator->LHS = (ExpressionNode*) GenericLList_popFirst(inputList, false);
-        operator->RHS = (ExpressionNode*) GenericLList_popFirst(inputList, false);
-    
+    if (precedence(operator->type) >= precedence(next_operator->type))
+    {
+        operator->LHS =(ExpressionNode *) GenericLList_popFirst(inputList, false);
+        operator->RHS =(ExpressionNode *) GenericLList_popFirst(inputList, false);
+
         ExpressionNode *next = (ExpressionNode *)GenericLList_popFirst(opList, false);
         next->LHS = operator;
         next->RHS = construct_expression_tree(inputList, opList);
         return next;
-        
 
-    // Case 4: Expression as the following structure: A [op1] B [op2] C, 
-    // where op1 <= op2 in terms of precedence and A,B,C are leafs or sub expressions
-    // Therefor, current operator (op1) takes the first expression components(A) as its left child
-    // and the sub expression (B [op2] C), as its right node
-    } else {
-        
-        operator->LHS = (ExpressionNode*) GenericLList_popFirst(inputList, false);
+        // Case 4: Expression as the following structure: A [op1] B [op2] C,
+        // where op1 <= op2 in terms of precedence and A,B,C are leafs or sub expressions
+        // Therefor, current operator (op1) takes the first expression components(A) as its left child
+        // and the sub expression (B [op2] C), as its right node
+    }
+    else
+    {
+
+        operator->LHS =(ExpressionNode *) GenericLList_popFirst(inputList, false);
         operator->RHS = construct_expression_tree(inputList, opList);
         return operator;
-        
     }
-
 }
-
 
 /* Mallocs abstract syntac tree node */
 AST_node *malloc_ast_node(Parser *parser)
@@ -1341,7 +1359,6 @@ AST_node *parse_variable_declaration(Parser *parser, int rec_lvl __attribute__((
     enum token_type end_of_exp[] = {SEMI_COLON};
     // node->ast_data.exp = parse_expression(parser, NULL, NULL, end_of_exp, 1);
     node->ast_data.exp = parse_expression(parser, end_of_exp, 1);
-
 
     skip_recurrent_tokens(parser, end_of_exp[0]);
     return node;

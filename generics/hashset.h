@@ -22,7 +22,7 @@ GenericSet *init_GenericSet(
     unsigned int (*hash)(const void *),
     void (*free_data)(void *));
 
-bool set_contains(const GenericSet *set, const void *data);
+bool GenericSet_get(const GenericSet *set, const void *data);
 void *GenericSet_insert(GenericSet *set, void *data, bool free_duplicate_data);
 void *GenericSet_remove(GenericSet *set, void *data);
 void GenericSet_free(GenericSet *set, bool free_data);

@@ -130,6 +130,22 @@ unsigned int hash_int(const int *integer)
 
 /**
  * DESCRIPTION:
+ * Hash function for raw pointers
+ * 
+ * PARAMS:
+ * ptr: pointer to hash
+*/
+unsigned int hash_pointer(const void* ptr) {
+    uintptr_t uintptr = (uintptr_t)ptr;
+    uintptr_t hash = uintptr;
+    hash ^= (hash >> 21);
+    hash ^= (hash << 37);
+    hash ^= (hash >> 4);
+    return (unsigned int)hash;
+}
+
+/**
+ * DESCRIPTION:
  * Function for checking if two strings are equal
  *
  * PARAMS:

@@ -67,14 +67,29 @@ typedef enum OpCode
 
     // Terminates program, exit code is fetched from the top of the stack
     EXIT_PROGRAM,
-    /*
-    Jumps the program counter to a position relative to its current one
-    if popped value from stack evals to true
-    */
-    OFFSET_JUMP_IF_TRUE,
 
-    /* If popped value from stack evals to false */
-    OFFSET_JUMP_IF_FALSE,
+    /**
+     * Jumps the program counter to a position relative to its current one
+     * if popped value from stack evals to true,
+     * It will always pop the stack machine
+     */
+    OFFSET_JUMP_IF_TRUE_POP,
+
+    /**
+     * If popped value from stack evals to false, we perform jump
+     * It will always pop the stack machine
+     * */
+    OFFSET_JUMP_IF_FALSE_POP,
+
+    /**
+     * Exactly the same as OFFSET_JUMP_IF_TRUE_POP, but does not pop the stack machine
+     * */
+    OFFSET_JUMP_IF_FALSE_NOPOP,
+
+    /**
+     * Exactly the same as OFFSET_JUMP_IF_TRUE_POP, but does not pop the stack machine
+     * */
+    OFFSET_JUMP_IF_TRUE_NOPOP,
 
     /* Pops computation stack */
     POP_STACK,
@@ -93,6 +108,7 @@ typedef enum OpCode
     MULT_VARS_OP,          // stack [n] * stack [n-1]
     DIV_VARS_OP,           // stack [n] / stack [n-1]
     MOD_VARS_OP,           // stack [n] % stack [n-1]
+    EXP_VARS_OP,           // stack [n] ** stack [n-1]
     BITWISE_VARS_AND_OP,   // stack [n] & stack [n-1]
     BITWISE_VARS_OR_OP,    // stack [n] | stack [n-1]
     BITWISE_XOR_VARS_OP,   // stack [n] ^ stack [n-1]
@@ -114,7 +130,6 @@ typedef enum OpCode
 
 } OpCode;
 
-
 /* Struct representing a single Bytecode instruction */
 typedef struct ByteCode
 {
@@ -126,12 +141,22 @@ typedef struct ByteCode
         struct
         {
             int offset;
-        } OFFSET_JUMP_IF_FALSE;
+        } OFFSET_JUMP_IF_FALSE_POP;
 
         struct
         {
             int offset;
-        } OFFSET_JUMP_IF_TRUE;
+        } OFFSET_JUMP_IF_TRUE_POP;
+
+        struct
+        {
+            int offset;
+        } OFFSET_JUMP_IF_FALSE_NOPOP;
+
+        struct
+        {
+            int offset;
+        } OFFSET_JUMP_IF_TRUE_NOPOP;
 
         /* Used any sort of program counter jump */
         struct
@@ -139,8 +164,9 @@ typedef struct ByteCode
             int offset;
         } OFFSET_JUMP;
 
-        struct {
-            char* var;
+        struct
+        {
+            char *var;
         } DEREF_VAR;
 
         struct

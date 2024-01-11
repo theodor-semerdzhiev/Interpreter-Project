@@ -89,14 +89,19 @@ typedef struct RtObject
     bool mark; // used for garbage collector
 } RtObject;
 
+
 RtObject *init_RtObject(RtType type);
+
 char *RtObject_to_String(const RtObject *obj);
 const char *obj_type_toString(const RtObject *obj);
 RtObject *multiply_objs(RtObject *obj1, RtObject *obj2);
+
+
 RtObject *add_objs(RtObject *obj1, RtObject *obj2);
 RtObject *substract_objs(RtObject *obj1, RtObject *obj2);
 RtObject *divide_objs(RtObject *obj1, RtObject *obj2);
 RtObject *modulus_objs(RtObject *obj1, RtObject *obj2);
+RtObject *exponentiate_obj(RtObject *base, RtObject *exponent);
 RtObject *bitwise_and_objs(RtObject *obj1, RtObject *obj2);
 RtObject *bitwise_or_objs(RtObject *obj1, RtObject *obj2);
 RtObject *bitwise_xor_objs(RtObject *obj1, RtObject *obj2);

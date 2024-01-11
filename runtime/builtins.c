@@ -24,9 +24,9 @@ static GenericMap *builtin_map = NULL;
 static const Builtin _builtin_print = {"print", builtin_print, -1};
 static const Builtin _builtin_println = {"println", builtin_println, -1};
 static const Builtin _builtin_string = {"Str", builtin_toString, -1};
-static const Builtin _builtin_typeof = {"Typeof", builtin_typeof, 1};
+static const Builtin _builtin_typeof = {"typeof", builtin_typeof, 1};
 static const Builtin _builtin_input = {"input", builtin_input, 1};
-static const Builtin _builtin_number = {"Number", builtin_toNumber, 1};
+static const Builtin _builtin_number = {"Num", builtin_toNumber, 1};
 
 /**
  * Defines equality for built in functions
@@ -126,7 +126,10 @@ RtObject *builtin_print(const RtObject **args, int arg_count)
     for (int i = 0; i < arg_count; i++)
     {
         char *str = RtObject_to_String(args[i]);
-        printf("%s ", str);
+        if(i + 1 == arg_count) 
+            printf("%s", str);
+        else
+            printf("%s ", str);
         free(str);
     }
 
@@ -163,6 +166,7 @@ RtObject *builtin_toString(const RtObject **args, int arg_count)
     {
         char *tmp = RtObject_to_String(args[i]);
         char *new_str = malloc(sizeof(char) * (strlen(tmp) + strlen(str) + 1));
+        new_str[0]='\0';
         strcat(new_str, tmp);
         strcat(new_str, str);
         new_str[strlen(tmp) + strlen(str)] = '\0';
@@ -226,6 +230,7 @@ RtObject *builtin_input(const RtObject **args, int arg_count) {
         buffer[strlen(buffer)-1]='\0'; // removes newline char
         RtObject *input = init_RtObject(STRING_TYPE);
         input->data.String.string=cpy_string(buffer);
+        input->data.String.string_length=strlen(buffer);
         return input;
     } else {
         printf("Error reading input \n");

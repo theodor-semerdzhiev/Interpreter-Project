@@ -176,7 +176,7 @@ static void *remove_element_from_chain(GenericMap *map, void *key, ChainingList 
  * Helper for resizing Buckets array, by factor of 2, when the number of elements in the map as become too large
  * Returns the map itself
  * 
- * Parameters:
+ * PARAMS:
  * map: HashMap to resize 
  * 
  * NOTE: returns NULL if memory error occurs

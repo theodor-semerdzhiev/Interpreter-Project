@@ -7,7 +7,7 @@
 #include "../compiler/compiler.h"
 #include "builtins.h"
 #include "runtime.h"
-
+#include "gc.h"
 
 /**
  * DESCRIPTION:
@@ -17,6 +17,8 @@
  * - Computation Stack
  *
  */
+
+static RunTime *env;
 
 /**
  * DESCRIPTION:
@@ -159,6 +161,11 @@ RtObject *IdentifierTable_get(IdentTable *table, const char *key)
     Identifier *node = table->buckets[index];
     while (node)
     {
+        // if (strings_equal(node->key, "fib") && strings_equal(key, "fib"))
+        // {
+        //     printf("GET %d: %s\n", env->stack_ptr, obj_type_toString(node->obj));
+        // }
+
         if (strings_equal(node->key, key))
             return node->obj;
         node = node->next;
@@ -183,6 +190,36 @@ bool IdentifierTable_contains(IdentTable *table, const char *key)
         node = node->next;
     }
     return false;
+}
+
+/**
+ * DESCRIPTION:
+ * Takes all elements of the table and puts them in a list (NULL terminated)
+ *
+ * NOTE:
+ * Function returns NULL if malloc fails
+ */
+RtObject **IdentifierTable_to_list(IdentTable *table)
+{
+    RtObject **list = malloc(sizeof(RtObject *) * (table->size + 1));
+    if (!list)
+        return NULL;
+
+    unsigned int count = 0;
+    for (int i = 0; i < table->bucket_count; i++)
+    {
+        if (!table->buckets[i])
+            continue;
+
+        Identifier *ptr = table->buckets[i];
+        while (ptr)
+        {
+            list[count++] = ptr->obj;
+            ptr = ptr->next;
+        }
+    }
+    list[table->size] = NULL;
+    return list;
 }
 
 /**
@@ -312,6 +349,9 @@ RtObject *StackMachine_pop(StackMachine *stk_machine, bool dispose)
 RtObject *StackMachine_push(StackMachine *stk_machine, RtObject *obj, bool dispose)
 {
     assert(stk_machine);
+    // printf("%d, %s\n", env->stack_ptr, obj_type_toString(obj));
+    if(obj->type == UNDEFINED_TYPE) 
+    1;
     StkMachineNode *node = init_StkMachineNode(obj, dispose);
     if (!node)
         return NULL;
@@ -352,14 +392,17 @@ void free_StackMachine(StackMachine *stk_machine, bool free_rtobj)
 static RunTime *env = NULL;
 
 /* Stores call stack */
-CallFrame *callStack[MAX_STACK_SIZE] = {NULL};
+static CallFrame *callStack[MAX_STACK_SIZE] = {NULL};
 
 /* Flag for storing current status of runtime environment */
 static bool Runtime_active = false;
 
 #define disposable() env->stk_machine->head->dispose
 #define StackMachine env->stk_machine
-#define CurrentStackFrame callStack[env->stack_ptr];
+
+/* Returns Top Object on the stack */
+#define TopStkMachineObject() env->stk_machine->head->obj
+#define CurrentStackFrame() callStack[env->stack_ptr]
 
 /**
  * Returns wether Runtime environment is currently running
@@ -369,14 +412,22 @@ bool isRuntimeActive()
     return Runtime_active;
 }
 
+int getCallStackPointer()
+{
+    assert(env);
+    return env->stack_ptr;
+}
+
+CallFrame **getCallStack()
+{
+    return callStack;
+}
+
 /**
  * Gets the Current StackFrame pointed to by the stack ptr
  */
 
-CallFrame *getCurrentStackFrame()
-{
-    return callStack[env->stack_ptr];
-}
+CallFrame *getCurrentStackFrame() { return callStack[env->stack_ptr]; }
 
 /**
  * Lookups variable in lookup table
@@ -421,6 +472,7 @@ CallFrame *init_CallFrame(ByteCodeList *program, RtObject *function)
 void free_CallFrame(CallFrame *call, bool free_rtobj)
 {
     free_IdentifierTable(call->lookup, free_rtobj);
+
     free(call);
 }
 
@@ -436,7 +488,7 @@ RunTime *init_RunTime()
         return NULL;
     }
     runtime->stack_ptr = -1;
-    Runtime_active=true;
+    Runtime_active = true;
 
     // creates stack machine
     runtime->stk_machine = init_StackMachine();
@@ -489,10 +541,29 @@ int prep_runtime_env(ByteCodeList *code)
 {
     env = init_RunTime();
     RunTime_push_callframe(init_CallFrame(code, NULL));
+    init_GarbageCollector();
 
     return env ? 1 : 0;
 }
 
+/**
+ * DESCRIPTION:
+ * This function is helper function for disposing objects,
+ * if the object is disposable, then its freed, otherwise, if its NOT disposable
+ * it must continue to live in the runtime, therefor its added to GC registry
+ *
+ * PARAMS:
+ * obj: runtime object
+ * disposable: wether object should be disposed or not
+ */
+static void dispose_disposable_obj(RtObject *obj, bool disposable)
+{
+    // frees Objects if they are disposable
+    if (disposable)
+        free_RtObject(obj, false);
+    else
+        add_to_GC_registry(obj);
+}
 /**
  * Helper function for performing primitive arithmetic operations (+, *, /, -, %, >>, <<)
  */
@@ -508,15 +579,15 @@ static void perform_binary_operation(
 
     StackMachine_push(StackMachine, op_function(intermediate2, intermediate1), true);
 
-    // frees Objects if they are disposable
-    if (free_interm_1)
-        free_RtObject(intermediate1, false);
-    if (free_interm_2)
-        free_RtObject(intermediate2, false);
+    dispose_disposable_obj(intermediate1, free_interm_1);
+    dispose_disposable_obj(intermediate2, free_interm_2);
 }
 
 /**
- * Helper function for performing logic for mutating variables
+ * DESCRIPTION:
+ * Helper function for variable mutations
+ * 
+ * 
  */
 static void perform_var_mutation()
 {
@@ -524,28 +595,38 @@ static void perform_var_mutation()
     bool new_val_disposable = disposable();
     RtObject *new_val = StackMachine_pop(env->stk_machine, false);
     bool mutable_disposable = disposable();
-    RtObject *mutable = StackMachine_pop(env->stk_machine, false);
+    RtObject *old_val = StackMachine_pop(env->stk_machine, false);
 
-    // if the new_val is disposable, then it will be freed
-    // Therefor, a deep cpy mutation must performed
-    mutate_obj(mutable, new_val, new_val_disposable);
+    // mutates data
+    // if new_val is disposable, then a deep cpy is created, since new_val will be freed
+    mutate_obj(old_val, new_val, new_val_disposable);
 
-    if (new_val_disposable)
-        free_RtObject(new_val, false);
-    if (mutable_disposable)
-        free_RtObject(mutable, false);
+    // Makes sure new_val is either disposed or put into the GC registry
+    // which it should already be if its not disposable
+    dispose_disposable_obj(new_val, new_val_disposable);
+
+    // makes sure old_val is put into the GC registry, (it should already be in it)
+    add_to_GC_registry(old_val);
 }
 
 /**
+ * DESCRIPTION:
  * Helper function for performing conditional jumps
+ *
+ * PARAMS:
  * offset: offset that will be jumped
- * condition: wether should eval to true or false for jump to occure
+ * condition: wether should eval to true or false for jump to occur
+ * pop_stk: wether object should be popped from stack machine or not
  */
-static void perform_conditional_jump(int offset, bool condition)
+static void perform_conditional_jump(int offset, bool condition, bool pop_stk)
 {
     CallFrame *frame = getCurrentStackFrame();
     bool dispose = disposable();
-    RtObject *obj = StackMachine_pop(env->stk_machine, false);
+    RtObject *obj;
+    if (pop_stk)
+        obj = StackMachine_pop(env->stk_machine, false);
+    else
+        obj = TopStkMachineObject();
 
     // preforms jump if condition is met
     if (eval_obj(obj) == condition)
@@ -553,9 +634,7 @@ static void perform_conditional_jump(int offset, bool condition)
     else
         frame->pg_counter++;
 
-    // frees object if its disposable
-    if (dispose)
-        free_RtObject(obj, false);
+    dispose_disposable_obj(obj, dispose);
 }
 
 /**
@@ -580,7 +659,7 @@ static void perform_create_function(RtObject *function)
         func->data.Function.func_data.user_func.closure_obj = closures;
     }
 
-    // Function Object can be disposable, since function data (stuff embedded within the bytecode) 
+    // Function Object can be disposable, since function data (stuff embedded within the bytecode)
     // is never freed
     StackMachine_push(StackMachine, func, true);
 }
@@ -601,10 +680,8 @@ static int perform_exit()
     }
 
     int return_code = (int)obj->data.Number.number;
-    if (dispose)
-    {
-        free_RtObject(obj, false);
-    }
+    dispose_disposable_obj(obj, dispose);
+    free_CallFrame(RunTime_pop_callframe(), false);
 
     return return_code;
 }
@@ -622,12 +699,17 @@ CallFrame *perform_function_call(int arg_count)
 
     // gets the arguments
     RtObject *arguments[arg_count];
-    // bool dispose_arg[arg_count];
-    for (int i = arg_count - 1; i >= 0; i--) {
-        // dispose_arg[i] = disposable();
-        arguments[i] = StackMachine_pop(env->stk_machine, false);
-    }
 
+    bool disposable[arg_count];
+    // adds arguments to registry
+    for (int i = arg_count - 1; i >= 0; i--)
+    {
+        disposable[i] = disposable();
+        arguments[i] = StackMachine_pop(env->stk_machine, false);
+        if (!disposable[i])
+            add_to_GC_registry(arguments[i]);
+    }
+    
     bool func_disposable = disposable();
     RtObject *func = StackMachine_pop(env->stk_machine, false);
 
@@ -640,37 +722,31 @@ CallFrame *perform_function_call(int arg_count)
     }
 
     // temporary for now
-    if(env->stack_ptr >= MAX_STACK_SIZE && !func->data.Function.is_builtin) {
+    if (env->stack_ptr >= MAX_STACK_SIZE - 1 && !func->data.Function.is_builtin)
+    {
 
-        printf("Stack Overflow Error when calling function '%s' \n", 
-        func->data.Function.func_data.user_func.func_name);
+        printf("Stack Overflow Error when calling function '%s' \n",
+               func->data.Function.func_data.user_func.func_name);
         exit(2);
         return NULL;
     }
 
     CallFrame *new_frame = NULL;
+
     // built in function
     if (func->data.Function.is_builtin)
     {
         perform_builtin_call(func, arguments, arg_count);
-
-        // regular function
+        for (int i = 0; i < arg_count; i++)
+            dispose_disposable_obj(arguments[i], disposable[i]);
     }
     else
     {
         new_frame = perform_regular_func_call(func, arguments, arg_count);
     }
 
-    // frees function if its disposable
-    if (func_disposable)
-        free_RtObject(func, false);
-    
-    // frees function objects if disposable
-    // for(int i=0 ; i <arg_count; i++) {
-    //     if(dispose_arg[i]) free_RtObject(arguments[i], false);
-    // }
+    dispose_disposable_obj(func, func_disposable);
 
-    
     return new_frame;
 }
 
@@ -712,11 +788,15 @@ static CallFrame *perform_regular_func_call(RtObject *function, RtObject **argum
     if (!function->data.Function.is_builtin &&
         function->data.Function.func_data.user_func.arg_count != arg_count)
     {
-        printf("Function expected %d arguments, but got %d\n", function->data.Function.func_data.user_func.arg_count, arg_count);
+        printf("Function '%s' expected %d arguments, but got %d\n", 
+        function->data.Function.func_data.user_func.func_name,
+        function->data.Function.func_data.user_func.arg_count, 
+        arg_count);
         return NULL;
     }
 
     CallFrame *new_frame = init_CallFrame(function->data.Function.func_data.user_func.body, function);
+
     // adds function arguments to lookup table and ref list
     for (int i = 0; i < arg_count; i++)
     {
@@ -724,8 +804,6 @@ static CallFrame *perform_regular_func_call(RtObject *function, RtObject **argum
             new_frame->lookup,
             function->data.Function.func_data.user_func.args[i],
             arguments[i]);
-
-        // add_ref(func, arguments[i]);
     }
 
     // adds closure variables
@@ -734,16 +812,22 @@ static CallFrame *perform_regular_func_call(RtObject *function, RtObject **argum
         Identifier_Table_add_var(
             new_frame->lookup,
             function->data.Function.func_data.user_func.closures[i],
-            function->data.Function.func_data.user_func.closure_obj[i]);
+            // lookup_variable(function->data.Function.func_data.user_func.func_name)
+            function->data.Function.func_data.user_func.closure_obj[i]
+            );
     }
 
-    // adds function definition to lookup (to allow recursion), if applicable, 
+    // adds function definition to lookup (to allow recursion)
     // thats why we perform a shallow copy
     if (function->data.Function.func_data.user_func.func_name)
+    {
+        RtObject *cpy_func = deep_cpy_rtobject(function);
         Identifier_Table_add_var(
             new_frame->lookup,
             function->data.Function.func_data.user_func.func_name,
-            shallow_cpy_rtobject(function));
+            cpy_func);
+        add_to_GC_registry(cpy_func);
+    }
 
     // add new call frame to call stack
     RunTime_push_callframe(new_frame);
@@ -755,21 +839,23 @@ static CallFrame *perform_regular_func_call(RtObject *function, RtObject **argum
 
 /**
  * Performs a logic for creating variables
-*/
-void perform_create_var(char *varname) {
+ */
+void perform_create_var(char *varname)
+{
     bool disposable = disposable();
     RtObject *new_val = StackMachine_pop(StackMachine, false);
     CallFrame *frame = getCurrentStackFrame();
-    Identifier_Table_add_var(
-        frame->lookup,
-        varname,
-        // If its disposable, then object associated data will be freed
-        // leading to double free error, therefor we create deep cope
-        // otherwise its not problem
-        disposable ? deep_cpy_rtobject(new_val) : shallow_cpy_rtobject(new_val));
 
+    RtObject *cpy;
     if (disposable)
-        free_RtObject(new_val, false);
+        cpy = new_val;
+    else
+        cpy = shallow_cpy_rtobject(new_val);
+
+    Identifier_Table_add_var(frame->lookup, varname, cpy);
+
+    // if(!disposable)
+    add_to_GC_registry(cpy);
 }
 
 int run_program()
@@ -821,6 +907,12 @@ int run_program()
             case MOD_VARS_OP:
             {
                 perform_binary_operation(modulus_objs);
+                break;
+            }
+
+            case EXP_VARS_OP:
+            {
+                perform_binary_operation(exponentiate_obj);
                 break;
             }
 
@@ -910,8 +1002,10 @@ int run_program()
 
             case LOAD_VAR:
             {
+                RtObject *var = lookup_variable(code->data.LOAD_VAR.variable);
+                assert(var);
                 // looked up variables are always
-                StackMachine_push(StackMachine, lookup_variable(code->data.LOAD_VAR.variable), false);
+                StackMachine_push(StackMachine, var, false);
                 break;
             }
 
@@ -941,21 +1035,33 @@ int run_program()
                 break;
             }
 
-            case OFFSET_JUMP_IF_FALSE:
+            case OFFSET_JUMP_IF_FALSE_POP:
             {
-                perform_conditional_jump(code->data.OFFSET_JUMP_IF_FALSE.offset, false);
+                perform_conditional_jump(code->data.OFFSET_JUMP_IF_FALSE_POP.offset, false, true);
                 continue;
             }
 
-            case OFFSET_JUMP_IF_TRUE:
+            case OFFSET_JUMP_IF_TRUE_POP:
             {
-                perform_conditional_jump(code->data.OFFSET_JUMP_IF_FALSE.offset, true);
+                perform_conditional_jump(code->data.OFFSET_JUMP_IF_TRUE_POP.offset, true, true);
+                continue;
+            }
+
+            case OFFSET_JUMP_IF_FALSE_NOPOP:
+            {
+                perform_conditional_jump(code->data.OFFSET_JUMP_IF_FALSE_NOPOP.offset, false, false);
+                continue;
+            }
+
+            case OFFSET_JUMP_IF_TRUE_NOPOP:
+            {
+                perform_conditional_jump(code->data.OFFSET_JUMP_IF_TRUE_NOPOP.offset, true, false);
                 continue;
             }
 
             case OFFSET_JUMP:
             {
-                getCurrentStackFrame()->pg_counter += code->data.OFFSET_JUMP.offset;
+                CurrentStackFrame()->pg_counter += code->data.OFFSET_JUMP.offset;
                 continue;
             }
 
@@ -978,6 +1084,7 @@ int run_program()
             // any return value, if present, will be on the stack already
             case FUNCTION_RETURN:
             {
+                assert(TopStkMachineObject());
                 free_CallFrame(RunTime_pop_callframe(), false);
                 loop = false;
                 getCurrentStackFrame()->pg_counter++;
@@ -1000,9 +1107,6 @@ int run_program()
                 // .
                 //
                 //
-
-            default:
-                break;
             }
 
             if (!loop)
@@ -1027,5 +1131,6 @@ void perform_cleanup()
     }
 
     cleanup_builtin();
+    cleanup_GarbageCollector();
     Runtime_active = false;
 }

@@ -6,8 +6,6 @@ enum token_type
 {
     // Misc
     UNDEFINED,
-    WHITESPACE,
-    HASHTAG,
 
     ///////////////
     /* 'Special Tokens' */
@@ -39,6 +37,8 @@ enum token_type
     BITWISE_AND_OP, // &
     BITWISE_OR_OP,  // |
     BITWISE_XOR_OP, // ^
+
+    EXPONENT_OP, // **
 
     // BOOLS
     LOGICAL_AND_OP,   // &&
@@ -77,7 +77,6 @@ typedef struct token_array_list
 } TokenList;
 /////////////////////////////////
 
-
 // TODO
 /* Top Level struct for lexer */
 typedef struct lexer
@@ -91,7 +90,7 @@ typedef struct lexer
     int prev_pos;
 
     int cur_line; // tracks current line
-    int cur_pos; // tracks current position on said line
+    int cur_pos;  // tracks current position on said line
 
 } Lexer;
 
@@ -124,8 +123,7 @@ Token *malloc_token_struct(
 
 /* Miscellaneous */
 char *get_file_contents(const char *f_name);
-char** tokenize_str_by_seperators(const char* input, const char sep, int *line_count);
+char **tokenize_str_by_seperators(const char *input, const char sep, int *line_count);
 char *malloc_substring(char *g, int start, int end);
-char** cpy_2D_string_arr(char** strs, int strs_length);
+char **cpy_2D_string_arr(char **strs, int strs_length);
 /****************************************/
-

@@ -2,8 +2,11 @@
 func pow(x,n) {
     if(n == 0) {
         return 1;
+    } else if(n == 1) {
+        return x;
     }
-    let i =0;
+
+    let i = 1;
     while(i < n) {
         x = x * x;
         i = i + 1;
@@ -21,7 +24,7 @@ func fact(n) {
 }
 let PI = 3.1415926;
 
-func cos(x) {
+func sin(x) {
     let res = x;
     let term = x;
     let sign = -1;
@@ -41,4 +44,7 @@ func toRad(deg) {
 }
 
 println(toRad(60));
-print(cos(toRad(60)));
+print(sin(toRad(45)), "\n");
+print(pow(sin(toRad(45)), 2),"\n");
+print("123123" + "213123123");
+

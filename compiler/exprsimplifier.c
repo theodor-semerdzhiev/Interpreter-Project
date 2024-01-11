@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+#include <math.h>
 #include "../parser/parser.h"
 #include "../generics/utilities.h"
 
@@ -84,7 +85,7 @@ ExpressionNode *simplify_expression(ExpressionNode *root) {
  * 
  * PARAMS:
  * op: operation to perform
- * x, y: inputs to compute
+ * x, y: inputs to compute, in order
 */
 static double apply_operation(enum expression_token_type op, double x, double y) {
     assert(op != VALUE);
@@ -100,6 +101,8 @@ static double apply_operation(enum expression_token_type op, double x, double y)
             return x / y;
         case MOD: 
             return x - ((x / y) * y);
+        case EXPONENT:
+            return pow(x,y);
         case BITWISE_AND: 
             return (int)x & (int)y;
         case BITWISE_OR: 
@@ -124,8 +127,10 @@ static double apply_operation(enum expression_token_type op, double x, double y)
             return x && y;
         case LOGICAL_OR: 
             return x || y;
-        default:
-            break;
+
+        // this case should never happen
+        case VALUE:
+            return 0;
     }
     return 0;
 }

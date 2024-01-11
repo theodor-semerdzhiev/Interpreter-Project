@@ -4,155 +4,154 @@
 #include "dbgtools.h"
 
 /* Converts AccessModifer to readable string */
-static char* access_modifer_to_string(AccessModifier access) {
-  switch(access) {
+static char *access_modifer_to_string(AccessModifier access)
+{
+    switch (access)
+    {
     case PRIVATE_ACCESS:
-      return "Private Access";
+        return "Private Access";
     case GLOBAL_ACCESS:
-      return "Global Access";
+        return "Global Access";
     case PUBLIC_ACCESS:
-      return "Public Access";
+        return "Public Access";
     case DOES_NOT_APPLY:
-      return "";
-  }
+        return "";
+    }
 }
 
 /* Prints out lexeme array list */
 void print_token_list(TokenList *token_list)
 {
-  printf("Length: %zu\n", token_list->len);
+    printf("Length: %zu\n", token_list->len);
 
-  for (int i = 0; i < (int)token_list->len; i++)
-  {
-    char *type_in_str = NULL;
-
-    switch (token_list->list[i]->type)
+    for (int i = 0; i < (int)token_list->len; i++)
     {
-    case UNDEFINED:
-      type_in_str = "UNDEFINED";
-      break;
-    case WHITESPACE:
-      type_in_str = "WHITESPACE";
-      break;
-    case HASHTAG:
-      type_in_str = "'#'";
-      break;
-    case DOT:
-      type_in_str = "'.'";
-      break;
-    case SEMI_COLON:
-      type_in_str = "';'";
-      break;
-    case QUOTES:
-      type_in_str = "\"";
-      break;
-    case COMMA:
-      type_in_str = "','";
-      break;
-    case OPEN_CURLY_BRACKETS:
-      type_in_str = "'{'";
-      break;
-    case CLOSING_CURLY_BRACKETS:
-      type_in_str = "'}'";
-      break;
-    case OPEN_PARENTHESIS:
-      type_in_str = "'('";
-      break;
-    case CLOSING_PARENTHESIS:
-      type_in_str = "')'";
-      break;
-    case OPEN_SQUARE_BRACKETS:
-      type_in_str = "'['";
-      break;
-    case CLOSING_SQUARE_BRACKETS:
-      type_in_str = "']'";
-      break;
-    case ASSIGNMENT_OP:
-      type_in_str = "'='";
-      break;
-    case MULT_OP:
-      type_in_str = "'*'";
-      break;
-    case DIV_OP:
-      type_in_str = "'/'";
-      break;
-    case PLUS_OP:
-      type_in_str = "'+'";
-      break;
-    case MINUS_OP:
-      type_in_str = "'-'";
-      break;
-    case MOD_OP:
-      type_in_str = "'%'";
-      break;
-    case SHIFT_LEFT_OP:
-      type_in_str = "'<<'";
-      break;
-    case SHIFT_RIGHT_OP:
-      type_in_str = "'>>";
-      break;
-    case BITWISE_AND_OP:
-      type_in_str = "'&";
-      break;
-    case BITWISE_OR_OP:
-      type_in_str = "'|'";
-      break;
-    case BITWISE_XOR_OP:
-      type_in_str = "'^'";
-      break;
-    case COLON:
-      type_in_str = "':'";
-      break;
-    case ATTRIBUTE_ARROW:
-      type_in_str = "'->'";
-      break;
-    case LOGICAL_AND_OP:
-      type_in_str = "'&&'";
-      break;
-    case LOGICAL_OR_OP:
-      type_in_str = "'||'";
-      break;
-    case LOGICAL_NOT_OP:
-      type_in_str = "'!'";
-      break;
-    case GREATER_THAN_OP:
-      type_in_str = "'>'";
-      break;
-    case LESSER_THAN_OP:
-      type_in_str = "'<'";
-      break;
-    case GREATER_EQUAL_OP:
-      type_in_str = "'>='";
-      break;
-    case LESSER_EQUAL_OP:
-      type_in_str = "'<='";
-      break;
-    case EQUAL_TO_OP:
-      type_in_str = "'=='";
-      break;
-    case END_OF_FILE:
-      type_in_str = "END_OF_FILE";
-      break;
-    case KEYWORD:
-      type_in_str = "KEYWORD";
-      break;
-    case STRING_LITERALS:
-      type_in_str = "STRING LITERALS";
-      break;
-    case NUMERIC_LITERAL:
-      type_in_str = "NUMERIC_LITERAL";
-      break;
-    case IDENTIFIER:
-      type_in_str = "IDENTIFIER";
-      break;
+        char *type_in_str = NULL;
+
+        switch (token_list->list[i]->type)
+        {
+        case UNDEFINED:
+            type_in_str = "UNDEFINED";
+            break;
+        case DOT:
+            type_in_str = "'.'";
+            break;
+        case SEMI_COLON:
+            type_in_str = "';'";
+            break;
+        case QUOTES:
+            type_in_str = "\"";
+            break;
+        case COMMA:
+            type_in_str = "','";
+            break;
+        case OPEN_CURLY_BRACKETS:
+            type_in_str = "'{'";
+            break;
+        case CLOSING_CURLY_BRACKETS:
+            type_in_str = "'}'";
+            break;
+        case OPEN_PARENTHESIS:
+            type_in_str = "'('";
+            break;
+        case CLOSING_PARENTHESIS:
+            type_in_str = "')'";
+            break;
+        case OPEN_SQUARE_BRACKETS:
+            type_in_str = "'['";
+            break;
+        case CLOSING_SQUARE_BRACKETS:
+            type_in_str = "']'";
+            break;
+        case ASSIGNMENT_OP:
+            type_in_str = "'='";
+            break;
+        case MULT_OP:
+            type_in_str = "'*'";
+            break;
+        case DIV_OP:
+            type_in_str = "'/'";
+            break;
+        case PLUS_OP:
+            type_in_str = "'+'";
+            break;
+        case MINUS_OP:
+            type_in_str = "'-'";
+            break;
+        case MOD_OP:
+            type_in_str = "'%'";
+            break;
+        case SHIFT_LEFT_OP:
+            type_in_str = "'<<'";
+            break;
+        case SHIFT_RIGHT_OP:
+            type_in_str = "'>>";
+            break;
+        case BITWISE_AND_OP:
+            type_in_str = "'&";
+            break;
+        case BITWISE_OR_OP:
+            type_in_str = "'|'";
+            break;
+        case BITWISE_XOR_OP:
+            type_in_str = "'^'";
+            break;
+        case EXPONENT_OP:
+            type_in_str = "'**'";
+            break;
+        case COLON:
+            type_in_str = "':'";
+            break;
+        case ATTRIBUTE_ARROW:
+            type_in_str = "'->'";
+            break;
+        case LOGICAL_AND_OP:
+            type_in_str = "'&&'";
+            break;
+        case LOGICAL_OR_OP:
+            type_in_str = "'||'";
+            break;
+        case LOGICAL_NOT_OP:
+            type_in_str = "'!'";
+            break;
+        case GREATER_THAN_OP:
+            type_in_str = "'>'";
+            break;
+        case LESSER_THAN_OP:
+            type_in_str = "'<'";
+            break;
+        case GREATER_EQUAL_OP:
+            type_in_str = "'>='";
+            break;
+        case LESSER_EQUAL_OP:
+            type_in_str = "'<='";
+            break;
+        case EQUAL_TO_OP:
+            type_in_str = "'=='";
+            break;
+        case END_OF_FILE:
+            type_in_str = "END_OF_FILE";
+            break;
+        case KEYWORD:
+            type_in_str = "KEYWORD";
+            break;
+        case STRING_LITERALS:
+            type_in_str = "STRING LITERALS";
+            break;
+        case NUMERIC_LITERAL:
+            type_in_str = "NUMERIC_LITERAL";
+            break;
+        case IDENTIFIER:
+            type_in_str = "IDENTIFIER";
+            break;
+        }
+        printf("Index: %d [Line %d:%d] Type: %s     ident:%s\n",
+               i,
+               token_list->list[i]->line_num,
+               token_list->list[i]->line_pos,
+               type_in_str,
+               token_list->list[i]->ident);
     }
-    printf("Index: %d [Line %d:%d] Type: %s     ident:%s\n",
-           i,
-           token_list->list[i]->line_num,
-           token_list->list[i]->line_pos,
-           type_in_str,
-           token_list->list[i]->ident);
-  }
 }
 
 /* Prints a string to stdout some number of times */
@@ -160,7 +159,6 @@ static void print_repeated_string(char *str, int repetitions)
 {
     for (int i = 0; i < repetitions; i++)
         printf("%s", str);
-    
 }
 
 /* Prints out a human readable representation of a expression component */
@@ -193,8 +191,8 @@ void print_expression_component(ExpressionComponent *component, char *buffer, in
 
     case LIST_CONSTANT:
     {
-        printf(" LIST_CONSTANT -> %s \n", 
-        !component->meta_data.list_const.list_length? "Empty": "");
+        printf(" LIST_CONSTANT -> %s \n",
+               !component->meta_data.list_const.list_length ? "Empty" : "");
         for (int i = 0; i < component->meta_data.list_const.list_length; i++)
             print_expression_tree(component->meta_data.list_const.list_elements[i], buffer, rec_lvl + 1);
 
@@ -218,7 +216,7 @@ void print_expression_component(ExpressionComponent *component, char *buffer, in
     {
         printf(" FUNC_CAL -> Arguments: %s\n", !component->meta_data.func_data.args_num ? "No Args" : "");
         for (int i = 0; i < component->meta_data.func_data.args_num; i++)
-        print_expression_tree(component->meta_data.func_data.func_args[i], buffer, rec_lvl + 1);
+            print_expression_tree(component->meta_data.func_data.func_args[i], buffer, rec_lvl + 1);
 
         break;
     }
@@ -228,39 +226,41 @@ void print_expression_component(ExpressionComponent *component, char *buffer, in
     {
         printf(" INLINE_FUNC -> Arguments:\n");
         for (int i = 0; i < component->meta_data.func_data.args_num; i++)
-        print_expression_tree(component->meta_data.func_data.func_args[i], buffer, rec_lvl + 1);
+            print_expression_tree(component->meta_data.func_data.func_args[i], buffer, rec_lvl + 1);
 
         print_ast_list(component->meta_data.inline_func->body, buffer, rec_lvl + 1);
 
         break;
     }
 
-    case HASHSET_CONSTANT: {
-        printf(" HASHSET_CONSTANT -> %s \n", 
-        !component->meta_data.HashSet.size? "Empty": "");
+    case HASHSET_CONSTANT:
+    {
+        printf(" HASHSET_CONSTANT -> %s \n",
+               !component->meta_data.HashSet.size ? "Empty" : "");
         for (int i = 0; i < component->meta_data.HashSet.size; i++)
             print_expression_tree(component->meta_data.HashSet.values[i], buffer, rec_lvl + 1);
 
         break;
     }
 
-    case HASHMAP_CONSTANT: {
-        printf(" HASHMAP_CONSTANT -> %s \n", 
-        !component->meta_data.HashMap.size? "Empty": "");
-        print_repeated_string(buffer, rec_lvl+1);
-        
-        for (int i = 0; i < component->meta_data.HashMap.size; i++) {
-            printf("Key -> \n"); 
+    case HASHMAP_CONSTANT:
+    {
+        printf(" HASHMAP_CONSTANT -> %s \n",
+               !component->meta_data.HashMap.size ? "Empty" : "");
+        print_repeated_string(buffer, rec_lvl + 1);
+
+        for (int i = 0; i < component->meta_data.HashMap.size; i++)
+        {
+            printf("Key -> \n");
             print_expression_tree(component->meta_data.HashMap.pairs[i]->key, buffer, rec_lvl + 2);
-            print_repeated_string(buffer, rec_lvl+1);
-            printf("Value -> \n"); 
+            print_repeated_string(buffer, rec_lvl + 1);
+            printf("Value -> \n");
             print_expression_tree(component->meta_data.HashMap.pairs[i]->value, buffer, rec_lvl + 2);
-            print_repeated_string(buffer, rec_lvl+1);
+            print_repeated_string(buffer, rec_lvl + 1);
         }
 
         break;
     }
-
 
     default:
         printf("Expression Component does not have a valid type \n");
@@ -286,8 +286,8 @@ void print_expression_tree(ExpressionNode *root, char *buffer, int rec_lvl)
         return;
     }
 
-    //prints out negation
-    printf("NEGATION: %s (\n", root->negation? "true": "false");
+    // prints out negation
+    printf("NEGATION: %s (\n", root->negation ? "true" : "false");
     print_repeated_string(buffer, rec_lvl);
 
     switch (root->type)
@@ -351,7 +351,11 @@ void print_expression_tree(ExpressionNode *root, char *buffer, int rec_lvl)
         print_expression_tree(root->LHS, buffer, rec_lvl + 1);
         print_expression_tree(root->RHS, buffer, rec_lvl + 1);
         break;
-
+    case EXPONENT:
+        printf("- POWER(**):\n");
+        print_expression_tree(root->LHS, buffer, rec_lvl + 1);
+        print_expression_tree(root->RHS, buffer, rec_lvl + 1);
+        break;
     case GREATER_THAN:
         printf("- GREATER_THAN(>):\n");
         print_expression_tree(root->LHS, buffer, rec_lvl + 1);
@@ -473,28 +477,29 @@ void print_ast_node(AST_node *node, char *buffer, int rec_lvl)
     case FUNCTION_DECLARATION:
     {
         printf("@ FUNCTION DECLARATION: func %s\n", node->identifier.func_name);
-        print_repeated_string(buffer, rec_lvl+1);
+        print_repeated_string(buffer, rec_lvl + 1);
         printf("ACCESS MODIFIER: %s \n", access_modifer_to_string(node->access));
-        print_repeated_string(buffer, rec_lvl+1);
+        print_repeated_string(buffer, rec_lvl + 1);
         printf("FUNCTION ARGS:\n");
         for (int i = 0; i < node->ast_data.func_args.args_num; i++)
         {
-        print_expression_tree(node->ast_data.func_args.func_prototype_args[i], buffer, rec_lvl + 1);
+            print_expression_tree(node->ast_data.func_args.func_prototype_args[i], buffer, rec_lvl + 1);
         }
         print_ast_list(node->body, buffer, rec_lvl + 1);
 
         break;
     }
 
-    case OBJECT_DECLARATION: {
+    case OBJECT_DECLARATION:
+    {
         printf("@ OBJECT DECLARATION: object %s\n", node->identifier.obj_name);
-        print_repeated_string(buffer, rec_lvl+1);
+        print_repeated_string(buffer, rec_lvl + 1);
         printf("ACCESS MODIFIER: %s \n", access_modifer_to_string(node->access));
-        print_repeated_string(buffer, rec_lvl+1);
+        print_repeated_string(buffer, rec_lvl + 1);
         printf("OBJECT ARGS:\n");
         for (int i = 0; i < node->ast_data.obj_args.args_num; i++)
         {
-        print_expression_tree(node->ast_data.obj_args.object_prototype_args[i], buffer, rec_lvl + 1);
+            print_expression_tree(node->ast_data.obj_args.object_prototype_args[i], buffer, rec_lvl + 1);
         }
         print_ast_list(node->body, buffer, rec_lvl + 1);
 
@@ -508,7 +513,7 @@ void print_ast_node(AST_node *node, char *buffer, int rec_lvl)
         printf("FUNCTION ARGS:\n");
         for (int i = 0; i < node->ast_data.func_args.args_num; i++)
         {
-        print_expression_tree(node->ast_data.func_args.func_prototype_args[i], buffer, rec_lvl + 1);
+            print_expression_tree(node->ast_data.func_args.func_prototype_args[i], buffer, rec_lvl + 1);
         }
         print_ast_list(node->body, buffer, rec_lvl + 1);
 

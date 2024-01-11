@@ -1,7 +1,17 @@
 
 
-let x = "2.23123";
-let y = "3";
+func fact(n) {
+    if (n == 0) {
+        return 1;
+    } else {
+        return n * fact(n-1);
+    }
+}
 
-print(Number(x)+Number(y));
+let x = Str(fact(fact(3)));
+print(Typeof(x), x + "123123\n");
+
+let y = input("What is your name: ");
+
+print("Hello " + y + "!");
 

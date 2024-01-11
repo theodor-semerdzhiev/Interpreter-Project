@@ -2,6 +2,7 @@
 #include "../compiler/compiler.h"
 #include "../generics/hashmap.h"
 #include "rtobjects.h"
+#include "gc.h"
 
 #define MAX_STACK_SIZE 5000
 
@@ -30,12 +31,15 @@ typedef struct RunTime {
 
 } RunTime;
 
+#define addToGCRegistry(obj) if(is_GC_Active()) add_to_GC_registry
+
 IdentTable *init_IdentifierTable();
 void Identifier_Table_add_var(IdentTable *table, const char *key, RtObject *obj);
 RtObject *Identifier_Table_remove_var(IdentTable *table, const char *key);
 RtObject *IdentifierTable_get(IdentTable *table, const char *key);
 bool IdentifierTable_contains(IdentTable *table, const char *key);
 int IdentifierTable_aggregate(IdentTable *table, const char* key);
+RtObject **IdentifierTable_to_list(IdentTable *table);
 void free_IdentifierTable(IdentTable *table, bool free_rtobj);
 
 StackMachine *init_StackMachine();
@@ -45,6 +49,9 @@ void free_StackMachine(StackMachine *stk_machine, bool free_rtobj);
 
 CallFrame *init_CallFrame(ByteCodeList *program, RtObject *function);
 void free_CallFrame(CallFrame *call, bool free_rtobj);
+
+int getCallStackPointer();
+CallFrame **getCallStack();
 
 RunTime *init_RunTime();
 RtObject *lookup_variable(const char *var);

@@ -1,0 +1,54 @@
+func church(n) {
+    if(n == 0) {
+        return func (f, x) {
+            return x;
+        };
+    } else {
+        return func(f, x) {
+            return church(n-1)(f,f(x));
+        };
+    }
+}
+
+func getVal(church_numeral) {
+    return church_numeral(
+        func(n) {return n+1;},
+        0
+    );
+}
+
+func addChurch(f,g) {
+    return func(f_,x) {
+        return f(f_,g(f_,x));
+    };
+}
+
+let ZERO = church(0);
+let ONE = church(1);
+let FIVE = church(5);
+
+#println(getVal(addChurch(church(4), church(4))));
+
+func ChurchFib(n) {
+    if(n == 0) {
+        return  ZERO;
+    } else if(n == 1) {
+        return ONE;
+    } else {
+        return addChurch(ChurchFib(n-1), ChurchFib(n-2));
+    }
+}
+
+println(getVal(ChurchFib(10)));
+
+
+
+
+
+
+
+
+
+
+
+

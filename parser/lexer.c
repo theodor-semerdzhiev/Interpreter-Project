@@ -21,17 +21,10 @@
 /* Mallocs string for token */
 static char *token_to_str(enum token_type type)
 {
-    char *type_in_str = NULL;
-    ;
-
     switch (type)
     {
     case UNDEFINED:
         return cpy_string("UNDEFINED");
-    case WHITESPACE:
-        return cpy_string("WHITESPACE");
-    case HASHTAG:
-        return cpy_string("#");
     case DOT:
         return cpy_string(".");
     case SEMI_COLON:
@@ -74,6 +67,8 @@ static char *token_to_str(enum token_type type)
         return cpy_string("|");
     case BITWISE_XOR_OP:
         return cpy_string("^");
+    case EXPONENT_OP:
+        return cpy_string("**");
     case COLON:
         return cpy_string(":");
     case ATTRIBUTE_ARROW:
@@ -109,10 +104,12 @@ static char *token_to_str(enum token_type type)
 
 /* Returns the special token pointed to the lexer,
 return UNDEFINED if its not a special token */
-static enum token_type get_special_token_type(Lexer *lexer, char *string)
+static enum token_type get_special_token_type(Lexer *lexer, char *string, size_t strlen)
 {
+    if (strlen <= (size_t)lexer->text_ptr)
+        return UNDEFINED;
     char first = string[lexer->text_ptr];
-    char second = string[lexer->text_ptr + 1];
+    char second = strlen <= (size_t)lexer->text_ptr+1? '\0': string[lexer->text_ptr+1];
 
     switch (first)
     {
@@ -159,6 +156,15 @@ static enum token_type get_special_token_type(Lexer *lexer, char *string)
     case '*':
         lexer->text_ptr++;
         lexer->cur_pos++;
+        switch (second)
+        {
+        case '*':
+            lexer->text_ptr++;
+            lexer->cur_pos++;
+            return EXPONENT_OP;
+        default:
+            break;
+        }
         return MULT_OP;
     case '/':
         lexer->text_ptr++;
@@ -371,13 +377,13 @@ TokenList *
 tokenize_str(Lexer *lexer, char *file_contents)
 {
     TokenList *list = malloc_token_list();
-
+    size_t len = strlen(file_contents);
     char *buffer = lexer->buffer;
     reset_buffer(lexer);
 
-    while (file_contents[lexer->text_ptr] != '\0')
+    while (len > (size_t)lexer->text_ptr && file_contents[lexer->text_ptr] != '\0')
     {
-        enum token_type type = get_special_token_type(lexer, file_contents);
+        enum token_type type = get_special_token_type(lexer, file_contents, len);
 
         // if char is a special char
         if (type != UNDEFINED)
@@ -454,7 +460,6 @@ tokenize_str(Lexer *lexer, char *file_contents)
         {
             while (file_contents[lexer->text_ptr] != '\n' && file_contents[lexer->text_ptr] != '\0')
             {
-                push_char_to_buffer(lexer, file_contents[lexer->text_ptr]);
                 lexer->text_ptr++;
             }
 

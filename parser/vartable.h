@@ -15,7 +15,7 @@ typedef struct variable
 {
     char *ident;
     char *filename;
-    int nesting_lvl;
+    unsigned int nesting_lvl;
     VariableType type;
     Variable *next;
 } Variable;
@@ -29,8 +29,8 @@ struct VarChain
 typedef struct vartable
 {
     struct VarChain **table;
-    int sym_count;
-    int bucket_count;
+    unsigned int sym_count;
+    unsigned int bucket_count;
 } VarTable;
 
 void free_var_table(VarTable *symtable);
@@ -47,5 +47,5 @@ bool add_var_to_vartable(
 
 bool vartable_has_var(VarTable *symtable, const char *ident);
 
-void remove_all_vars_above_nesting_lvl(VarTable *symtable, int nesting_lvl);
-bool remove_var_from_vartable(VarTable *symtable, const char *ident, const int nesting_lvl);
+void remove_all_vars_above_nesting_lvl(VarTable *symtable, unsigned int nesting_lvl);
+bool remove_var_from_vartable(VarTable *symtable, const char *ident, unsigned int nesting_lvl);

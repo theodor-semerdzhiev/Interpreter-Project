@@ -1,4 +1,5 @@
 #!bin/bash
 make clean
 make
-leaks -atExit -- ./main.out
+file=$1
+leaks -atExit -- ./main.out $file

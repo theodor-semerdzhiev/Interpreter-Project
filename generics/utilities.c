@@ -97,6 +97,22 @@ cpy_string(const char *str)
 
 /**
  * DESCRIPTION:
+ * Creates a new string with an extra char appended to it. This strings malloced
+ * 
+ * PARAMS:
+ * str: string to append to
+ * c: char to add
+*/
+char* append_char(const char *str, char c) {
+    char *cpy = malloc(sizeof(char)*(strlen(str)+2));
+    strcpy(cpy, str);
+    cpy[strlen(str)]=c;
+    cpy[strlen(str)+1] = '\0';
+    return cpy;
+}
+
+/**
+ * DESCRIPTION:
  * Hash function for strings
  * PARAMS:
  * str: string to be hashed
@@ -142,6 +158,27 @@ unsigned int hash_pointer(const void* ptr) {
     hash ^= (hash << 37);
     hash ^= (hash >> 4);
     return (unsigned int)hash;
+}
+
+/**
+ * DESCRIPTION:
+ * MurmurHash3 implementation for 64-bit doubles, returning unsigned int
+*/
+unsigned int murmurHashUInt(double key) {
+    const uint64_t seed = 0xc70f6907ULL;  // Seed value for the hash function
+    const uint64_t m = 0xc6a4a7935bd1e995ULL;
+    const int r = 47;
+    uint64_t h = seed ^ (sizeof(double) * m);
+    uint64_t k = *((uint64_t*)&key);
+    k *= m;
+    k ^= k >> r;
+    k *= m;
+    h ^= k;
+    h *= m;
+    h ^= h >> r;
+    h *= m;
+    h ^= h >> r;
+    return ((unsigned int)(h & 0xFFFFFFFF));
 }
 
 /**

@@ -6,17 +6,17 @@
 #include "errors.h"
 
 /**
-* DESCRIPTION:
-* This file contains the implementation of the Semantic Analyzer 
-* It checks for the following:
-* - All referenced variables were declared and exist
-* - If, else if, and while block contain NON empty expression
-* - If, else if, else blocks are ordered properly 
-* (i.e else if block must be preceded by if block, and else block must be preceded by else or else if block)
-* - Expression Trees contain valid leaf nodes (expression components)
-* - continue, break must be used witin loop blocks
-* - Object Declarations must ONLY contain variables, functions, or other object declarations
-*/
+ * DESCRIPTION:
+ * This file contains the implementation of the Semantic Analyzer
+ * It checks for the following:
+ * - All referenced variables were declared and exist
+ * - If, else if, and while block contain NON empty expression
+ * - If, else if, else blocks are ordered properly
+ * (i.e else if block must be preceded by if block, and else block must be preceded by else or else if block)
+ * - Expression Trees contain valid leaf nodes (expression components)
+ * - continue, break must be used witin loop blocks
+ * - Object Declarations must ONLY contain variables, functions, or other object declarations
+ */
 
 static bool is_access_modifier_valid(SemanticAnalyzer *sem_analyzer, AST_node *node);
 static bool is_exp_component_terminal(enum expression_component_type type);
@@ -31,7 +31,7 @@ static bool is_access_modifier_valid(SemanticAnalyzer *sem_analyzer, AST_node *n
     assert(node->access != DOES_NOT_APPLY);
     assert(node->type == VAR_DECLARATION ||
            node->type == FUNCTION_DECLARATION ||
-           node->type == OBJECT_DECLARATION);
+           node->type == CLASS_DECLARATION);
 
     // global variables must be defined in the global scope with top level nesting
     if (node->access == GLOBAL_ACCESS &&
@@ -87,13 +87,13 @@ static bool is_exp_component_terminal(enum expression_component_type type)
 /* Checks that OBJECT block only contains variable, function, or object declarations */
 static bool is_obj_block_valid(SemanticAnalyzer *sem_anaylzer, AST_node *node)
 {
-    assert(node->type == OBJECT_DECLARATION);
+    assert(node->type == CLASS_DECLARATION);
     AST_node *head = node->body->head;
     while (head)
     {
         if (head->type != VAR_DECLARATION &&
             head->type != FUNCTION_DECLARATION &&
-            head->type != OBJECT_DECLARATION)
+            head->type != CLASS_DECLARATION)
         {
             print_invalid_object_block_err(
                 sem_anaylzer, head->token_num,
@@ -111,7 +111,7 @@ static void add_argument_declarations_to_symtable(SemanticAnalyzer *sem_analyzer
 {
     assert(node->type == FUNCTION_DECLARATION ||
            node->type == INLINE_FUNCTION_DECLARATION ||
-           node->type == OBJECT_DECLARATION);
+           node->type == CLASS_DECLARATION);
 
     int args_count;
     ExpressionNode **args;
@@ -521,7 +521,7 @@ bool check_argument_semantics(SemanticAnalyzer *sem_analyser, AST_node *node)
     assert(
         node->type == FUNCTION_DECLARATION ||
         node->type == INLINE_FUNCTION_DECLARATION ||
-        node->type == OBJECT_DECLARATION);
+        node->type == CLASS_DECLARATION);
 
     int args_count;
     ExpressionNode **args;
@@ -547,7 +547,7 @@ bool check_argument_semantics(SemanticAnalyzer *sem_analyser, AST_node *node)
                 sem_analyser, args[i]->token_num,
                 node->type == FUNCTION_DECLARATION          ? "Function Declarations arguments must be standalone identifiers\n"
                                                               "Proper Syntax: func function (arg1,arg2, ... ) { ... }"
-                : node->type == OBJECT_DECLARATION          ? "Object Declarations arguments must be standalone identifiers\n"
+                : node->type == CLASS_DECLARATION           ? "Object Declarations arguments must be standalone identifiers\n"
                                                               "Proper Syntax: object function (arg1,arg2, ... ) { ... }"
                 : node->type == INLINE_FUNCTION_DECLARATION ? "Inline Function Declarations arguments must be standalone identifiers\n"
                                                               "Proper Syntax: func (arg1,arg2, ... ) { ... }"
@@ -571,7 +571,7 @@ static void forward_declare_obj_func(SemanticAnalyzer *sem_analyzer, AST_List *a
     {
         switch (node->type)
         {
-        case OBJECT_DECLARATION:
+        case CLASS_DECLARATION:
             add_var_to_vartable(
                 sem_analyzer->symtable,
                 node->identifier.func_name,
@@ -862,7 +862,7 @@ bool AST_list_has_consistent_semantics(SemanticAnalyzer *sem_analyzer, AST_List 
         - Object Arguments are added to var table for the object's lower scope
         - Sub block must only contain variable, function, and/or object declarations
         */
-        case OBJECT_DECLARATION:
+        case CLASS_DECLARATION:
         {
             if (!is_access_modifier_valid(sem_analyzer, node))
                 // function prints out error
@@ -949,41 +949,48 @@ bool AST_list_has_consistent_semantics(SemanticAnalyzer *sem_analyzer, AST_List 
                 // function will print out an error
                 return false;
 
-            // return in global scope cannot have a singular list, string, set, or map constant 
-            if (sem_analyzer->scope_type == GLOBAL_SCOPE && exp && exp->type == VALUE) {
-                switch(exp->component->type) {
-                    case LIST_CONSTANT: {
-                        print_invalid_global_return_value(sem_analyzer, exp->token_num,
-                        "Program cannot return List, exit codes must be integers. \nProper Syntax: return 0;");
-                        return false;
-                    }
+            // return in global scope cannot have a singular list, string, set, or map constant
+            if (sem_analyzer->scope_type == GLOBAL_SCOPE && exp && exp->type == VALUE)
+            {
+                switch (exp->component->type)
+                {
+                case LIST_CONSTANT:
+                {
+                    print_invalid_global_return_value(sem_analyzer, exp->token_num,
+                                                      "Program cannot return List, exit codes must be integers. \nProper Syntax: return 0;");
+                    return false;
+                }
 
-                    case STRING_CONSTANT: {
-                        print_invalid_global_return_value(sem_analyzer, exp->token_num,
-                        "Program cannot return Strings, exit codes must be integers. \nProper Syntax: return 0;");
-                        return false;
-                    }
+                case STRING_CONSTANT:
+                {
+                    print_invalid_global_return_value(sem_analyzer, exp->token_num,
+                                                      "Program cannot return Strings, exit codes must be integers. \nProper Syntax: return 0;");
+                    return false;
+                }
 
-                    case HASHMAP_CONSTANT: {
-                        print_invalid_global_return_value(sem_analyzer, exp->token_num,
-                        "Program cannot return Maps, exit codes must be integers. \nProper Syntax: return 0;");
-                        return false;
-                    }
+                case HASHMAP_CONSTANT:
+                {
+                    print_invalid_global_return_value(sem_analyzer, exp->token_num,
+                                                      "Program cannot return Maps, exit codes must be integers. \nProper Syntax: return 0;");
+                    return false;
+                }
 
-                    case HASHSET_CONSTANT: {
-                        print_invalid_global_return_value(sem_analyzer, exp->token_num,
-                        "Program cannot return Set, exit codes must be integers. \nProper Syntax: return 0;");
-                        return false;
-                    }
+                case HASHSET_CONSTANT:
+                {
+                    print_invalid_global_return_value(sem_analyzer, exp->token_num,
+                                                      "Program cannot return Set, exit codes must be integers. \nProper Syntax: return 0;");
+                    return false;
+                }
 
-                    case NULL_CONSTANT: {
-                        print_invalid_global_return_value(sem_analyzer, exp->token_num,
-                        "Program cannot return null constants, exit codes must be integers. \nProper Syntax: return 0;");
-                        return false;
-                    }
+                case NULL_CONSTANT:
+                {
+                    print_invalid_global_return_value(sem_analyzer, exp->token_num,
+                                                      "Program cannot return null constants, exit codes must be integers. \nProper Syntax: return 0;");
+                    return false;
+                }
 
-                    default:
-                        break;
+                default:
+                    break;
                 }
             }
             break;
@@ -998,9 +1005,8 @@ bool AST_list_has_consistent_semantics(SemanticAnalyzer *sem_analyzer, AST_List 
         {
             if (!sem_analyzer->is_in_loop)
             {
-                print_invalid_ast_node(sem_analyzer, node->token_num, 
-                "break Keyword can only be used within a loop."
-                );         
+                print_invalid_ast_node(sem_analyzer, node->token_num,
+                                       "break Keyword can only be used within a loop.");
                 return false;
             }
             break;
@@ -1015,9 +1021,8 @@ bool AST_list_has_consistent_semantics(SemanticAnalyzer *sem_analyzer, AST_List 
         {
             if (!sem_analyzer->is_in_loop)
             {
-                print_invalid_ast_node(sem_analyzer, node->token_num, 
-                "continue Keyword can only be used within a loop."
-                ); 
+                print_invalid_ast_node(sem_analyzer, node->token_num,
+                                       "continue Keyword can only be used within a loop.");
                 return false;
             }
             break;

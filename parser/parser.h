@@ -182,7 +182,7 @@ enum ast_node_type
 
     INLINE_FUNCTION_DECLARATION,
 
-    OBJECT_DECLARATION
+    CLASS_DECLARATION
 };
 
 typedef enum access_modifer

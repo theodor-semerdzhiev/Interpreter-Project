@@ -107,7 +107,8 @@ int main(int argc, char *argv[])
     init_keyword_table();
     init_Precedence();
 
-    AST_List *ast = parse_file("tests/test5.txt");
+    // AST_List *ast = parse_file("./tests/test5.txt");
+    AST_List *ast = parse_file("./tests/test10.txt");
     
     free_keyword_table();
     

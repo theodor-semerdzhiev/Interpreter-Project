@@ -1211,7 +1211,7 @@ void free_ast_node(AST_node *node)
         return;
     }
 
-    case OBJECT_DECLARATION:
+    case CLASS_DECLARATION:
     {
         for (int i = 0; i < node->ast_data.obj_args.args_num; i++)
             free_expression_tree(node->ast_data.obj_args.object_prototype_args[i]);
@@ -1768,7 +1768,7 @@ AST_node *parse_object_declaration(Parser *parser, int rec_lvl)
 
     AST_node *node = malloc_ast_node(parser);
     node->access = access_modifier;
-    node->type = OBJECT_DECLARATION;
+    node->type = CLASS_DECLARATION;
     node->line_num = list[parser->token_ptr]->line_num;
     node->identifier.obj_name = malloc_string_cpy(parser, list[parser->token_ptr + 1]->ident);
 

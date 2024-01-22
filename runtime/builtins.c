@@ -40,7 +40,7 @@ static bool builtins_equal(const Builtin *builtin1, const Builtin *builtin2)
  * Initializes builtins table
  * returns 1 -> initialization was successful
  * return 0 -> initialization failed
- * 
+ *
  * NOTE:
  * If lookup table is already initialized, function returns early
  */
@@ -62,15 +62,18 @@ int init_Builtins()
         return 0;
     }
 
-    if(
-    GenericHashMap_insert(builtin_map, _builtin_print.builtin_name, (void *)&_builtin_print, false) &&
-    GenericHashMap_insert(builtin_map, _builtin_println.builtin_name, (void *)&_builtin_println, false) &&
-    GenericHashMap_insert(builtin_map, _builtin_string.builtin_name, (void *)&_builtin_string, false) &&
-    GenericHashMap_insert(builtin_map, _builtin_typeof.builtin_name, (void *)&_builtin_typeof, false) &&
-    GenericHashMap_insert(builtin_map, _builtin_input.builtin_name, (void *)&_builtin_input, false) &&
-    GenericHashMap_insert(builtin_map, _builtin_number.builtin_name, (void *)&_builtin_number, false)) {
+    if (
+        GenericHashMap_insert(builtin_map, _builtin_print.builtin_name, (void *)&_builtin_print, false) &&
+        GenericHashMap_insert(builtin_map, _builtin_println.builtin_name, (void *)&_builtin_println, false) &&
+        GenericHashMap_insert(builtin_map, _builtin_string.builtin_name, (void *)&_builtin_string, false) &&
+        GenericHashMap_insert(builtin_map, _builtin_typeof.builtin_name, (void *)&_builtin_typeof, false) &&
+        GenericHashMap_insert(builtin_map, _builtin_input.builtin_name, (void *)&_builtin_input, false) &&
+        GenericHashMap_insert(builtin_map, _builtin_number.builtin_name, (void *)&_builtin_number, false))
+    {
         return 1;
-    } else {
+    }
+    else
+    {
         printf("Failed to initialize Built in functions \n");
         cleanup_builtin();
         return 0;
@@ -85,12 +88,14 @@ bool ident_is_builtin(const char *identifier)
 {
     // lazy init
     // initialization fails, program exits
-    if(!init_Builtins()) BuiltinsInitError();
-    
+    if (!init_Builtins())
+        BuiltinsInitError();
+
     return GenericHashMap_contains_key(builtin_map, (void *)identifier);
 }
 
 /**
+ * DESCRIPTION:
  * Returns wether built in object associated with identifier
  * Returns NULL if key value pair does not exist
  */
@@ -98,14 +103,16 @@ RtObject *get_builtin_func(const char *identifier)
 {
     // lazy init
     // initialization fails, program exits
-    if(!init_Builtins()) BuiltinsInitError();
+    if (!init_Builtins())
+        BuiltinsInitError();
 
     Builtin *builtin = (Builtin *)GenericHashMap_get(builtin_map, (void *)identifier);
     if (!builtin)
         return NULL;
+
     RtObject *obj = init_RtObject(FUNCTION_TYPE);
-    obj->data.Function.is_builtin = true;
-    obj->data.Function.func_data.built_in.func = builtin;
+    obj->data.Func = init_rtfunc(true);
+    obj->data.Func->func_data.built_in.func = builtin;
     return obj;
 }
 
@@ -125,8 +132,8 @@ RtObject *builtin_print(const RtObject **args, int arg_count)
 {
     for (int i = 0; i < arg_count; i++)
     {
-        char *str = RtObject_to_String(args[i]);
-        if(i + 1 == arg_count) 
+        char *str = rtobj_toString(args[i]);
+        if (i + 1 == arg_count)
             printf("%s", str);
         else
             printf("%s ", str);
@@ -144,7 +151,7 @@ RtObject *builtin_println(const RtObject **args, int arg_count)
 {
     for (int i = 0; i < arg_count; i++)
     {
-        char *str = RtObject_to_String(args[i]);
+        char *str = rtobj_toString(args[i]);
         printf("%s ", str);
         free(str);
     }
@@ -164,9 +171,9 @@ RtObject *builtin_toString(const RtObject **args, int arg_count)
 
     for (int i = 0; i < arg_count; i++)
     {
-        char *tmp = RtObject_to_String(args[i]);
+        char *tmp = rtobj_toString(args[i]);
         char *new_str = malloc(sizeof(char) * (strlen(tmp) + strlen(str) + 1));
-        new_str[0]='\0';
+        new_str[0] = '\0';
         strcat(new_str, tmp);
         strcat(new_str, str);
         new_str[strlen(tmp) + strlen(str)] = '\0';
@@ -191,16 +198,18 @@ RtObject *builtin_toString(const RtObject **args, int arg_count)
  */
 RtObject *builtin_typeof(const RtObject **args, int arg_count)
 {
-    if(arg_count == 0) {
+    if (arg_count == 0)
+    {
         return init_RtObject(UNDEFINED_TYPE);
     }
-    if(arg_count > 1) {
+    if (arg_count > 1)
+    {
         printf("typeof builtin function can only take 1 argument\n");
         return init_RtObject(UNDEFINED_TYPE);
     }
 
     RtObject *string_obj = init_RtObject(STRING_TYPE);
-    const char *type = obj_type_toString(args[0]);
+    const char *type = rtobj_type_toString(args[0]);
     string_obj->data.String.string = cpy_string(type);
     string_obj->data.String.string_length = strlen(type);
     return string_obj;
@@ -209,30 +218,35 @@ RtObject *builtin_typeof(const RtObject **args, int arg_count)
 /**
  * DESCRIPTION:
  * Implementation of a input function for getting input from user
- * 
+ *
  * PARAMS:
  * args: arguments to function
  * arg_count: number of arguments
-*/
-RtObject *builtin_input(const RtObject **args, int arg_count) {
-    if(arg_count > 1) {
+ */
+RtObject *builtin_input(const RtObject **args, int arg_count)
+{
+    if (arg_count > 1)
+    {
         printf("input builtin function can only take 1 argument\n");
         return init_RtObject(UNDEFINED_TYPE);
     }
 
-    char* msg = RtObject_to_String(args[0]);
+    char *msg = rtobj_toString(args[0]);
     printf("%s", msg);
     free(msg);
-    
+
     char buffer[1024];
 
-    if(fgets(buffer, sizeof(buffer), stdin) != NULL) {
-        buffer[strlen(buffer)-1]='\0'; // removes newline char
+    if (fgets(buffer, sizeof(buffer), stdin) != NULL)
+    {
+        buffer[strlen(buffer) - 1] = '\0'; // removes newline char
         RtObject *input = init_RtObject(STRING_TYPE);
-        input->data.String.string=cpy_string(buffer);
-        input->data.String.string_length=strlen(buffer);
+        input->data.String.string = cpy_string(buffer);
+        input->data.String.string_length = strlen(buffer);
         return input;
-    } else {
+    }
+    else
+    {
         printf("Error reading input \n");
         return init_RtObject(UNDEFINED_TYPE);
     }
@@ -240,31 +254,40 @@ RtObject *builtin_input(const RtObject **args, int arg_count) {
 
 /**
  * DESCRIPTION:
- * Converts runtime object to 
-*/
-RtObject *builtin_toNumber(const RtObject **args, int arg_count) {
-    if(arg_count != 1) {
+ * Converts runtime object to
+ */
+RtObject *builtin_toNumber(const RtObject **args, int arg_count)
+{
+    if (arg_count != 1)
+    {
         printf("input builtin function can only take 1 argument\n");
         return init_RtObject(UNDEFINED_TYPE);
     }
 
-    if(args[0]->type == NUMBER_TYPE) {
-        RtObject* num = init_RtObject(NUMBER_TYPE);
-        num->data.Number.number=args[0]->data.Number.number;
+    if (args[0]->type == NUMBER_TYPE)
+    {
+        RtObject *num = init_RtObject(NUMBER_TYPE);
+        num->data.Number.number = args[0]->data.Number.number;
         return num;
-    } else if(args[0]->type == STRING_TYPE) {
-        char * str = args[0]->data.String.string;
-        if(is_token_numeric(str)) {
+    }
+    else if (args[0]->type == STRING_TYPE)
+    {
+        char *str = args[0]->data.String.string;
+        if (is_token_numeric(str))
+        {
             RtObject *num = init_RtObject(NUMBER_TYPE);
             num->data.Number.number = atof(str);
             return num;
-        } else {
+        }
+        else
+        {
             printf("String '%s' cannot be converted to a number\n", str);
             return init_RtObject(UNDEFINED_TYPE);
         }
-    } else {
-        printf("%s type cannot be converted to a int\n", obj_type_toString(args[0]));
+    }
+    else
+    {
+        printf("%s type cannot be converted to a int\n", rtobj_type_toString(args[0]));
         return init_RtObject(UNDEFINED_TYPE);
     }
-
 }

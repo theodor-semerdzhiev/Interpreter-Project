@@ -1,6 +1,10 @@
 #pragma once
 #include <stdbool.h>
 #include "builtins.h"
+#include "rtlists.h"
+#include "rtfunc.h"
+#include "rtmap.h"
+#include "rtclass.h"
 
 // // Possible runtime types
 typedef enum RtType
@@ -9,7 +13,7 @@ typedef enum RtType
     NULL_TYPE,
     NUMBER_TYPE,
     STRING_TYPE,
-    OBJECT_TYPE,
+    CLASS_TYPE,
     FUNCTION_TYPE,
     LIST_TYPE,
     HASHMAP_TYPE,
@@ -21,6 +25,10 @@ typedef enum RtType
 // Forward declaration
 typedef struct RtObject RtObject;
 typedef struct ByteCodeList ByteCodeList;
+typedef struct RtList RtList;
+typedef struct RtMap RtMap;
+typedef struct Identifier Identifier;
+typedef struct RtClass RtClass;
 
 // Generic object for all variables
 typedef struct RtObject
@@ -38,64 +46,27 @@ typedef struct RtObject
         struct StringConstant
         {
             char *string;
-            int string_length;
+            unsigned int string_length;
         } String;
 
-        struct Function
-        {
-            bool is_builtin; // flag
+        RtFunction *Func;
 
-            union {
-                // regular user defined functions
-                struct user_func {
-                    ByteCodeList *body;
+        RtList *List;
 
-                    // function arguments
-                    char **args;
-                    int arg_count;
+        RtMap *Map;
 
-                    // each closures maps to the closure object
-                    char **closures;
-                    RtObject **closure_obj;
-
-                    int closure_count;
-
-                    char *func_name;
-                } user_func;
-
-                // built in function
-                struct built_in {
-                    Builtin *func;
-                } built_in;
-            } func_data;
-
-        } Function;
-
-        // Object *obj;
-        // List *list;
-        // HashMap *map;
+        RtClass *Class;
         // HashSet *set;
     } data;
-
-    // what objects this object references
-    // used in garbage collection
-
-    /* Objects that this object points to */
-    RtObject **outrefs; 
-    unsigned int max_outref;
-    unsigned int outref_count;
-
 
     bool mark; // used for garbage collector
 } RtObject;
 
-
 RtObject *init_RtObject(RtType type);
 
-char *RtObject_to_String(const RtObject *obj);
-const char *obj_type_toString(const RtObject *obj);
+char *rtobj_toString(const RtObject *obj);
+const char *rtobj_type_toString(const RtObject *obj);
 RtObject *multiply_objs(RtObject *obj1, RtObject *obj2);
-
 
 RtObject *add_objs(RtObject *obj1, RtObject *obj2);
 RtObject *substract_objs(RtObject *obj1, RtObject *obj2);
@@ -116,13 +87,18 @@ RtObject *logical_and_op(RtObject *obj1, RtObject *obj2);
 RtObject *logical_or_op(RtObject *obj1, RtObject *obj2);
 RtObject *logical_not_op(RtObject *target);
 
-bool eval_obj(RtObject *obj);
-RtObject *shallow_cpy_rtobject(const RtObject *obj);
-RtObject *deep_cpy_rtobject(const RtObject *obj);
+bool eval_obj(const RtObject *obj);
+unsigned int rtobj_hash(const RtObject *obj);
+bool rtobj_equal(const RtObject *obj1, const RtObject *obj2);
 
-RtObject *mutate_obj(RtObject *target, const RtObject *new_value, bool deepcpy);
+RtObject *rtobj_shallow_cpy(const RtObject *obj);
+RtObject *rtobj_deep_cpy(const RtObject *obj);
 
-void add_ref(RtObject *target, RtObject *ref);
-void free_RtObject_data(RtObject *obj, bool free_immutable);
-void free_RtObject(RtObject *obj, bool free_immutable);
-void deconstruct_RtObject(RtObject *obj, int offset);
+RtObject *rtobj_mutate(RtObject *target, const RtObject *new_value, bool deepcpy);
+RtObject *rtobj_getindex(RtObject *obj, RtObject *index);
+
+RtObject **rtobj_getrefs(const RtObject *obj);
+
+void rtobj_free_data(RtObject *obj, bool free_immutable);
+void rtobj_free(RtObject *obj, bool free_immutable);
+void rtobj_deconstruct(RtObject *obj, int offset);

@@ -78,7 +78,7 @@ void free_var_struct(Variable *sym)
 /* Frees the symbol table */
 void free_var_table(VarTable *symtable)
 {
-    for (int i = 0; i < symtable->bucket_count; i++)
+    for (unsigned int i = 0; i < symtable->bucket_count; i++)
     {
         VarChain *chain = symtable->table[i];
         if (!chain)
@@ -139,9 +139,9 @@ bool vartable_has_var(VarTable *symtable, const char *ident)
 }
 
 /* Removes all symbols that have a smaller or equal nesting level */
-void remove_all_vars_above_nesting_lvl(VarTable *symtable, int nesting_lvl)
+void remove_all_vars_above_nesting_lvl(VarTable *symtable, unsigned int nesting_lvl)
 {
-    for (int i = 0; i < symtable->bucket_count; i++)
+    for (unsigned int i = 0; i < symtable->bucket_count; i++)
     {
         if (!symtable->table[i])
             continue;
@@ -161,7 +161,7 @@ void remove_all_vars_above_nesting_lvl(VarTable *symtable, int nesting_lvl)
 }
 
 /* Removes symbol from table above or at nesting_lvl, return true if symbol was in table gets removes successfully, otherwise return false*/
-bool remove_var_from_vartable(VarTable *symtable, const char *ident, const int nesting_lvl)
+bool remove_var_from_vartable(VarTable *symtable, const char *ident, unsigned int nesting_lvl)
 {
     unsigned int index = hash(ident) % symtable->bucket_count;
     VarChain *chain = symtable->table[index];

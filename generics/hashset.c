@@ -250,7 +250,7 @@ GenericSet_remove(GenericSet *set, void *data)
     Node *prev = head;
 
     // Case where must remove head of list
-    if (set->is_equal(head->data, data))
+    if (head && set->is_equal(head->data, data))
     {
         set->buckets[index]->head = head->next;
         if (!head->next)
@@ -298,7 +298,7 @@ void GenericSet_free(GenericSet *set, bool free_data)
     if (!set)
         return;
 
-    for (int i = 0; i < set->max_buckets; i++)
+    for (unsigned int i = 0; i < set->max_buckets; i++)
     {
         if (!set->buckets[i])
         {
@@ -335,7 +335,7 @@ void GenericSet_free(GenericSet *set, bool free_data)
  */
 void GenericSet_filter(GenericSet *set, bool (*filter)(void *), bool free_data)
 {
-    for (int i = 0; i < set->max_buckets; i++)
+    for (unsigned int i = 0; i < set->max_buckets; i++)
     {
         if (!set->buckets[i])
             continue;
@@ -403,7 +403,7 @@ GenericSet_to_list(const GenericSet *set)
         return NULL;
     list[set->size] = NULL;
     int list_length = 0;
-    for (int i = 0; i < set->max_buckets; i++)
+    for (unsigned int i = 0; i < set->max_buckets; i++)
     {
         if (!set->buckets[i])
             continue;
@@ -421,15 +421,15 @@ GenericSet_to_list(const GenericSet *set)
 }
 
 /* Used for debugging purposes */
-void GenericSet_print_contents(const GenericSet *map, void (*print_data)(const void *))
+void GenericSet_print_contents(const GenericSet *set, void (*print_data)(const void *))
 {
 
-    printf("Size: %d \n Max Buckets: %d\n", map->size, map->max_buckets);
-    for (int i = 0; i < map->max_buckets; i++)
+    printf("Size: %u \n Max Buckets: %u\n", set->size, set->max_buckets);
+    for (unsigned long i = 0; i < set->max_buckets; i++)
     {
-        if (map->buckets[i])
+        if (set->buckets[i])
         {
-            Node *node = map->buckets[i]->head;
+            Node *node = set->buckets[i]->head;
 
             while (node)
             {

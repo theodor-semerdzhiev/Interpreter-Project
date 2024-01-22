@@ -96,7 +96,7 @@ void init_keyword_table()
     insert_keyword_to_table("null", NULL_KEYWORD);
     insert_keyword_to_table("global", GLOBAL_KEYWORD);
     insert_keyword_to_table("private", PRIVATE_KEYWORD);
-    insert_keyword_to_table("object", OBJECT_KEYWORD); 
+    insert_keyword_to_table("class", OBJECT_KEYWORD); 
     insert_keyword_to_table("set", SET_KEYWORD); 
     insert_keyword_to_table("map", MAP_KEYWORD); 
 }

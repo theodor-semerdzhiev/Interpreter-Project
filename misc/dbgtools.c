@@ -490,7 +490,7 @@ void print_ast_node(AST_node *node, char *buffer, int rec_lvl)
         break;
     }
 
-    case OBJECT_DECLARATION:
+    case CLASS_DECLARATION:
     {
         printf("@ OBJECT DECLARATION: object %s\n", node->identifier.obj_name);
         print_repeated_string(buffer, rec_lvl + 1);

@@ -97,6 +97,10 @@ typedef enum OpCode
     /* Deference a variable name to its value, and sets it to the previous mapping, if one is available */
     DEREF_VAR,
 
+
+    /* Used for creating objects, takes all elements in the local lookup table and creates an object, then pushes that onto the stack, then pop the call stack */
+
+    CREATE_OBJECT_RETURN,
     // MATH OPERATORS
 
     /*
@@ -176,7 +180,7 @@ typedef struct ByteCode
 
         struct
         {
-            int list_length;
+            unsigned int list_length;
         } CREATE_LIST;
 
         struct
@@ -200,7 +204,7 @@ typedef struct ByteCode
         struct
         {
             char *new_var_name;
-            int str_length;
+            AccessModifier access;
         } CREATE_VAR;
 
         struct
@@ -223,7 +227,7 @@ typedef struct ByteCode
         struct
         {
             RtObject *function;
-        } CREATE_FUNCTION;
+        } CREATE_FUNCTION;        
 
     } data;
 
@@ -254,6 +258,7 @@ ByteCode *compile_func_declaration(AST_node *function);
 ByteCodeList *compile_conditional_chain(AST_node *node, bool is_global_scope);
 ByteCodeList *compiled_while_loop(AST_node *node);
 ByteCodeList *compile_expression(ExpressionNode *root);
+ByteCode *compile_class_body(AST_node *node);
 ByteCodeList *compile_code_body(AST_List *body, bool is_global_scope, bool add_derefs);
 
 void free_ByteCodeList(ByteCodeList *list);

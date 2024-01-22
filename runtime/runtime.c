@@ -7,6 +7,7 @@
 #include "../compiler/compiler.h"
 #include "builtins.h"
 #include "runtime.h"
+#include "rtlists.h"
 #include "gc.h"
 
 /**
@@ -30,6 +31,7 @@ typedef struct Identifier
     char *key;
     RtObject *obj;
     Identifier *next;
+    AccessModifier access;
 } Identifier;
 
 typedef struct IdentifierTable
@@ -44,13 +46,14 @@ typedef struct IdentifierTable
 /**
  * Creates a new Identifer node for Identifier Table
  */
-static Identifier *init_Identifier(const char *varname, RtObject *obj)
+static Identifier *init_Identifier(const char *varname, RtObject *obj, AccessModifier access)
 {
     Identifier *node = malloc(sizeof(Identifier));
     if (!node)
         return NULL;
     node->obj = obj;
     node->key = malloc_string_cpy(NULL, varname);
+    node->access = access;
     node->next = NULL;
     return node;
 }
@@ -65,7 +68,7 @@ static void free_Identifier(Identifier *node, bool free_rtobj)
         return;
     free(node->key);
     if (free_rtobj)
-        free_RtObject(node->obj, false);
+        rtobj_free(node->obj, false);
 
     free(node);
 }
@@ -93,17 +96,17 @@ IdentTable *init_IdentifierTable()
 /**
  * Maps variable name to Runtime Object
  */
-void Identifier_Table_add_var(IdentTable *table, const char *key, RtObject *obj)
+void Identifier_Table_add_var(IdentTable *table, const char *key, RtObject *obj, AccessModifier access)
 {
     assert(table);
     unsigned int index = djb2_string_hash(key) % table->bucket_count;
     if (!table->buckets[index])
     {
-        table->buckets[index] = init_Identifier(key, obj);
+        table->buckets[index] = init_Identifier(key, obj, access);
     }
     else
     {
-        Identifier *node = init_Identifier(key, obj);
+        Identifier *node = init_Identifier(key, obj, access);
         node->next = table->buckets[index];
         table->buckets[index] = node;
     }
@@ -223,6 +226,35 @@ RtObject **IdentifierTable_to_list(IdentTable *table)
 }
 
 /**
+ * DESCRIPTION:
+ * Takes all Identifier nodes in the table puts them in a NULL terminated list
+ */
+Identifier **IdentifierTable_to_IdentList(IdentTable *table)
+{
+    assert(table);
+    Identifier **list = malloc(sizeof(RtObject *) * (table->size + 1));
+    if (!list)
+        return NULL;
+
+    unsigned int count = 0;
+    for (int i = 0; i < table->bucket_count; i++)
+    {
+        if (!table->buckets[i])
+            continue;
+
+        Identifier *ptr = table->buckets[i];
+        while (ptr)
+        {
+            list[count++] = ptr;
+            ptr = ptr->next;
+        }
+    }
+
+    list[table->size] = NULL;
+    return list;
+}
+
+/**
  * Counts the number of Identifier Mappings contained within map
  */
 int IdentifierTable_aggregate(IdentTable *table, const char *key)
@@ -268,20 +300,6 @@ void free_IdentifierTable(IdentTable *table, bool free_rtobj)
  * Below is the implementation of the stack machine used by the VM
  */
 
-typedef struct StkMachineNode StkMachineNode;
-
-typedef struct StkMachineNode
-{
-    RtObject *obj;
-    StkMachineNode *next;
-    int dispose; // wether object should be freed when popped
-} StkMachineNode;
-
-typedef struct StackMachine
-{
-    StkMachineNode *head;
-} StackMachine;
-
 /**
  * Mallocs a stack machine node and arg allows you to set a default value for the stack machine
  */
@@ -303,7 +321,7 @@ static StkMachineNode *init_StkMachineNode(RtObject *obj, bool dispose)
 static void free_StackMachineNode(StkMachineNode *node, bool dispose)
 {
     if (node->dispose && dispose)
-        free_RtObject(node->obj, false);
+        rtobj_free(node->obj, false);
 
     free(node);
 }
@@ -317,6 +335,7 @@ StackMachine *init_StackMachine()
     if (!stk_machine)
         return NULL;
     stk_machine->head = NULL;
+    stk_machine->size = 0;
     return stk_machine;
 }
 
@@ -329,18 +348,18 @@ RtObject *StackMachine_pop(StackMachine *stk_machine, bool dispose)
 {
     assert(stk_machine);
     StkMachineNode *popped = stk_machine->head;
+    RtObject *obj = popped->obj;
     stk_machine->head = popped->next;
     if (dispose)
     {
         free_StackMachineNode(popped, true);
-        return NULL;
     }
     else
     {
-        RtObject *obj = popped->obj;
         free_StackMachineNode(popped, false);
-        return obj;
     }
+    stk_machine->size--;
+    return dispose ? NULL : obj;
 }
 
 /**
@@ -349,15 +368,33 @@ RtObject *StackMachine_pop(StackMachine *stk_machine, bool dispose)
 RtObject *StackMachine_push(StackMachine *stk_machine, RtObject *obj, bool dispose)
 {
     assert(stk_machine);
-    // printf("%d, %s\n", env->stack_ptr, obj_type_toString(obj));
-    if(obj->type == UNDEFINED_TYPE) 
-    1;
     StkMachineNode *node = init_StkMachineNode(obj, dispose);
     if (!node)
         return NULL;
     node->next = stk_machine->head;
     stk_machine->head = node;
+    stk_machine->size++;
     return obj;
+}
+
+/**
+ * DESCRIPTION:
+ * Takes elements in the stack machine and creates a NULL terminated array
+ */
+RtObject **StackMachine_to_list(StackMachine *stk_machine)
+{
+    RtObject **arr = malloc(sizeof(RtObject *) * (stk_machine->size + 1));
+    if (!arr)
+        return NULL;
+    unsigned int index = 0;
+    StkMachineNode *node = stk_machine->head;
+    while (node)
+    {
+        arr[index++] = node->obj;
+        node = node->next;
+    }
+    arr[stk_machine->size] = NULL;
+    return arr;
 }
 
 /**
@@ -372,7 +409,7 @@ void free_StackMachine(StackMachine *stk_machine, bool free_rtobj)
         StkMachineNode *tmp = stk_machine->head;
         stk_machine->head = tmp->next;
         if (free_rtobj)
-            free_RtObject(tmp->obj, false);
+            rtobj_free(tmp->obj, false);
         free(tmp);
     }
 
@@ -396,6 +433,8 @@ static CallFrame *callStack[MAX_STACK_SIZE] = {NULL};
 
 /* Flag for storing current status of runtime environment */
 static bool Runtime_active = false;
+
+StackMachine *getCurrentStkMachineInstance() { return env->stk_machine; }
 
 #define disposable() env->stk_machine->head->dispose
 #define StackMachine env->stk_machine
@@ -430,20 +469,25 @@ CallFrame **getCallStack()
 CallFrame *getCurrentStackFrame() { return callStack[env->stack_ptr]; }
 
 /**
+ * DESCRIPTION:
  * Lookups variable in lookup table
  * 1- Checks if variable exists in current or higher scopes
  * 2- Checks if variable is a built in function
+ *
+ * PARAMS:
+ * var: Variable name to lookup by
+ *
+ * NOTE:
+ * If var is a builtin identifier, then a new RtObject is created.
  */
 RtObject *lookup_variable(const char *var)
 {
-    for (int i = env->stack_ptr; i >= 0; i--)
-    {
-        RtObject *obj = IdentifierTable_get(callStack[i]->lookup, var);
-        if (obj)
-            return obj;
-    }
+    RtObject *obj = IdentifierTable_get(callStack[getCallStackPointer()]->lookup, var);
+    if (obj)
+        return obj;
 
     RtObject *built_in = get_builtin_func(var);
+    // add_to_GC_registry(built_in);
 
     return built_in;
 }
@@ -452,10 +496,8 @@ RtObject *lookup_variable(const char *var)
  * Mallocs Call Frame
  * function will be NULL if creating the global (top level) Call Frame
  */
-CallFrame *init_CallFrame(ByteCodeList *program, RtObject *function)
+CallFrame *init_CallFrame(ByteCodeList *program, RtFunction *function)
 {
-    assert(!function || function->type == FUNCTION_TYPE);
-
     CallFrame *cllframe = malloc(sizeof(CallFrame));
     // Maps strings to RtObjects
     cllframe->pg_counter = 0;
@@ -560,9 +602,13 @@ static void dispose_disposable_obj(RtObject *obj, bool disposable)
 {
     // frees Objects if they are disposable
     if (disposable)
-        free_RtObject(obj, false);
+    {
+        remove_from_GC_registry(obj, true);
+    }
     else
+    {
         add_to_GC_registry(obj);
+    }
 }
 /**
  * Helper function for performing primitive arithmetic operations (+, *, /, -, %, >>, <<)
@@ -586,8 +632,8 @@ static void perform_binary_operation(
 /**
  * DESCRIPTION:
  * Helper function for variable mutations
- * 
- * 
+ *
+ *
  */
 static void perform_var_mutation()
 {
@@ -599,7 +645,7 @@ static void perform_var_mutation()
 
     // mutates data
     // if new_val is disposable, then a deep cpy is created, since new_val will be freed
-    mutate_obj(old_val, new_val, new_val_disposable);
+    rtobj_mutate(old_val, new_val, new_val_disposable);
 
     // Makes sure new_val is either disposed or put into the GC registry
     // which it should already be if its not disposable
@@ -607,6 +653,26 @@ static void perform_var_mutation()
 
     // makes sure old_val is put into the GC registry, (it should already be in it)
     add_to_GC_registry(old_val);
+}
+
+/**
+ * DESCRIPTION:
+ * Contains logic for loading a variable reference from a lookup table and pushing it onto the stack machine
+ *
+ * PARAMS:
+ * table: lookup table
+ * var: identifier to lookup
+ */
+static void perform_load_var(char *varname)
+{
+    assert(varname);
+    RtObject *var = lookup_variable(varname);
+    assert(var);
+    // looked up variables are always
+
+    // if its a built in function reference, then the object is disposable by default
+    bool dispose = !IdentifierTable_get(callStack[getCallStackPointer()]->lookup, varname);
+    StackMachine_push(StackMachine, var, dispose);
 }
 
 /**
@@ -643,20 +709,23 @@ static void perform_conditional_jump(int offset, bool condition, bool pop_stk)
 static void perform_create_function(RtObject *function)
 {
     assert(function->type == FUNCTION_TYPE);
-    RtObject *func = shallow_cpy_rtobject(function);
+    RtObject *func = rtobj_shallow_cpy(function);
 
     // adds closure variable objects to function objects
-    if (func->data.Function.func_data.user_func.closure_count > 0)
+    if (func->data.Func->func_data.user_func.closure_count > 0)
     {
-        RtObject **closures = malloc(sizeof(RtObject *) * func->data.Function.func_data.user_func.closure_count);
-        for (int i = 0; i < func->data.Function.func_data.user_func.closure_count; i++)
+        RtObject **closures = malloc(sizeof(RtObject *) * func->data.Func->func_data.user_func.closure_count);
+        for (unsigned int i = 0; i < func->data.Func->func_data.user_func.closure_count; i++)
         {
-            char *name = func->data.Function.func_data.user_func.closures[i];
+            char *name = func->data.Func->func_data.user_func.closures[i];
             closures[i] = lookup_variable(name);
             assert(closures[i]);
-            add_ref(func, closures[i]);
         }
-        func->data.Function.func_data.user_func.closure_obj = closures;
+        func->data.Func->func_data.user_func.closure_obj = closures;
+    }
+    else
+    {
+        func->data.Func->func_data.user_func.closure_obj = NULL;
     }
 
     // Function Object can be disposable, since function data (stuff embedded within the bytecode)
@@ -675,7 +744,7 @@ static int perform_exit()
     RtObject *obj = StackMachine_pop(env->stk_machine, false);
     if (obj->type != NUMBER_TYPE)
     {
-        printf("Program cannot return %s\n", obj_type_toString(obj));
+        printf("Program cannot return %s\n", rtobj_type_toString(obj));
         return 1;
     }
 
@@ -691,10 +760,10 @@ static int perform_exit()
  * This function will return null if function call was built in
  */
 
-static void perform_builtin_call(RtObject *builtin, RtObject **args, int arg_count);
-static CallFrame *perform_regular_func_call(RtObject *function, RtObject **arguments, int arg_count);
+static void perform_builtin_call(Builtin *builtin, RtObject **args, int arg_count);
+static CallFrame *perform_regular_func_call(RtFunction *function, RtObject **arguments, unsigned int arg_count);
 
-CallFrame *perform_function_call(int arg_count)
+CallFrame *perform_function_call(unsigned int arg_count)
 {
 
     // gets the arguments
@@ -709,7 +778,7 @@ CallFrame *perform_function_call(int arg_count)
         if (!disposable[i])
             add_to_GC_registry(arguments[i]);
     }
-    
+
     bool func_disposable = disposable();
     RtObject *func = StackMachine_pop(env->stk_machine, false);
 
@@ -722,11 +791,11 @@ CallFrame *perform_function_call(int arg_count)
     }
 
     // temporary for now
-    if (env->stack_ptr >= MAX_STACK_SIZE - 1 && !func->data.Function.is_builtin)
+    if (env->stack_ptr >= MAX_STACK_SIZE - 1 && !func->data.Func->is_builtin)
     {
 
         printf("Stack Overflow Error when calling function '%s' \n",
-               func->data.Function.func_data.user_func.func_name);
+               func->data.Func->func_data.user_func.func_name);
         exit(2);
         return NULL;
     }
@@ -734,15 +803,15 @@ CallFrame *perform_function_call(int arg_count)
     CallFrame *new_frame = NULL;
 
     // built in function
-    if (func->data.Function.is_builtin)
+    if (func->data.Func->is_builtin)
     {
-        perform_builtin_call(func, arguments, arg_count);
-        for (int i = 0; i < arg_count; i++)
+        perform_builtin_call(func->data.Func->func_data.built_in.func, arguments, arg_count);
+        for (unsigned int i = 0; i < arg_count; i++)
             dispose_disposable_obj(arguments[i], disposable[i]);
     }
     else
     {
-        new_frame = perform_regular_func_call(func, arguments, arg_count);
+        new_frame = perform_regular_func_call(func->data.Func, arguments, arg_count);
     }
 
     dispose_disposable_obj(func, func_disposable);
@@ -754,93 +823,225 @@ CallFrame *perform_function_call(int arg_count)
  * Helper for performing built in function call
  * Adds new Callframe to call stack
  */
-static void perform_builtin_call(RtObject *builtin, RtObject **args, int arg_count)
+static void perform_builtin_call(Builtin *builtin, RtObject **args, int arg_count)
 {
-    assert(builtin->data.Function.is_builtin);
+    assert(builtin);
 
     // checks argument counts match
     if (
-        (!builtin->data.Function.is_builtin &&
-         builtin->data.Function.func_data.built_in.func->arg_count != arg_count) &&
-        // wether func takes a finite number of args
-        builtin->data.Function.func_data.built_in.func->arg_count >= 0)
+        builtin->arg_count != arg_count &&
+        // if func takes a finite number of args, if its set to -1, then it could take any number of args
+        builtin->arg_count >= 0)
     {
 
         printf("Built in function '%s' expects %d arguments, but got %d\n",
-               builtin->data.Function.func_data.built_in.func->builtin_name,
-               builtin->data.Function.func_data.built_in.func->arg_count,
+               builtin->builtin_name,
+               builtin->arg_count,
                arg_count);
         return;
     }
 
-    RtObject *(*func)(const RtObject **, int) = builtin->data.Function.func_data.built_in.func->builtin_func;
     // pushes result of function onto stack machine
-    StackMachine_push(StackMachine, func((const RtObject **)args, arg_count), true);
+    StackMachine_push(StackMachine, builtin->builtin_func((const RtObject **)args, arg_count), true);
 }
 
 /**
  * Helper for performing logic for handling function calls
  */
-static CallFrame *perform_regular_func_call(RtObject *function, RtObject **arguments, int arg_count)
+static CallFrame *perform_regular_func_call(RtFunction *Function, RtObject **arguments, unsigned int arg_count)
 {
-    assert(!function->data.Function.is_builtin);
+
     // checks argument counts match
-    if (!function->data.Function.is_builtin &&
-        function->data.Function.func_data.user_func.arg_count != arg_count)
+    if (!Function->is_builtin &&
+        Function->func_data.user_func.arg_count != arg_count)
     {
-        printf("Function '%s' expected %d arguments, but got %d\n", 
-        function->data.Function.func_data.user_func.func_name,
-        function->data.Function.func_data.user_func.arg_count, 
-        arg_count);
+        printf("Function '%s' expected %d arguments, but got %d\n",
+               Function->func_data.user_func.func_name,
+               Function->func_data.user_func.arg_count,
+               arg_count);
         return NULL;
     }
 
-    CallFrame *new_frame = init_CallFrame(function->data.Function.func_data.user_func.body, function);
+    CallFrame *new_frame = init_CallFrame(Function->func_data.user_func.body, Function);
 
     // adds function arguments to lookup table and ref list
-    for (int i = 0; i < arg_count; i++)
+    for (unsigned int i = 0; i < arg_count; i++)
     {
         Identifier_Table_add_var(
             new_frame->lookup,
-            function->data.Function.func_data.user_func.args[i],
-            arguments[i]);
+            Function->func_data.user_func.args[i],
+            arguments[i],
+            DOES_NOT_APPLY);
     }
 
     // adds closure variables
-    for (int i = 0; i < function->data.Function.func_data.user_func.closure_count; i++)
+    for (unsigned int i = 0; i < Function->func_data.user_func.closure_count; i++)
     {
         Identifier_Table_add_var(
             new_frame->lookup,
-            function->data.Function.func_data.user_func.closures[i],
-            // lookup_variable(function->data.Function.func_data.user_func.func_name)
-            function->data.Function.func_data.user_func.closure_obj[i]
-            );
+            Function->func_data.user_func.closures[i],
+            // lookup_variable(Function->func_data.user_func.func_name)
+            Function->func_data.user_func.closure_obj[i],
+            DOES_NOT_APPLY);
     }
 
     // adds function definition to lookup (to allow recursion)
     // thats why we perform a shallow copy
-    if (function->data.Function.func_data.user_func.func_name)
+    if (Function->func_data.user_func.func_name)
     {
-        RtObject *cpy_func = deep_cpy_rtobject(function);
+        RtObject *cpy_func = init_RtObject(FUNCTION_TYPE);
+        cpy_func->data.Func = rtfunc_cpy(Function, true);
+
         Identifier_Table_add_var(
             new_frame->lookup,
-            function->data.Function.func_data.user_func.func_name,
-            cpy_func);
+            Function->func_data.user_func.func_name,
+            cpy_func,
+            DOES_NOT_APPLY);
+
+        // call frame is pushed before adding func to GC registry
+        RunTime_push_callframe(new_frame);
         add_to_GC_registry(cpy_func);
     }
-
-    // add new call frame to call stack
-    RunTime_push_callframe(new_frame);
+    else
+    {
+        // add new call frame to call stack
+        RunTime_push_callframe(new_frame);
+    }
 
     return new_frame;
 }
 
+/**
+ * DESCRIPTION:
+ * Creates list of given length by popping elements from the stack machine, new list object is pushed on to the stack machine
+ *
+ * PARAMS:
+ * length: length of the list
+ */
+static void perform_create_list(unsigned long length)
+{
+    RtObject *listobj = init_RtObject(LIST_TYPE);
+    RtObject *tmp[length];
+
+    for (unsigned long i = 0; i < length; i++)
+    {
+        bool disposable = disposable();
+        RtObject *obj = StackMachine_pop(StackMachine, false);
+        assert(obj);
+
+        // if object is not disposable, then a shallow copy is created
+        // since its not disposable, it means its already in the GC registry, so it can be discarded
+        tmp[i] = disposable ? obj : rtobj_shallow_cpy(obj);
+    }
+
+    RtList *list = init_RtList(length >= DEFAULT_RTLIST_LEN ? length * 2 : DEFAULT_RTLIST_LEN);
+    for (int i = (int)length - 1; i >= 0; i--)
+    {
+        rtlist_append(list, tmp[i]);
+    }
+
+    listobj->data.List = list;
+    StackMachine_push(StackMachine, listobj, true);
+    add_to_GC_registry(listobj);
+
+    for (unsigned long i = 0; i < list->length; i++)
+    {
+        add_to_GC_registry(list->objs[i]);
+    }
+}
+
+/**
+ * DESCRIPTION:
+ * Creates a map and pushes it to the stack machine
+ *
+ * PARAMS:
+ * size: refers to the number of key value pairs
+ */
+static void perform_create_map(unsigned long size)
+{
+
+    RtObject *keys[size / 2];
+    RtObject *values[size / 2];
+
+    RtMap *map = init_RtMap(size / 2);
+
+    // fetches all maps and keys
+    for (unsigned long i = 0; i < size; i++)
+    {
+        bool valdispose = disposable();
+        RtObject *val = StackMachine_pop(StackMachine, false);
+        bool keydispose = disposable();
+        RtObject *key = StackMachine_pop(StackMachine, false);
+
+        rtmap_insert(
+            map,
+            keydispose ? key : rtobj_shallow_cpy(key),
+            valdispose ? val : rtobj_shallow_cpy(val));
+
+        add_to_GC_registry(val);
+        add_to_GC_registry(key);
+    }
+    RtObject *mapobj = init_RtObject(HASHMAP_TYPE);
+    mapobj->data.Map = map;
+
+    add_to_GC_registry(mapobj);
+
+    StackMachine_push(StackMachine, mapobj, true);
+}
+
+/**
+ * DESCRIPTION:
+ * Fetches object from somce other object, using an index object
+ */
+static void perform_get_index()
+{
+    bool index_disposable = disposable();
+    RtObject *index_ = StackMachine_pop(StackMachine, false);
+    bool obj_disposable = disposable();
+    RtObject *obj = StackMachine_pop(StackMachine, false);
+
+    RtObject *indexed_obj = rtobj_getindex(obj, index_);
+
+    dispose_disposable_obj(index_, index_disposable);
+    dispose_disposable_obj(obj, obj_disposable);
+
+    // object was fetched from an other object, therefor it should be disposed, since the latter has ref to it
+    StackMachine_push(StackMachine, indexed_obj, false);
+}
+
+/**
+ * DESCRIPTION:
+ * Creates an class object and pushes on the stack
+ */
+static void perform_return_class()
+{
+    Identifier **fields = IdentifierTable_to_IdentList(CurrentStackFrame()->lookup);
+
+    RtClass *cl = init_RtClass(
+        getCurrentStackFrame()->function,
+        getCurrentStackFrame()->function->func_data.user_func.func_name);
+
+    if(!cl) MallocError();
+
+    for (unsigned int i = 0; fields[i] != NULL; i++)
+    {
+        if(fields[i]->access != PUBLIC_ACCESS) continue;
+        RtObject *attrname = init_RtObject(STRING_TYPE);
+        attrname->data.String.string = cpy_string(fields[i]->key);
+        rtmap_insert(cl->attrs_table, attrname, fields[i]->obj);
+    }
+
+    RtObject *class = init_RtObject(CLASS_TYPE);
+    class->data.Class = cl;
+    
+    StackMachine_push(StackMachine, class, true);
+}
 /******************************************************/
 
 /**
  * Performs a logic for creating variables
  */
-void perform_create_var(char *varname)
+void perform_create_var(char *varname, AccessModifier access)
 {
     bool disposable = disposable();
     RtObject *new_val = StackMachine_pop(StackMachine, false);
@@ -850,9 +1051,9 @@ void perform_create_var(char *varname)
     if (disposable)
         cpy = new_val;
     else
-        cpy = shallow_cpy_rtobject(new_val);
+        cpy = rtobj_shallow_cpy(new_val);
 
-    Identifier_Table_add_var(frame->lookup, varname, cpy);
+    Identifier_Table_add_var(frame->lookup, varname, cpy, access);
 
     // if(!disposable)
     add_to_GC_registry(cpy);
@@ -876,7 +1077,7 @@ int run_program()
             {
                 // contants are imbedded within the bytecode
                 // therefor a deep copy is created
-                StackMachine_push(StackMachine, deep_cpy_rtobject(code->data.LOAD_CONST.constant), true);
+                StackMachine_push(StackMachine, rtobj_deep_cpy(code->data.LOAD_CONST.constant), true);
                 break;
             }
 
@@ -996,16 +1197,13 @@ int run_program()
 
             case CREATE_VAR:
             {
-                perform_create_var(code->data.CREATE_VAR.new_var_name);
+                perform_create_var(code->data.CREATE_VAR.new_var_name, code->data.CREATE_VAR.access);
                 break;
             }
 
             case LOAD_VAR:
             {
-                RtObject *var = lookup_variable(code->data.LOAD_VAR.variable);
-                assert(var);
-                // looked up variables are always
-                StackMachine_push(StackMachine, var, false);
+                perform_load_var(code->data.LOAD_VAR.variable);
                 break;
             }
 
@@ -1091,11 +1289,53 @@ int run_program()
                 break;
             }
 
+            case CREATE_OBJECT_RETURN:
+            {
+                perform_return_class();
+                free_CallFrame(RunTime_pop_callframe(), false);
+                loop = false;
+                getCurrentStackFrame()->pg_counter++;
+                break;
+            }
+
+            case LOAD_ATTRIBUTE: {
+                // VERY TEMPORARY CODE
+                RtObject *tmp = StackMachine_pop(StackMachine, false);
+
+                RtObject *attrs = init_RtObject(STRING_TYPE);
+                attrs->data.String.string = cpy_string(code->data.LOAD_ATTR.attribute_name);
+                attrs->data.String.string_length = code->data.LOAD_ATTR.str_length;
+
+                StackMachine_push(StackMachine, rtmap_get(tmp->data.Class->attrs_table, attrs), false);
+
+                rtobj_free(attrs, false);
+                break;
+            }
+
             case POP_STACK:
             {
                 StackMachine_pop(StackMachine, true);
                 break;
             }
+
+            case CREATE_LIST:
+            {
+                perform_create_list(code->data.CREATE_LIST.list_length);
+                break;
+            }
+
+            case CREATE_MAP:
+            {
+                perform_create_map(code->data.CREATE_MAP.map_size);
+                break;
+            }
+
+            case LOAD_INDEX:
+            {
+                perform_get_index();
+                break;
+            }
+
             case EXIT_PROGRAM:
             {
                 return perform_exit();
@@ -1113,6 +1353,7 @@ int run_program()
                 break;
 
             frame->pg_counter++;
+            trigger_GC();
         }
     }
     return 0;

@@ -7,7 +7,7 @@ typedef struct LLNode LLNode;
 */
 typedef struct GenericLList
 {
-    int length;     // Nb of elements list contains
+    unsigned int length;     // Nb of elements list contains
     LLNode *head;   // tail of list
     LLNode *tail;   // head of list
 

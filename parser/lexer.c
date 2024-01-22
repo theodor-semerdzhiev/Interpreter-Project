@@ -185,6 +185,7 @@ static enum token_type get_special_token_type(Lexer *lexer, char *string, size_t
     case '!':
         lexer->text_ptr++;
         lexer->cur_pos++;
+        
         return LOGICAL_NOT_OP;
 
     // - ->

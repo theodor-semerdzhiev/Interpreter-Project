@@ -12,7 +12,7 @@ func church(n) {
 
 func getVal(church_numeral) {
     return church_numeral(
-        func(n) {return n+1;},
+        func(n) {return n + 1;},
         0
     );
 }
@@ -31,7 +31,7 @@ let FIVE = church(5);
 
 func ChurchFib(n) {
     if(n == 0) {
-        return  ZERO;
+        return ZERO;
     } else if(n == 1) {
         return ONE;
     } else {
@@ -39,7 +39,11 @@ func ChurchFib(n) {
     }
 }
 
-println(getVal(ChurchFib(10)));
+println(getVal(ChurchFib(1)));
+
+println("abcd"[0]);
+
+
 
 
 

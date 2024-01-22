@@ -9,9 +9,9 @@ func fact(n) {
 }
 
 let x = Str(fact(fact(3)));
-print(Typeof(x), x + "123123\n");
+print(typeof(x), x + " 123123\n");
 
-let y = input("What is your name: ");
+#let y = input("What is your name: ");
 
-print("Hello " + y + "!");
+#print("Hello " + y + "!");
 

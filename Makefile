@@ -19,6 +19,9 @@ SRC_FILES = \
   runtime/builtins.c \
   runtime/gc.c \
   runtime/rtfunc.c \
+  runtime/rtlists.c \
+  runtime/rtmap.c \
+  runtime/rtclass.c \
   generics/hashset.c \
   generics/hashmap.c \
   generics/linkedlist.c \

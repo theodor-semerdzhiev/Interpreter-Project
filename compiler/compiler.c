@@ -7,6 +7,8 @@
 #include "../parser/parser.h"
 #include "../compiler/compiler.h"
 #include "../runtime/rtobjects.h"
+#include "../runtime/rtfunc.h"
+
 #include "exprsimplifier.h"
 
 /*
@@ -100,7 +102,13 @@ GenericSet *collect_free_vars(AST_List *node)
     return free_var_table;
 }
 
-/* Top Level function for capturing all free variables contained within THE BODY of a AST node */
+/**
+ * DESCRIPTION:
+ * Top Level function for capturing all free variables contained within THE BODY of a AST node
+ *
+ * This function returns a Set of FreeVariable structs, therefor make sure to cast the void* to FreeVariable
+ * when extracting elements from the set
+ * */
 GenericSet *collect_free_vars_ast_node(AST_node *node)
 {
     GenericSet *free_var_table = init_GenericSet(
@@ -535,7 +543,7 @@ static void _collect_free_vars_from_ast_node(
         _collect_free_vars_inline_func_declaration(recursion_lvl, node, free_var_set, bound_var_set);
         break;
 
-    case OBJECT_DECLARATION:
+    case CLASS_DECLARATION:
         _collect_free_vars_obj_declaration(recursion_lvl, node, free_var_set, bound_var_set);
         break;
 
@@ -965,43 +973,45 @@ ByteCode *compile_func_declaration(AST_node *function)
     FreeVariable **free_vars = (FreeVariable **)GenericSet_to_list(free_var_set);
 
     // Initializes function object
-    RtObject *func = init_RtObject(FUNCTION_TYPE);
-    func->data.Function.func_data.user_func.body = compile_code_body(func_body, false, false);
-
-    func->data.Function.func_data.user_func.func_name =
+    // RtObject *func = init_RtObject(FUNCTION_TYPE);
+    RtFunction *func = init_rtfunc(false);
+    func->func_data.user_func.body = compile_code_body(func_body, false, false);
+    func->func_data.user_func.func_name =
         function->type == FUNCTION_DECLARATION ? malloc_string_cpy(NULL, func_name) : NULL;
 
-    if (!func->data.Function.func_data.user_func.body)
-        func->data.Function.func_data.user_func.body = init_ByteCodeList();
-    func->data.Function.func_data.user_func.arg_count = arg_count;
-    func->data.Function.func_data.user_func.args = malloc(sizeof(char *) * arg_count);
+    if (!func->func_data.user_func.body)
+        func->func_data.user_func.body = init_ByteCodeList();
+    func->func_data.user_func.arg_count = arg_count;
+    func->func_data.user_func.args = malloc(sizeof(char *) * arg_count);
 
     // Sets the arguments
     for (int i = 0; i < arg_count; i++)
     {
         assert(args[i]->type == VALUE);
-        func->data.Function.func_data.user_func.args[i] =
-            malloc_string_cpy(NULL, args[i]->component->meta_data.variable_reference);
+        func->func_data.user_func.args[i] =
+            cpy_string(args[i]->component->meta_data.variable_reference);
     }
 
-    func->data.Function.func_data.user_func.closure_obj = NULL;
-    func->data.Function.func_data.user_func.closure_count = free_var_set->size;
-    func->data.Function.func_data.user_func.closures = malloc(sizeof(char *) * free_var_set->size);
+    func->func_data.user_func.closure_obj = NULL;
+    func->func_data.user_func.closure_count = free_var_set->size;
+    func->func_data.user_func.closures = malloc(sizeof(char *) * free_var_set->size);
 
     // Sets closure variables
-    for (int i = 0; i < free_var_set->size; i++)
+    for (unsigned int i = 0; i < free_var_set->size; i++)
     {
-        func->data.Function.func_data.user_func.closures[i] = malloc_string_cpy(NULL, free_vars[i]->varname);
+        func->func_data.user_func.closures[i] = cpy_string(free_vars[i]->varname);
     }
 
     // Adds function return <=> a return is not present in top scope of function body OR the last AST node is a else block, meaning
-    if ((function->body && function->body->length > 0 &&  !ast_list_has(function->body, RETURN_VAL)))
+    if ((function->body && function->body->length > 0 && !ast_list_has(function->body, RETURN_VAL)))
     {
-        add_bytecode(func->data.Function.func_data.user_func.body, init_ByteCode(FUNCTION_RETURN_UNDEFINED));
+        add_bytecode(func->func_data.user_func.body, init_ByteCode(FUNCTION_RETURN_UNDEFINED));
     }
 
     ByteCode *instruction = init_ByteCode(CREATE_FUNCTION);
-    instruction->data.CREATE_FUNCTION.function = func;
+    RtObject *func_obj = init_RtObject(FUNCTION_TYPE);
+    func_obj->data.Func = func;
+    instruction->data.CREATE_FUNCTION.function = func_obj;
 
     // frees memory
     GenericSet_free(free_var_set, true);
@@ -1126,6 +1136,58 @@ ByteCodeList *compiled_while_loop(AST_node *node)
     return loop_code;
 }
 
+/**
+ * DESCRIPTION:
+ * Compiles class body into a function, and adds a special bytecode at the end
+ */
+ByteCode *compile_class_body(AST_node *node)
+{
+    assert(node->type == CLASS_DECLARATION);
+    ExpressionNode **args = node->ast_data.obj_args.object_prototype_args;
+    int arg_count = node->ast_data.obj_args.args_num;
+
+    RtFunction *constructor = init_rtfunc(false);
+    constructor->func_data.user_func.body = compile_code_body(node->body, false, false);
+    constructor->func_data.user_func.func_name = cpy_string(node->identifier.obj_name);
+
+    // sets the arguments
+    constructor->func_data.user_func.arg_count = arg_count;
+    constructor->func_data.user_func.args = malloc(sizeof(char) * arg_count);
+
+    for (int i = 0; i < arg_count; i++)
+    {
+        assert(args[i]->type == VALUE && args[i]->component->type == VARIABLE);
+        char *argname = args[i]->component->meta_data.variable_reference;
+        constructor->func_data.user_func.args[i] = cpy_string(argname);
+    }
+
+    // sets the closured
+    GenericSet *free_vars_set = collect_free_vars_ast_node(node);
+    FreeVariable **free_vars = (FreeVariable **)GenericSet_to_list(free_vars_set);
+
+    constructor->func_data.user_func.closures = NULL;
+    constructor->func_data.user_func.closure_count = free_vars_set->size;
+    constructor->func_data.user_func.closures = malloc(sizeof(char) * free_vars_set->size);
+
+    for (int i = 0; free_vars[i] != NULL; i++)
+    {
+        constructor->func_data.user_func.closures[i] = cpy_string(free_vars[i]->varname);
+    }
+    free(free_vars);
+    GenericSet_free(free_vars_set, true);
+
+    add_bytecode(constructor->func_data.user_func.body, init_ByteCode(CREATE_OBJECT_RETURN));
+
+    RtObject *constructor_obj = init_RtObject(FUNCTION_TYPE);
+    constructor_obj->data.Func = constructor;
+
+    ByteCode *constructor_func = init_ByteCode(CREATE_FUNCTION);
+    constructor_func->line_nb = node->line_num;
+    constructor_func->data.CREATE_FUNCTION.function = constructor_obj;
+
+    return constructor_func;
+}
+
 /* Checks if expression component has node with given type*/
 static bool expression_component_has(ExpressionComponent *cm, enum expression_component_type type)
 {
@@ -1218,7 +1280,8 @@ ByteCodeList *compile_code_body(AST_List *body, bool is_global_scope, bool add_d
             char *varname = node->identifier.declared_var;
             ByteCode *instruction = init_ByteCode(CREATE_VAR);
             instruction->data.CREATE_VAR.new_var_name = malloc_string_cpy(NULL, varname);
-            instruction->data.CREATE_VAR.str_length = strlen(varname);
+            assert(node->access != DOES_NOT_APPLY);
+            instruction->data.CREATE_VAR.access = node->access;
 
             add_bytecode(list, instruction);
 
@@ -1257,22 +1320,6 @@ ByteCodeList *compile_code_body(AST_List *body, bool is_global_scope, bool add_d
                 node = node->next;
             }
 
-            break;
-        }
-
-        case FUNCTION_DECLARATION:
-        case INLINE_FUNCTION_DECLARATION:
-        {
-            ByteCode *create_func = compile_func_declaration(node);
-            ByteCode *create_var = init_ByteCode(CREATE_VAR);
-            create_var->data.CREATE_VAR.new_var_name = malloc_string_cpy(NULL, node->identifier.func_name);
-            create_var->data.CREATE_VAR.str_length = strlen(create_var->data.CREATE_VAR.new_var_name);
-
-            if (!list)
-                list = init_ByteCodeList();
-
-            add_bytecode(list, create_func);
-            add_bytecode(list, create_var);
             break;
         }
 
@@ -1349,9 +1396,33 @@ ByteCodeList *compile_code_body(AST_List *body, bool is_global_scope, bool add_d
             break;
         }
 
-        case OBJECT_DECLARATION:
+        case FUNCTION_DECLARATION:
+        case INLINE_FUNCTION_DECLARATION:
         {
-            // TODO
+            ByteCode *create_func = compile_func_declaration(node);
+            ByteCode *create_var = init_ByteCode(CREATE_VAR);
+            create_var->data.CREATE_VAR.new_var_name = cpy_string(node->identifier.func_name);
+            create_var->data.CREATE_VAR.access = node->access;
+            if (!list)
+                list = init_ByteCodeList();
+
+            add_bytecode(list, create_func);
+            add_bytecode(list, create_var);
+            break;
+        }
+
+        case CLASS_DECLARATION:
+        {
+            ByteCode *class_constructor = compile_class_body(node);
+            ByteCode *create_var = init_ByteCode(CREATE_VAR);
+            create_var->data.CREATE_VAR.new_var_name = cpy_string(node->identifier.func_name);
+            create_var->data.CREATE_VAR.access = node->access;
+
+            if (!list)
+                list = init_ByteCodeList();
+
+            add_bytecode(list, class_constructor);
+            add_bytecode(list, create_var);
             break;
         }
 
@@ -1406,7 +1477,7 @@ void free_ByteCode(ByteCode *bytecode)
     switch (bytecode->op_code)
     {
     case LOAD_CONST:
-        free_RtObject(bytecode->data.LOAD_CONST.constant, true);
+        rtobj_free(bytecode->data.LOAD_CONST.constant, true);
         break;
     case LOAD_VAR:
         free(bytecode->data.LOAD_VAR.variable);
@@ -1424,12 +1495,12 @@ void free_ByteCode(ByteCode *bytecode)
         break;
 
     case LOAD_ATTRIBUTE:
-        free(bytecode->data.LOAD_ATTR.attribute_name); 
+        free(bytecode->data.LOAD_ATTR.attribute_name);
         break;
 
     case CREATE_FUNCTION:
     {
-        free_RtObject(bytecode->data.CREATE_FUNCTION.function, true);
+        rtobj_free(bytecode->data.CREATE_FUNCTION.function, true);
         break;
     }
 
@@ -1523,7 +1594,7 @@ void deconstruct_bytecode(ByteCodeList *bytecode, int offset)
             break;
         case LOAD_CONST:
             printf("LOAD_CONST");
-            deconstruct_RtObject(instrc->data.LOAD_CONST.constant, offset);
+            rtobj_deconstruct(instrc->data.LOAD_CONST.constant, offset);
             break;
         case LOAD_VAR:
             printf("LOAD_VAR %s\n", instrc->data.LOAD_VAR.variable);
@@ -1556,7 +1627,14 @@ void deconstruct_bytecode(ByteCodeList *bytecode, int offset)
         {
             printf("CREATE_FUNCTION\n");
             // print_offset(offset);
-            deconstruct_RtObject(instrc->data.CREATE_FUNCTION.function, offset + 1);
+            rtobj_deconstruct(instrc->data.CREATE_FUNCTION.function, offset + 1);
+            break;
+        }
+
+        case CREATE_OBJECT_RETURN:
+        {
+            printf("CREATE_OBJECT_RETURN\n");
+            // TODO
             break;
         }
         case ABSOLUTE_JUMP:

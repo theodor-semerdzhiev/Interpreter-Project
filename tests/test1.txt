@@ -46,5 +46,4 @@ func toRad(deg) {
 println(toRad(60));
 print(sin(toRad(45)), "\n");
 print(pow(sin(toRad(45)), 2),"\n");
-print("123123" + "213123123");
 

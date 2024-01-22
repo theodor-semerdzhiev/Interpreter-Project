@@ -39,9 +39,9 @@ typedef struct ChainingList
 */
 typedef struct GenericMap
 {
-    int size; // number of elements in map
+    unsigned int size; // number of elements in map
 
-    int max_buckets;
+    unsigned int max_buckets;
     ChainingList **buckets;
 
     unsigned int (*hash)(const void *);                 // function to hash keys (hash function)
@@ -457,7 +457,7 @@ void *GenericHashmap_remove_key(GenericMap *map, void *key, bool free_key)
 */
 void map_filter_data(GenericMap *map, bool (*filter_data)(const void *), bool free_key, bool free_data)
 {
-    for (int i = 0; i < map->max_buckets; i++)
+    for (unsigned int i = 0; i < map->max_buckets; i++)
     {
         if (!map->buckets[i])
             continue;
@@ -498,7 +498,7 @@ void free_GenericMap(GenericMap *map, bool free_key, bool free_data)
     if (!map)
         return;
 
-    for (int i = 0; i < map->max_buckets; i++)
+    for (unsigned int i = 0; i < map->max_buckets; i++)
     {
         if (!map->buckets[i])
             continue;
@@ -523,7 +523,7 @@ static void GenericMap_print_contents(const GenericMap *map)
 {
 
     printf("Size: %d \n Max Buckets: %d\n", map->size, map->max_buckets);
-    for (int i = 0; i < map->max_buckets; i++)
+    for (unsigned int i = 0; i < map->max_buckets; i++)
     {
         if (!map->buckets[i])
             continue;

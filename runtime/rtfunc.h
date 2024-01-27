@@ -33,6 +33,8 @@ typedef struct RtFunction
             Builtin *func;
         } built_in;
     } func_data;
+
+    bool GCFlag; // used by GC for garbage collection
 } RtFunction;
 
 RtObject *mutate_func_data(RtObject *target, const RtObject *new_val, bool deepcpy);

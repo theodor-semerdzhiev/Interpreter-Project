@@ -6,7 +6,11 @@
 #include "../generics/hashset.h"
 #include "../generics/utilities.h"
 #include "gc.h"
+#include "rttype.h"
 
+/**
+ * This is temporary file in order to implement the large scale refactor of the GC
+ */
 /**
  * This File contains the implementation of the runtime garbage collector
  */
@@ -19,6 +23,39 @@ static bool gc_active = false;
 static GenericSet *GCregistry = NULL;
 
 bool is_GC_Active() { return gc_active; }
+
+typedef struct RtDataCtn {
+    void *rtdata;
+    RtType type;
+} RtDataCtn;
+
+/**
+ * DESCRIPTION:
+ * Creates Runtime data container for keeping track of data pointers
+ * 
+ * PARAMS:
+ * rtdata: pointer to store
+ * type: its type
+*/
+static RtDataCtn *init_RtDataCtn(void *rtdata, RtType type) {
+    RtDataCtn *ctn = malloc(sizeof(RtDataCtn));
+    if(!ctn) {
+        MallocError();
+        return NULL;
+    }
+    ctn->rtdata=rtdata;
+    ctn->type=type;
+    return ctn;
+}
+
+/**
+ * DESCRIPTION:
+ * Frees rtdata container
+*/
+static void rtdatactn_free(RtDataCtn *ctn) {
+    rttype_freedata(ctn->type, ctn, false);
+    free(ctn);
+}
 
 /**
  * DESCRIPTION:
@@ -35,10 +72,18 @@ RtObject *add_to_GC_registry(RtObject *obj)
     assert(obj);
     if (!gc_active)
         return obj;
-    if (GenericSet_get(GCregistry, obj))
+
+    void *data = rtobj_getdata(obj);
+    if(!data) 
         return obj;
 
-    GenericSet_insert(GCregistry, obj, false);
+    RtDataCtn *ctn = init_RtDataCtn(data, obj->type);
+    if (GenericSet_get(GCregistry, ctn)) {
+        free(ctn);
+        return obj;
+    }
+
+    GenericSet_insert(GCregistry, ctn, false);
     liveObjCount++;
     return obj;
 }
@@ -66,16 +111,21 @@ void trigger_GC()
  * obj: object to remove from GC registry
  * free_ptr: wether object should be freed when removed
  */
-
-RtObject *remove_from_GC_registry(RtObject *obj, bool free_ptr)
+void remove_from_GC_registry(RtObject *obj, bool free_ptr)
 {
     assert(obj);
-    RtObject *ptr = (RtObject *)GenericSet_remove(GCregistry, obj);
-    if (free_ptr)
-        rtobj_free(obj, false);
+    if(rttype_isprimitive(obj->type))
+        return;
+    void *data = rtobj_getdata(obj);
+    if(!data) 
+        return;
+
+    RtDataCtn *ptr = (RtDataCtn *)GenericSet_remove(GCregistry, data);
     if (ptr)
         liveObjCount--;
-
+    if (free_ptr)
+        rtdatactn_free(ptr);
+    
     return free_ptr ? NULL : ptr;
 }
 
@@ -85,8 +135,8 @@ RtObject *remove_from_GC_registry(RtObject *obj, bool free_ptr)
  * Since we are comparing raw pointers, we are going to be hashing that raw value
  */
 static bool _compare_rawptr(const void *ptr1, const void *ptr2) { return ptr1 == ptr2; }
-static unsigned int _hash_RtObject_ptr(const void *ptr) { return hash_pointer(ptr); }
-static void _free_rtdata(RtObject *obj) { rtobj_free(obj, false); }
+static unsigned int _hash_rtdata(const RtDataCtn *ptr) { return hash_pointer(ptr->rtdata); }
+static void _free_rtdata(RtDataCtn *ptr) { rtdatactn_free(ptr); }
 
 /* Initializes the runtime garbage collector */
 void init_GarbageCollector()
@@ -95,8 +145,13 @@ void init_GarbageCollector()
     gc_active = true;
     GCregistry = init_GenericSet(
         _compare_rawptr,
-        _hash_RtObject_ptr,
-        (void (*)(void *))_free_rtdata);
+        (unsigned int(*)(const void*))_hash_rtdata,
+        (void (*)(void *))rtdatactn_free);
+
+    if(!GCregistry) {
+        printf("Failed to initialize GC registry\n");
+        MallocError();
+    }
 }
 
 void cleanup_GarbageCollector()

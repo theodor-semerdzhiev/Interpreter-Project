@@ -8,6 +8,7 @@
 #include "builtins.h"
 #include "runtime.h"
 #include "rtlists.h"
+#include "rttype.h"
 #include "gc.h"
 
 /**
@@ -637,7 +638,7 @@ static void perform_binary_operation(
  */
 static void perform_var_mutation()
 {
-
+    
     bool new_val_disposable = disposable();
     RtObject *new_val = StackMachine_pop(env->stk_machine, false);
     bool mutable_disposable = disposable();
@@ -647,10 +648,12 @@ static void perform_var_mutation()
     // if new_val is disposable, then a deep cpy is created, since new_val will be freed
     rtobj_mutate(old_val, new_val, new_val_disposable);
 
-    // Makes sure new_val is either disposed or put into the GC registry
-    // which it should already be if its not disposable
+    // if(new_val_disposable) {
+    //     remove_from_GC_registry(new_val, false);
+    //     rtobj_shallow_free(new_val);
+    // }
     dispose_disposable_obj(new_val, new_val_disposable);
-
+    // dispose_disposable_obj(new_val, new_val_disposable);
     // makes sure old_val is put into the GC registry, (it should already be in it)
     add_to_GC_registry(old_val);
 }
@@ -744,11 +747,11 @@ static int perform_exit()
     RtObject *obj = StackMachine_pop(env->stk_machine, false);
     if (obj->type != NUMBER_TYPE)
     {
-        printf("Program cannot return %s\n", rtobj_type_toString(obj));
+        printf("Program cannot return %s\n", rtobj_type_toString(obj->type));
         return 1;
     }
 
-    int return_code = (int)obj->data.Number.number;
+    int return_code = (int)obj->data.Number;
     dispose_disposable_obj(obj, dispose);
     free_CallFrame(RunTime_pop_callframe(), false);
 
@@ -1017,23 +1020,29 @@ static void perform_return_class()
 {
     Identifier **fields = IdentifierTable_to_IdentList(CurrentStackFrame()->lookup);
 
-    RtClass *cl = init_RtClass(
-        getCurrentStackFrame()->function,
-        getCurrentStackFrame()->function->func_data.user_func.func_name);
+    RtClass *cl = init_RtClass(getCurrentStackFrame()->function->func_data.user_func.func_name);
 
     if(!cl) MallocError();
 
     for (unsigned int i = 0; fields[i] != NULL; i++)
     {
         if(fields[i]->access != PUBLIC_ACCESS) continue;
+
         RtObject *attrname = init_RtObject(STRING_TYPE);
-        attrname->data.String.string = cpy_string(fields[i]->key);
+        attrname->data.String = init_RtString(fields[i]->key);
+
         rtmap_insert(cl->attrs_table, attrname, fields[i]->obj);
+
+        add_to_GC_registry(attrname);
+        add_to_GC_registry(fields[i]->obj);
     }
+
+    free(fields);
 
     RtObject *class = init_RtObject(CLASS_TYPE);
     class->data.Class = cl;
-    
+
+    add_to_GC_registry(class);
     StackMachine_push(StackMachine, class, true);
 }
 /******************************************************/
@@ -1257,6 +1266,11 @@ int run_program()
                 continue;
             }
 
+            case ABSOLUTE_JUMP: {
+                frame->pg_counter = code->data.ABSOLUTE_JUMP.offset;
+                continue;
+            }
+
             case OFFSET_JUMP:
             {
                 CurrentStackFrame()->pg_counter += code->data.OFFSET_JUMP.offset;
@@ -1302,13 +1316,14 @@ int run_program()
                 // VERY TEMPORARY CODE
                 RtObject *tmp = StackMachine_pop(StackMachine, false);
 
-                RtObject *attrs = init_RtObject(STRING_TYPE);
-                attrs->data.String.string = cpy_string(code->data.LOAD_ATTR.attribute_name);
-                attrs->data.String.string_length = code->data.LOAD_ATTR.str_length;
+                RtObject *attrsname = init_RtObject(STRING_TYPE);
+                attrsname->data.String = init_RtString(tmp->data.String->string);
 
-                StackMachine_push(StackMachine, rtmap_get(tmp->data.Class->attrs_table, attrs), false);
+                RtObject *attrs = rtmap_get(tmp->data.Class->attrs_table, attrsname);
+                assert(attrs);
+                StackMachine_push(StackMachine, attrs, false);
 
-                rtobj_free(attrs, false);
+                rtobj_free(attrsname, false);
                 break;
             }
 

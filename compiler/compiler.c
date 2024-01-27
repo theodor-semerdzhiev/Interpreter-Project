@@ -702,7 +702,7 @@ ByteCodeList *compile_expression_component(ExpressionComponent *cm)
     {
         instruction = init_ByteCode(LOAD_CONST);
         RtObject *number_constant = init_RtObject(NUMBER_TYPE);
-        number_constant->data.Number.number = cm->meta_data.numeric_const;
+        number_constant->data.Number = cm->meta_data.numeric_const;
         instruction->data.LOAD_CONST.constant = number_constant;
         break;
     }
@@ -711,10 +711,8 @@ ByteCodeList *compile_expression_component(ExpressionComponent *cm)
     {
         instruction = init_ByteCode(LOAD_CONST);
         RtObject *string_constant = init_RtObject(STRING_TYPE);
-        string_constant->data.String.string = malloc_string_cpy(NULL, cm->meta_data.string_literal);
-        string_constant->data.String.string_length = strlen(cm->meta_data.string_literal);
+        string_constant->data.String = init_RtString(cm->meta_data.string_literal);
         instruction->data.LOAD_CONST.constant = string_constant;
-
         break;
     }
 
@@ -1152,7 +1150,7 @@ ByteCode *compile_class_body(AST_node *node)
 
     // sets the arguments
     constructor->func_data.user_func.arg_count = arg_count;
-    constructor->func_data.user_func.args = malloc(sizeof(char) * arg_count);
+    constructor->func_data.user_func.args = malloc(sizeof(char*) * (arg_count+1));
 
     for (int i = 0; i < arg_count; i++)
     {
@@ -1165,9 +1163,9 @@ ByteCode *compile_class_body(AST_node *node)
     GenericSet *free_vars_set = collect_free_vars_ast_node(node);
     FreeVariable **free_vars = (FreeVariable **)GenericSet_to_list(free_vars_set);
 
-    constructor->func_data.user_func.closures = NULL;
     constructor->func_data.user_func.closure_count = free_vars_set->size;
-    constructor->func_data.user_func.closures = malloc(sizeof(char) * free_vars_set->size);
+    constructor->func_data.user_func.closure_obj = NULL;
+    constructor->func_data.user_func.closures = malloc(sizeof(char*) * free_vars_set->size);
 
     for (int i = 0; free_vars[i] != NULL; i++)
     {
@@ -1361,7 +1359,7 @@ ByteCodeList *compile_code_body(AST_List *body, bool is_global_scope, bool add_d
             {
                 ByteCode *return_val = init_ByteCode(LOAD_CONST);
                 return_val->data.LOAD_CONST.constant = init_RtObject(NUMBER_TYPE);
-                return_val->data.LOAD_CONST.constant->data.Number.number = 0;
+                return_val->data.LOAD_CONST.constant->data.Number = 0;
                 add_bytecode(list, return_val);
             }
 
@@ -1460,7 +1458,7 @@ ByteCodeList *compile_code_body(AST_List *body, bool is_global_scope, bool add_d
     {
         ByteCode *return_code_val = init_ByteCode(LOAD_CONST);
         return_code_val->data.LOAD_CONST.constant = init_RtObject(NUMBER_TYPE);
-        return_code_val->data.LOAD_CONST.constant->data.Number.number = 0;
+        return_code_val->data.LOAD_CONST.constant->data.Number = 0;
         add_bytecode(list, return_code_val);
         add_bytecode(list, init_ByteCode(EXIT_PROGRAM));
     }

@@ -31,6 +31,7 @@ init_RtList(unsigned long initial_memsize)
     {
         list->objs[i] = NULL;
     }
+    list->GCFlag=false;
     return list;
 }
 

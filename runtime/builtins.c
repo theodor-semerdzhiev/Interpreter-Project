@@ -8,6 +8,7 @@
 #include "../generics/hashmap.h"
 #include "runtime.h"
 #include "rtobjects.h"
+#include "rttype.h"
 #include "builtins.h"
 
 /**
@@ -183,8 +184,9 @@ RtObject *builtin_toString(const RtObject **args, int arg_count)
     }
 
     RtObject *string = init_RtObject(STRING_TYPE);
-    string->data.String.string = str;
-    string->data.String.string_length = strlen(str);
+    string->data.String = init_RtString(NULL);
+    string->data.String->string = str;
+    string->data.String->length = strlen(str);
     return string;
 }
 
@@ -209,9 +211,8 @@ RtObject *builtin_typeof(const RtObject **args, int arg_count)
     }
 
     RtObject *string_obj = init_RtObject(STRING_TYPE);
-    const char *type = rtobj_type_toString(args[0]);
-    string_obj->data.String.string = cpy_string(type);
-    string_obj->data.String.string_length = strlen(type);
+    const char *type = rtobj_type_toString(args[0]->type);
+    string_obj->data.String=init_RtString(type);
     return string_obj;
 }
 
@@ -241,8 +242,7 @@ RtObject *builtin_input(const RtObject **args, int arg_count)
     {
         buffer[strlen(buffer) - 1] = '\0'; // removes newline char
         RtObject *input = init_RtObject(STRING_TYPE);
-        input->data.String.string = cpy_string(buffer);
-        input->data.String.string_length = strlen(buffer);
+        input->data.String = init_RtString(buffer);
         return input;
     }
     else
@@ -267,16 +267,16 @@ RtObject *builtin_toNumber(const RtObject **args, int arg_count)
     if (args[0]->type == NUMBER_TYPE)
     {
         RtObject *num = init_RtObject(NUMBER_TYPE);
-        num->data.Number.number = args[0]->data.Number.number;
+        num->data.Number= args[0]->data.Number;
         return num;
     }
     else if (args[0]->type == STRING_TYPE)
     {
-        char *str = args[0]->data.String.string;
+        char *str = args[0]->data.String->string;
         if (is_token_numeric(str))
         {
             RtObject *num = init_RtObject(NUMBER_TYPE);
-            num->data.Number.number = atof(str);
+            num->data.Number = atof(str);
             return num;
         }
         else
@@ -287,7 +287,7 @@ RtObject *builtin_toNumber(const RtObject **args, int arg_count)
     }
     else
     {
-        printf("%s type cannot be converted to a int\n", rtobj_type_toString(args[0]));
+        printf("%s type cannot be converted to a int\n", rtobj_type_toString(args[0]->type));
         return init_RtObject(UNDEFINED_TYPE);
     }
 }

@@ -49,6 +49,7 @@ init_rtfunc(bool builtin)
     if (!func)
         return NULL;
     func->is_builtin = builtin;
+    func->GCFlag = false;
     return func;
 }
 
@@ -148,9 +149,9 @@ rtfunc_cpy(const RtFunction *func, bool deepcpy)
 
         // value of this can vary during runtime
         // special case
-        if (!deepcpy || !func->func_data.user_func.closure_obj)
+        if (!deepcpy || func->func_data.user_func.closure_count == 0 || !func->func_data.user_func.closure_obj)
         {
-            cpy->func_data.user_func.closure_obj = func->func_data.user_func.closure_obj;
+            cpy->func_data.user_func.closure_obj = NULL;
         }
         else
         {

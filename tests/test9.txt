@@ -37,6 +37,6 @@ func fib(n) {
     return l[n];
 }
 
-println(fib(10));
+println(fib(60));
 
 

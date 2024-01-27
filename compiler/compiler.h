@@ -162,6 +162,11 @@ typedef struct ByteCode
             int offset;
         } OFFSET_JUMP_IF_TRUE_NOPOP;
 
+        struct
+        {
+            unsigned int offset;
+        } ABSOLUTE_JUMP;
+
         /* Used any sort of program counter jump */
         struct
         {

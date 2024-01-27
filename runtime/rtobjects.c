@@ -8,6 +8,8 @@
 #include "../generics/utilities.h"
 #include "rtfunc.h"
 #include "gc.h"
+#include "string.h"
+#include "rttype.h"
 
 /**
  * This file contains the implementation of runtime objects, and the corresponding operations on them
@@ -62,34 +64,6 @@ init_RtObject(RtType type)
     return obj;
 }
 
-/**
- * Helper function for getting name of the object's type
- */
-const char *rtobj_type_toString(const RtObject *obj)
-{
-    switch (obj->type)
-    {
-    case UNDEFINED_TYPE:
-        return "Undefined";
-    case NULL_TYPE:
-        return "Null";
-    case NUMBER_TYPE:
-        return "Number";
-    case STRING_TYPE:
-        return "String";
-    case CLASS_TYPE:
-        return "Object";
-    case FUNCTION_TYPE:
-        return "Function";
-    case LIST_TYPE:
-        return "List";
-    case HASHMAP_TYPE:
-        return "Map";
-    case HASHSET_TYPE:
-        return "Set";
-    }
-}
-
 __attribute__((warn_unused_result))
 /**
  * Converts a string into its corresponding string representation
@@ -110,12 +84,12 @@ rtobj_toString(const RtObject *obj)
     {
 
         char buffer[65];
-        snprintf(buffer, sizeof(buffer), "%lf", obj->data.Number.number);
+        snprintf(buffer, sizeof(buffer), "%Lf", obj->data.Number);
         return cpy_string(buffer);
     }
 
     case STRING_TYPE:
-        return cpy_string(obj->data.String.string);
+        return cpy_string(obj->data.String->string);
 
     case FUNCTION_TYPE:
     {
@@ -124,8 +98,7 @@ rtobj_toString(const RtObject *obj)
 
     case CLASS_TYPE:
     {
-        // TODO
-        return NULL;
+        return rtclass_toString(obj->data.Class);
     }
 
     case LIST_TYPE:
@@ -160,7 +133,7 @@ multiply_obj_by_multiplier(double multiplier, RtObject *obj)
         RtObject *result = init_RtObject(NUMBER_TYPE);
         if (!result)
             return NULL;
-        result->data.Number.number = multiplier * obj->data.Number.number;
+        result->data.Number = multiplier * obj->data.Number;
         return result;
     }
 
@@ -169,7 +142,7 @@ multiply_obj_by_multiplier(double multiplier, RtObject *obj)
         RtObject *result = init_RtObject(NUMBER_TYPE);
         if (!result)
             return NULL;
-        result->data.Number.number = 0;
+        result->data.Number = 0;
         return result;
     }
 
@@ -178,11 +151,11 @@ multiply_obj_by_multiplier(double multiplier, RtObject *obj)
         RtObject *result = init_RtObject(STRING_TYPE);
         if (!result)
             return NULL;
-        char *multiplicand = obj->data.String.string;
-        int multiplicand_len = obj->data.String.string_length;
-        result->data.String.string =
-            repeat_string((int)multiplier, multiplicand, multiplicand_len);
-        result->data.String.string_length = multiplicand_len * multiplier;
+        char *multiplicand = obj->data.String->string;
+        int multiplicand_len = obj->data.String->length;
+
+        result->data.String=init_RtString(multiplicand);
+        result->data.String->length = multiplicand_len * multiplier;
         return result;
     }
 
@@ -195,7 +168,7 @@ multiply_obj_by_multiplier(double multiplier, RtObject *obj)
     default:
     {
         // invalid type
-        printf("Cannot multiply number and %s\n", rtobj_type_toString(obj));
+        printf("Cannot multiply number and %s\n", rtobj_type_toString(obj->type));
         return NULL;
     }
     }
@@ -213,7 +186,7 @@ multiply_objs(RtObject *obj1, RtObject *obj2)
     // number * obj2
     case NUMBER_TYPE:
     {
-        return multiply_obj_by_multiplier(obj1->data.Number.number, obj2);
+        return multiply_obj_by_multiplier(obj1->data.Number, obj2);
     }
 
     // " ... " * obj2
@@ -223,11 +196,11 @@ multiply_objs(RtObject *obj1, RtObject *obj2)
         {
         case NUMBER_TYPE:
         {
-            return multiply_obj_by_multiplier(obj2->data.Number.number, obj1);
+            return multiply_obj_by_multiplier(obj2->data.Number, obj1);
         }
 
         default:
-            printf("Cannot multiply string and %s\n", rtobj_type_toString(obj2));
+            printf("Cannot multiply string and %s\n", rtobj_type_toString(obj2->type));
             return NULL;
         }
     }
@@ -239,7 +212,9 @@ multiply_objs(RtObject *obj1, RtObject *obj2)
 
     default:
     {
-        printf("Cannot multiply %s by %s\n", rtobj_type_toString(obj1), rtobj_type_toString(obj2));
+        printf("Cannot multiply %s by %s\n", 
+        rtobj_type_toString(obj1->type), 
+        rtobj_type_toString(obj2->type));
         break;
     }
     }
@@ -265,7 +240,7 @@ add_objs(RtObject *obj1, RtObject *obj2)
             RtObject *result = init_RtObject(NUMBER_TYPE);
             if (!result)
                 return NULL;
-            result->data.Number.number = obj1->data.Number.number + obj2->data.Number.number;
+            result->data.Number = obj1->data.Number + obj2->data.Number;
             return result;
         }
 
@@ -274,13 +249,14 @@ add_objs(RtObject *obj1, RtObject *obj2)
             RtObject *result = init_RtObject(NUMBER_TYPE);
             if (!result)
                 return NULL;
-            result->data.Number.number = obj1->data.Number.number;
+            result->data.Number = obj1->data.Number;
             return result;
         }
 
         default:
         {
-            printf("Cannot perform addition on Number and %s\n", rtobj_type_toString(obj2));
+            printf("Cannot perform addition on Number and %s\n", 
+            rtobj_type_toString(obj2->type));
             break;
         }
         }
@@ -289,8 +265,8 @@ add_objs(RtObject *obj1, RtObject *obj2)
 
     case STRING_TYPE:
     {
-        char *adder1 = obj1->data.String.string;
-        int length1 = obj1->data.String.string_length;
+        char *adder1 = obj1->data.String->string;
+        int length1 = obj1->data.String->length;
         switch (obj2->type)
         {
         case STRING_TYPE:
@@ -298,15 +274,16 @@ add_objs(RtObject *obj1, RtObject *obj2)
             RtObject *result = init_RtObject(STRING_TYPE);
             if (!result)
                 return NULL;
-            char *adder2 = obj2->data.String.string;
-            int length2 = obj2->data.String.string_length;
-            result->data.String.string = concat_strings(adder1, adder2);
-            result->data.String.string_length = length1 + length2;
+            char *adder2 = obj1->data.String->string;
+            int length2 = obj1->data.String->length;
+            result->data.String->string = concat_strings(adder1, adder2);
+            result->data.String->length = length1 + length2;
             return result;
         }
 
         default:
-            printf("Cannot perform addition on String and %s\n", rtobj_type_toString(obj2));
+            printf("Cannot perform addition on String and %s\n", 
+            rtobj_type_toString(obj2->type));
             break;
         }
         break;
@@ -322,7 +299,7 @@ add_objs(RtObject *obj1, RtObject *obj2)
             RtObject *result = init_RtObject(NUMBER_TYPE);
             if (!result)
                 return NULL;
-            result->data.Number.number = obj2->data.Number.number;
+            result->data.Number = obj2->data.Number;
             return result;
         }
 
@@ -331,12 +308,13 @@ add_objs(RtObject *obj1, RtObject *obj2)
             RtObject *result = init_RtObject(NUMBER_TYPE);
             if (!result)
                 return NULL;
-            result->data.Number.number = 0;
+            result->data.Number = 0;
             return result;
         }
 
         default:
-            printf("Cannot perform addtion for Null and %s\n", rtobj_type_toString(obj1));
+            printf("Cannot perform addtion for Null and %s\n", 
+            rtobj_type_toString(obj1->type));
             return NULL;
         }
         break;
@@ -354,7 +332,8 @@ add_objs(RtObject *obj1, RtObject *obj2)
 
         default:
         {
-            printf("Cannot add List and %s\n", rtobj_type_toString(obj2));
+            printf("Cannot add List and %s\n", 
+            rtobj_type_toString(obj2->type));
             return NULL;
         }
         }
@@ -371,7 +350,8 @@ add_objs(RtObject *obj1, RtObject *obj2)
             return NULL;
         }
         default:
-            printf("Cannot add Map and %s\n", rtobj_type_toString(obj2));
+            printf("Cannot add Map and %s\n", 
+            rtobj_type_toString(obj2->type));
             return NULL;
         }
         break;
@@ -406,7 +386,7 @@ substract_objs(RtObject *obj1, RtObject *obj2)
             RtObject *result = init_RtObject(NUMBER_TYPE);
             if (!result)
                 return NULL;
-            result->data.Number.number = obj1->data.Number.number - obj2->data.Number.number;
+            result->data.Number = obj1->data.Number - obj2->data.Number;
             return result;
         }
 
@@ -415,13 +395,14 @@ substract_objs(RtObject *obj1, RtObject *obj2)
             RtObject *result = init_RtObject(NUMBER_TYPE);
             if (!result)
                 return NULL;
-            result->data.Number.number = obj1->data.Number.number;
+            result->data.Number = obj1->data.Number;
             ;
             return result;
         }
 
         default:
-            printf("Cannot perform substraction on Number and %s.\n", rtobj_type_toString(obj2));
+            printf("Cannot perform substraction on Number and %s.\n", 
+            rtobj_type_toString(obj2->type));
             return NULL;
         }
     }
@@ -435,7 +416,7 @@ substract_objs(RtObject *obj1, RtObject *obj2)
             RtObject *result = init_RtObject(NUMBER_TYPE);
             if (!result)
                 return NULL;
-            result->data.Number.number = -1 * obj2->data.Number.number;
+            result->data.Number = -1 * obj2->data.Number;
             return result;
         }
 
@@ -444,12 +425,13 @@ substract_objs(RtObject *obj1, RtObject *obj2)
             RtObject *result = init_RtObject(NUMBER_TYPE);
             if (!result)
                 return NULL;
-            result->data.Number.number = 0;
+            result->data.Number = 0;
             return result;
         }
 
         default:
-            printf("Cannot perform substraction on Number and %s.\n", rtobj_type_toString(obj2));
+            printf("Cannot perform substraction on Number and %s.\n", 
+            rtobj_type_toString(obj2->type));
             return NULL;
         }
     }
@@ -466,7 +448,8 @@ substract_objs(RtObject *obj1, RtObject *obj2)
 
         default:
         {
-            printf("Cannot perform substraction on Set and %s.\n", rtobj_type_toString(obj2));
+            printf("Cannot perform substraction on Set and %s.\n", 
+            rtobj_type_toString(obj2->type));
             break;
         }
         }
@@ -478,7 +461,9 @@ substract_objs(RtObject *obj1, RtObject *obj2)
     case HASHMAP_TYPE:
     case FUNCTION_TYPE:
     case UNDEFINED_TYPE:
-        printf("Cannot perform substraction on types %s and %s.\n", rtobj_type_toString(obj1), rtobj_type_toString(obj2));
+        printf("Cannot perform substraction on types %s and %s.\n", 
+        rtobj_type_toString(obj1->type), 
+        rtobj_type_toString(obj2->type));
         break;
     }
     return NULL;
@@ -494,12 +479,14 @@ divide_objs(RtObject *obj1, RtObject *obj2)
     if (obj1->type == NUMBER_TYPE && obj2->type == NUMBER_TYPE)
     {
         RtObject *obj = init_RtObject(NUMBER_TYPE);
-        obj->data.Number.number = obj1->data.Number.number / obj2->data.Number.number;
+        obj->data.Number = obj1->data.Number / obj2->data.Number;
         return obj;
     }
     else
     {
-        printf("Cannot perform division on %s and %s.\n", rtobj_type_toString(obj1), rtobj_type_toString(obj2));
+        printf("Cannot perform division on %s and %s.\n", 
+        rtobj_type_toString(obj1->type), 
+        rtobj_type_toString(obj2->type));
         return NULL;
     }
 }
@@ -514,14 +501,16 @@ modulus_objs(RtObject *obj1, RtObject *obj2)
     if (obj1->type == NUMBER_TYPE && obj2->type == NUMBER_TYPE)
     {
         RtObject *obj = init_RtObject(NUMBER_TYPE);
-        double x = obj1->data.Number.number;
-        double y = obj2->data.Number.number;
-        obj->data.Number.number = x - ((int)(x / y) * y);
+        double x = obj1->data.Number;
+        double y = obj2->data.Number;
+        obj->data.Number = x - ((int)(x / y) * y);
         return obj;
     }
     else
     {
-        printf("Cannot perform modulus on %s and %s.\n", rtobj_type_toString(obj1), rtobj_type_toString(obj2));
+        printf("Cannot perform modulus on %s and %s.\n", 
+        rtobj_type_toString(obj1->type), 
+        rtobj_type_toString(obj2->type));
         return NULL;
     }
 }
@@ -540,12 +529,14 @@ RtObject *exponentiate_obj(RtObject *base, RtObject *exponent)
     if (base->type == NUMBER_TYPE && exponent->type == NUMBER_TYPE)
     {
         RtObject *result = init_RtObject(NUMBER_TYPE);
-        result->data.Number.number = pow(base->data.Number.number, exponent->data.Number.number);
+        result->data.Number = pow(base->data.Number, exponent->data.Number);
         return result;
     }
     else
     {
-        printf("Cannot exponentiate %s with %s.\n", rtobj_type_toString(base), rtobj_type_toString(exponent));
+        printf("Cannot exponentiate %s with %s.\n", 
+        rtobj_type_toString(base->type), 
+        rtobj_type_toString(exponent->type));
         return init_RtObject(UNDEFINED_TYPE);
     }
 }
@@ -560,12 +551,14 @@ bitwise_and_objs(RtObject *obj1, RtObject *obj2)
     if (obj1->type == NUMBER_TYPE && obj2->type == NUMBER_TYPE)
     {
         RtObject *obj = init_RtObject(NUMBER_TYPE);
-        obj->data.Number.number = ((int)obj1->data.Number.number) & ((int)obj2->data.Number.number);
+        obj->data.Number = ((int)obj1->data.Number) & ((int)obj2->data.Number);
         return obj;
     }
     else
     {
-        printf("Cannot perform bitwise AND on %s and %s.\n", rtobj_type_toString(obj1), rtobj_type_toString(obj2));
+        printf("Cannot perform bitwise AND on %s and %s.\n", 
+        rtobj_type_toString(obj1->type), 
+        rtobj_type_toString(obj2->type));
         return NULL;
     }
 }
@@ -580,12 +573,14 @@ bitwise_or_objs(RtObject *obj1, RtObject *obj2)
     if (obj1->type == NUMBER_TYPE && obj2->type == NUMBER_TYPE)
     {
         RtObject *obj = init_RtObject(NUMBER_TYPE);
-        obj->data.Number.number = ((int)obj1->data.Number.number) | ((int)obj2->data.Number.number);
+        obj->data.Number = ((int)obj1->data.Number) | ((int)obj2->data.Number);
         return obj;
     }
     else
     {
-        printf("Cannot perform bitwise OR on %s and %s.\n", rtobj_type_toString(obj1), rtobj_type_toString(obj2));
+        printf("Cannot perform bitwise OR on %s and %s.\n", 
+        rtobj_type_toString(obj1->type), 
+        rtobj_type_toString(obj2->type));
         return NULL;
     }
 }
@@ -600,12 +595,14 @@ bitwise_xor_objs(RtObject *obj1, RtObject *obj2)
     if (obj1->type == NUMBER_TYPE && obj2->type == NUMBER_TYPE)
     {
         RtObject *obj = init_RtObject(NUMBER_TYPE);
-        obj->data.Number.number = ((int)obj1->data.Number.number) ^ ((int)obj2->data.Number.number);
+        obj->data.Number = ((int)obj1->data.Number) ^ ((int)obj2->data.Number);
         return obj;
     }
     else
     {
-        printf("Cannot perform bitwise XOR on %s and %s.\n", rtobj_type_toString(obj1), rtobj_type_toString(obj2));
+        printf("Cannot perform bitwise XOR on %s and %s.\n", 
+        rtobj_type_toString(obj1->type), 
+        rtobj_type_toString(obj2->type));
         return NULL;
     }
 }
@@ -620,12 +617,14 @@ shift_left_objs(RtObject *obj1, RtObject *obj2)
     if (obj1->type == NUMBER_TYPE && obj2->type == NUMBER_TYPE)
     {
         RtObject *obj = init_RtObject(NUMBER_TYPE);
-        obj->data.Number.number = ((int)obj1->data.Number.number) << ((int)obj2->data.Number.number);
+        obj->data.Number = ((int)obj1->data.Number) << ((int)obj2->data.Number);
         return obj;
     }
     else
     {
-        printf("Cannot perform left shift on %s and %s.\n", rtobj_type_toString(obj1), rtobj_type_toString(obj2));
+        printf("Cannot perform left shift on %s and %s.\n", 
+        rtobj_type_toString(obj1->type), 
+        rtobj_type_toString(obj2->type));
         return NULL;
     }
 }
@@ -640,12 +639,14 @@ shift_right_objs(RtObject *obj1, RtObject *obj2)
     if (obj1->type == NUMBER_TYPE && obj2->type == NUMBER_TYPE)
     {
         RtObject *obj = init_RtObject(NUMBER_TYPE);
-        obj->data.Number.number = ((int)obj1->data.Number.number) >> ((int)obj2->data.Number.number);
+        obj->data.Number = ((int)obj1->data.Number) >> ((int)obj2->data.Number);
         return obj;
     }
     else
     {
-        printf("Cannot perform left right on %s and %s.\n", rtobj_type_toString(obj1), rtobj_type_toString(obj2));
+        printf("Cannot perform left right on %s and %s.\n", 
+        rtobj_type_toString(obj1->type), 
+        rtobj_type_toString(obj2->type));
         return NULL;
     }
 }
@@ -660,18 +661,20 @@ greater_than_op(RtObject *obj1, RtObject *obj2)
     if (obj1->type == NUMBER_TYPE && obj2->type == NUMBER_TYPE)
     {
         RtObject *obj = init_RtObject(NUMBER_TYPE);
-        obj->data.Number.number = obj1->data.Number.number > obj2->data.Number.number;
+        obj->data.Number = obj1->data.Number > obj2->data.Number;
         return obj;
     }
     else if (obj1->type == STRING_TYPE && obj2->type == STRING_TYPE)
     {
         RtObject *obj = init_RtObject(NUMBER_TYPE);
-        obj->data.Number.number = strcmp(obj1->data.String.string, obj2->data.String.string) > 0;
+        obj->data.Number = strcmp(obj1->data.String->string, obj2->data.String->string) > 0;
         return obj;
     }
     else
     {
-        printf("Cannot perform greater than on %s and %s.\n", rtobj_type_toString(obj1), rtobj_type_toString(obj2));
+        printf("Cannot perform greater than on %s and %s.\n", 
+        rtobj_type_toString(obj1->type), 
+        rtobj_type_toString(obj2->type));
         return NULL;
     }
 }
@@ -686,18 +689,20 @@ greater_equal_op(RtObject *obj1, RtObject *obj2)
     if (obj1->type == NUMBER_TYPE && obj2->type == NUMBER_TYPE)
     {
         RtObject *obj = init_RtObject(NUMBER_TYPE);
-        obj->data.Number.number = obj1->data.Number.number >= obj2->data.Number.number;
+        obj->data.Number = obj1->data.Number >= obj2->data.Number;
         return obj;
     }
     else if (obj1->type == STRING_TYPE && obj2->type == STRING_TYPE)
     {
         RtObject *obj = init_RtObject(NUMBER_TYPE);
-        obj->data.Number.number = strcmp(obj1->data.String.string, obj2->data.String.string) >= 0;
+        obj->data.Number= strcmp(obj1->data.String->string, obj2->data.String->string) >= 0;
         return obj;
     }
     else
     {
-        printf("Cannot perform greater than or equal on %s and %s.\n", rtobj_type_toString(obj1), rtobj_type_toString(obj2));
+        printf("Cannot perform greater than or equal on %s and %s.\n", 
+        rtobj_type_toString(obj1->type), 
+        rtobj_type_toString(obj2->type));
         return NULL;
     }
 }
@@ -712,18 +717,20 @@ lesser_than_op(RtObject *obj1, RtObject *obj2)
     if (obj1->type == NUMBER_TYPE && obj2->type == NUMBER_TYPE)
     {
         RtObject *obj = init_RtObject(NUMBER_TYPE);
-        obj->data.Number.number = obj1->data.Number.number < obj2->data.Number.number;
+        obj->data.Number = obj1->data.Number < obj2->data.Number;
         return obj;
     }
     else if (obj1->type == STRING_TYPE && obj2->type == STRING_TYPE)
     {
         RtObject *obj = init_RtObject(NUMBER_TYPE);
-        obj->data.Number.number = strcmp(obj1->data.String.string, obj2->data.String.string) < 0;
+        obj->data.Number = strcmp(obj1->data.String->string, obj2->data.String->string) < 0;
         return obj;
     }
     else
     {
-        printf("Cannot perform lesser than on %s and %s.\n", rtobj_type_toString(obj1), rtobj_type_toString(obj2));
+        printf("Cannot perform lesser than on %s and %s.\n", 
+        rtobj_type_toString(obj1->type), 
+        rtobj_type_toString(obj2->type));
         return NULL;
     }
 }
@@ -738,18 +745,20 @@ lesser_equal_op(RtObject *obj1, RtObject *obj2)
     if (obj1->type == NUMBER_TYPE && obj2->type == NUMBER_TYPE)
     {
         RtObject *obj = init_RtObject(NUMBER_TYPE);
-        obj->data.Number.number = obj1->data.Number.number <= obj2->data.Number.number;
+        obj->data.Number = obj1->data.Number <= obj2->data.Number;
         return obj;
     }
     else if (obj1->type == STRING_TYPE && obj2->type == STRING_TYPE)
     {
         RtObject *obj = init_RtObject(NUMBER_TYPE);
-        obj->data.Number.number = strcmp(obj1->data.String.string, obj2->data.String.string) <= 0;
+        obj->data.Number = strcmp(obj1->data.String->string, obj2->data.String->string) <= 0;
         return obj;
     }
     else
     {
-        printf("Cannot perform lesser than or equal on %s and %s.\n", rtobj_type_toString(obj1), rtobj_type_toString(obj2));
+        printf("Cannot perform lesser than or equal on %s and %s.\n", 
+        rtobj_type_toString(obj1->type), 
+        rtobj_type_toString(obj2->type));
         return NULL;
     }
 }
@@ -761,23 +770,9 @@ __attribute__((warn_unused_result))
 RtObject *
 equal_op(RtObject *obj1, RtObject *obj2)
 {
-    if (obj1->type == NUMBER_TYPE && obj2->type == NUMBER_TYPE)
-    {
-        RtObject *obj = init_RtObject(NUMBER_TYPE);
-        obj->data.Number.number = obj1->data.Number.number == obj2->data.Number.number;
-        return obj;
-    }
-    else if (obj1->type == STRING_TYPE && obj2->type == STRING_TYPE)
-    {
-        RtObject *obj = init_RtObject(NUMBER_TYPE);
-        obj->data.Number.number = strings_equal(obj1->data.String.string, obj2->data.String.string);
-        return obj;
-    }
-    else
-    {
-        printf("Cannot perform lesser than or equal on %s and %s.\n", rtobj_type_toString(obj1), rtobj_type_toString(obj2));
-        return NULL;
-    }
+    RtObject *result = init_RtObject(NUMBER_TYPE);
+    result->data.Number = (double)rtobj_equal(obj1, obj2);
+    return result;
 }
 
 __attribute__((warn_unused_result))
@@ -788,7 +783,7 @@ RtObject *
 logical_and_op(RtObject *obj1, RtObject *obj2)
 {
     RtObject *result = init_RtObject(NUMBER_TYPE);
-    result->data.Number.number = eval_obj(obj1) && eval_obj(obj2);
+    result->data.Number = eval_obj(obj1) && eval_obj(obj2);
     return result;
 }
 
@@ -800,7 +795,7 @@ RtObject *
 logical_or_op(RtObject *obj1, RtObject *obj2)
 {
     RtObject *result = init_RtObject(NUMBER_TYPE);
-    result->data.Number.number = eval_obj(obj1) || eval_obj(obj2);
+    result->data.Number = eval_obj(obj1) || eval_obj(obj2);
     return result;
 }
 
@@ -813,11 +808,12 @@ logical_not_op(RtObject *target)
 {
     if (target->type == NUMBER_TYPE)
     {
-        target->data.Number.number = !target->data.Number.number;
+        target->data.Number = !target->data.Number;
     }
     else
     {
-        printf("Cannot perform logical NOT on %s\n", rtobj_type_toString(target));
+        printf("Cannot perform logical NOT on %s\n", 
+        rtobj_type_toString(target->type));
     }
 
     return target;
@@ -835,9 +831,9 @@ bool eval_obj(const RtObject *obj)
     case NULL_TYPE:
         return false;
     case NUMBER_TYPE:
-        return ((int)obj->data.Number.number) ? true : false;
+        return ((int)obj->data.Number) ? true : false;
     case STRING_TYPE:
-        return obj->data.String.string_length ? true : false;
+        return obj->data.String->length ? true : false;
     case FUNCTION_TYPE:
         return true;
     case CLASS_TYPE:
@@ -865,9 +861,9 @@ unsigned int rtobj_hash(const RtObject *obj)
     {
 
     case NUMBER_TYPE:
-        return murmurHashUInt(obj->data.Number.number);
+        return murmurHashUInt(obj->data.Number);
     case STRING_TYPE:
-        return djb2_string_hash(obj->data.String.string);
+        return djb2_string_hash(obj->data.String->string);
     case FUNCTION_TYPE:
         return obj->data.Func->is_builtin ? hash_pointer((void *)obj->data.Func->func_data.built_in.func) : hash_pointer((void *)obj->data.Func->func_data.user_func.body);
     case CLASS_TYPE:
@@ -909,12 +905,12 @@ bool rtobj_equal(const RtObject *obj1, const RtObject *obj2)
 
     case NUMBER_TYPE:
     {
-        return (obj2->type == NUMBER_TYPE && obj2->data.Number.number == obj2->data.Number.number);
+        return obj2->data.Number == obj2->data.Number;
     }
 
     case STRING_TYPE:
     {
-        return (obj2->type == STRING_TYPE && strings_equal(obj1->data.String.string, obj2->data.String.string));
+        return strings_equal(obj1->data.String->string, obj2->data.String->string);
     }
 
     case FUNCTION_TYPE:
@@ -971,20 +967,19 @@ rtobj_shallow_cpy(const RtObject *obj)
     {
     case NUMBER_TYPE:
     {
-        cpy->data.Number.number = obj->data.Number.number;
+        cpy->data.Number = obj->data.Number;
         return cpy;
     }
 
     case STRING_TYPE:
     {
-        cpy->data.String.string = cpy_string(obj->data.String.string);
-        cpy->data.String.string_length = obj->data.String.string_length;
+        cpy->data.String = obj->data.String;
         return cpy;
     }
 
     case NULL_TYPE:
     {
-        cpy->data.Number.number = 0;
+        cpy->data.Number = 0;
         return cpy;
     }
 
@@ -1014,6 +1009,13 @@ rtobj_shallow_cpy(const RtObject *obj)
         return cpy;
     }
 
+    case CLASS_TYPE:
+    {
+
+        cpy->data.Class = rtclass_cpy(obj->data.Class, false, true);
+        return cpy;
+    }
+
     case HASHSET_TYPE:
     {
 
@@ -1021,15 +1023,6 @@ rtobj_shallow_cpy(const RtObject *obj)
         return NULL;
     }
 
-    case CLASS_TYPE:
-    {
-
-        // TODO
-        return NULL;
-    }
-
-    default:
-        return NULL;
     }
 }
 
@@ -1049,20 +1042,19 @@ rtobj_deep_cpy(const RtObject *obj)
     {
     case NUMBER_TYPE:
     {
-        cpy->data.Number.number = obj->data.Number.number;
+        cpy->data.Number = obj->data.Number;
         return cpy;
     }
 
     case STRING_TYPE:
     {
-        cpy->data.String.string = cpy_string(obj->data.String.string);
-        cpy->data.String.string_length = obj->data.String.string_length;
+        cpy->data.String->string = cpy_string(obj->data.String->string);
         return cpy;
     }
 
     case NULL_TYPE:
     {
-        cpy->data.Number.number = 0;
+        cpy->data.Number = 0;
         return cpy;
     }
 
@@ -1100,8 +1092,8 @@ rtobj_deep_cpy(const RtObject *obj)
     case CLASS_TYPE:
     {
 
-        // TODO
-        return NULL;
+        cpy->data.Class = rtclass_cpy(obj->data.Class, true, true);
+        return cpy;
     }
     }
 }
@@ -1111,33 +1103,35 @@ rtobj_deep_cpy(const RtObject *obj)
  * Performs a mutation on the target, with the new value
  *
  * PARAMS:
- * deepcpy: wether target's data should deep copied or shallow copied from new_value
+ * deepcpy: wether target's data should copied or passed directly by reference
+ * 
  */
 RtObject *rtobj_mutate(RtObject *target, const RtObject *new_value, bool deepcpy)
 {
     assert(target && new_value);
-    rtobj_free_data(target, false);
+    // if(deepcpy)
+    //     rtobj_free_data(target, false);
 
     switch (new_value->type)
     {
     case NUMBER_TYPE:
     {
-        target->data.Number.number = new_value->data.Number.number;
+        target->data.Number = new_value->data.Number;
         break;
     }
 
     case STRING_TYPE:
     {
-        target->data.String.string =
-            deepcpy ? cpy_string(new_value->data.String.string) : new_value->data.String.string;
-
-        target->data.String.string_length = new_value->data.String.string_length;
+        target->data.String = 
+        deepcpy? 
+        init_RtString(new_value->data.String->string):
+        new_value->data.String;
         break;
     }
 
     case NULL_TYPE:
     {
-        target->data.Number.number = 0;
+        target->data.Number = 0;
         break;
     }
 
@@ -1154,14 +1148,19 @@ RtObject *rtobj_mutate(RtObject *target, const RtObject *new_value, bool deepcpy
 
     case LIST_TYPE:
     {
-        target->data.List = rtlist_cpy(new_value->data.List, deepcpy);
+        target->data.List = 
+        deepcpy? 
+        rtlist_cpy(new_value->data.List, false): 
+        new_value->data.List;
         break;
     }
 
     case HASHMAP_TYPE:
     {
-
-        target->data.Map = rtmap_cpy(new_value->data.Map, deepcpy, deepcpy);
+        target->data.Map = 
+        deepcpy? 
+        rtmap_cpy(new_value->data.Map, false, false):
+        new_value->data.Map;
         break;
     }
 
@@ -1174,13 +1173,13 @@ RtObject *rtobj_mutate(RtObject *target, const RtObject *new_value, bool deepcpy
 
     case CLASS_TYPE:
     {
-
-        // TODO
-        return NULL;
+        target->data.Class = 
+        deepcpy? 
+        rtclass_cpy(new_value->data.Class, false, false):
+        new_value->data.Class;
+        break;
     }
 
-    default:
-        return NULL;
     }
 
     target->type = new_value->type;
@@ -1223,7 +1222,7 @@ RtObject *rtobj_getindex(RtObject *obj, RtObject *index)
             assert(false);
             return NULL;
         }
-        long i = (long)index->data.Number.number;
+        long i = (long)index->data.Number;
         if ((size_t)i >= obj->data.List->length)
         {
             printf("Index out of bounds, cannot take index %ld of list of length %zu\n", i, obj->data.List->length);
@@ -1319,6 +1318,93 @@ RtObject **rtobj_getrefs(const RtObject *obj)
     }
 }
 
+// UNDER CONSTRUCTION
+bool rtobj_get_GCFlag(const RtObject *obj) {
+    switch (obj->type)
+    {
+    case NULL_TYPE:
+    case UNDEFINED_TYPE:
+    case NUMBER_TYPE:
+        return true;
+    case STRING_TYPE:
+        return obj->data.String->GCFlag;
+    case LIST_TYPE:
+        return obj->data.List->GCFlag;
+    case FUNCTION_TYPE:
+        return obj->data.Func->GCFlag;
+    case HASHMAP_TYPE:
+        return obj->data.Map->GCFlag;
+    case CLASS_TYPE:
+        return obj->data.Class->GCFlag;
+
+    case HASHSET_TYPE:
+        // TODO
+        return true;
+    }
+}
+
+// UNDER Construction
+void rtobj_set_GCFlag(RtObject *obj, bool flag) {
+    switch (obj->type)
+    {
+    case NULL_TYPE:
+    case UNDEFINED_TYPE:
+    case NUMBER_TYPE:
+        return;
+    case STRING_TYPE:
+        obj->data.String->GCFlag = flag;
+        return;
+    case LIST_TYPE:
+        obj->data.List->GCFlag = flag;
+        return;
+    case FUNCTION_TYPE:
+        obj->data.Func->GCFlag = flag;
+        return;
+    case HASHMAP_TYPE:
+        obj->data.Map->GCFlag = flag;
+        return;
+    case CLASS_TYPE:
+        obj->data.Class->GCFlag = flag;
+        return;
+
+    case HASHSET_TYPE:
+        // TODO
+        return;
+    }
+}
+
+/**
+ * DESCRIPTION:
+ * Gets the data pointer associated with the object
+ * 
+ * NOTE:
+ * If object type is primitive, then function returns NULL
+*/
+void *rtobj_getdata(const RtObject *obj) {
+    switch (obj->type)
+    {
+    case NUMBER_TYPE:
+    case NULL_TYPE:
+    case UNDEFINED_TYPE:
+        return NULL;
+    
+    case STRING_TYPE:
+        return obj->data.String;
+    case LIST_TYPE:
+        return obj->data.List;
+    case FUNCTION_TYPE:
+        return obj->data.Func;
+    case CLASS_TYPE:
+        return obj->data.Class;
+    case HASHMAP_TYPE:
+        return obj->data.Map;
+    case HASHSET_TYPE:
+        // return NULL
+        return NULL;
+    }
+    return NULL;
+}
+
 /**
  *  Frees objects associated data, but not object itself
  * */
@@ -1334,31 +1420,32 @@ void rtobj_free_data(RtObject *obj, bool free_immutable)
     case NUMBER_TYPE:
         break;
     case STRING_TYPE:
-        free(obj->data.String.string);
+        rtstr_free(obj->data.String);
+        obj->data.String=NULL;
         break;
     case CLASS_TYPE:
     {
-        if (free_immutable)
-        {
-            // TODO
-        }
+        rtclass_free(obj->data.Class, false, free_immutable);
+        obj->data.Class=NULL;
         break;
     }
     case FUNCTION_TYPE:
     {
         free_func_data(obj, free_immutable);
+        obj->data.Func=NULL;
         break;
     }
 
     case LIST_TYPE:
     {
-        // TODO
         rtlist_free(obj->data.List);
+        obj->data.List=NULL;
         break;
     }
     case HASHMAP_TYPE:
     {
         rtmap_free(obj->data.Map, false, false, free_immutable);
+        obj->data.Map=NULL;
         break;
     }
     case HASHSET_TYPE:
@@ -1370,7 +1457,10 @@ void rtobj_free_data(RtObject *obj, bool free_immutable)
 }
 
 /**
+ * DESCRIPTION:
  * Frees Runtime object, functions and objects are immutable
+ * 
+ * PARAMS:
  * free_immutable: if true, it will metadata associated with the object
  */
 void rtobj_free(RtObject *obj, bool free_immutable)
@@ -1378,6 +1468,18 @@ void rtobj_free(RtObject *obj, bool free_immutable)
     if (!obj)
         return;
     rtobj_free_data(obj, free_immutable);
+    free(obj);
+}
+
+/**
+ * DESCRIPTION:
+ * Frees rt object without freeing any object data 
+*/
+
+void rtobj_shallow_free(RtObject *obj) {
+    if(!obj) {
+        return;
+    }
     free(obj);
 }
 
@@ -1394,10 +1496,10 @@ void rtobj_deconstruct(RtObject *obj, int offset)
     switch (obj->type)
     {
     case NUMBER_TYPE:
-        printf(" %f \n", obj->data.Number.number);
+        printf(" %Lf \n", obj->data.Number);
         break;
     case STRING_TYPE:
-        printf(" \"%s\" \n", obj->data.String.string);
+        printf(" \"%s\" \n", obj->data.String->string);
         break;
     case NULL_TYPE:
         printf(" NULL \n");

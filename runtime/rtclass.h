@@ -12,6 +12,13 @@ typedef struct RtClass {
     //////
 
     RtMap *attrs_table;
+
+    bool GCFlag;
 } RtClass;
 
-RtClass *init_RtClass(RtFunction *func, char *classname);
+RtClass *init_RtClass(char *classname);
+
+
+void rtclass_free(RtClass *class, bool free_refs, bool free_immutable);
+char *rtclass_toString(const RtClass *cls);
+RtClass *rtclass_cpy(const RtClass *class, bool deepcpy, bool add_to_GC);

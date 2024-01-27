@@ -1,12 +1,43 @@
 
-class Test(x, z) {
-    let y = 340;
-    func load() {
-        return 340 * (x + 10) ;
-    }
 
-    func getZ() {return z;}
+class BSTNode(value) {
+    let val = value;
+    let left = null;
+    let right = null;
 }
 
-print(Test(30, 2)->load());
-print(Test(30,32)->getZ());
+class BST() {
+    let root = null;
+
+    private func _insert(r, val) {
+        if(r == null) {
+            return BSTNode(val);
+        } else if(r->val < val) {
+            r->left = _insert(r->left, val);
+        } else {
+            r->right = _insert(r->right, val);
+        }
+        return r;
+    }
+
+    func insert(val) {
+        root = _insert(root,val);
+    }
+}
+
+
+let t = BST();
+let i = 0;
+while(i < 20) {
+    println(i);
+    t->insert(i);
+    i = i + 1;
+}
+print(t);
+
+
+
+
+
+
+

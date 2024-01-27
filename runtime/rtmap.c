@@ -49,7 +49,7 @@ init_RtMap(unsigned long initial_bucket_size)
         free(map);
         return NULL;
     }
-
+    map->GCFlag=false;
     map->size = 0;
     return map;
 }
@@ -232,11 +232,13 @@ RtObject *rtmap_insert(RtMap *map, RtObject *key, RtObject *val)
         ptr = ptr->next;
     }
 
-    map->buckets[index] = init_MapNode(key, val);
+    MapNode *node = init_MapNode(key, val);
+    node->next = map->buckets[index];
+    map->buckets[index]=node;
     map->size++;
 
     // Resizes buckets array if needed
-    if (map->size == map->bucket_size + map->bucket_size / 2)
+    if (map->size == (map->bucket_size + map->bucket_size / 2))
     {
         if (!rtmap_resize(map))
             MallocError();
@@ -345,6 +347,7 @@ __attribute__((warn_unused_result))
 RtObject **
 rtmap_getrefs(const RtMap *map, bool getkeys, bool getvals)
 {
+    assert(map);
     RtObject **arr = NULL;
     if (getkeys && getvals)
     {
@@ -355,8 +358,10 @@ rtmap_getrefs(const RtMap *map, bool getkeys, bool getvals)
         arr = malloc(sizeof(RtObject *) * (map->size + 1));
     }
 
-    if (!arr)
+    if (!arr) {
+        MallocError();
         return NULL;
+    }
 
     unsigned int index = 0;
 
@@ -451,6 +456,20 @@ void rtmap_free(RtMap *map, bool free_keys, bool free_vals, bool free_immutable)
     free(map);
 }
 
+/**
+ * DESCRIPTION:
+ * Simple helper for surrounding string by quotation marks
+*/
+static char *add_quotation_marks(char *str) {
+    char *tmp = concat_strings("\"", str);
+    if(!tmp) MallocError();
+    char *tmp1 = concat_strings(tmp, "\"");
+    if(!tmp1) MallocError();
+    free(str);
+    free(tmp);
+    return tmp1;
+}
+
 __attribute__((warn_unused_result))
 /**
  * DESCRIPTION:
@@ -467,7 +486,12 @@ rtmap_toString(const RtMap *map)
     for (int i = 0; keyvals[i] != NULL;)
     {
         char *keystr = rtobj_toString(keyvals[i]);
+        if(keyvals[i]->type == STRING_TYPE)
+            keystr = add_quotation_marks(keystr);
+        
         char *valstr = rtobj_toString(keyvals[i + 1]);
+        if(keyvals[i+1]->type == STRING_TYPE)
+            valstr = add_quotation_marks(valstr);
 
         char *tmp = concat_strings(keystr, " : ");
         char *tmp_ = concat_strings(tmp, valstr);
@@ -520,13 +544,7 @@ bool rtmap_equal(const RtMap *map1, const RtMap *map2)
         RtObject *tmp2 = rtmap_get(map1, refs[i]);
         RtObject *tmp1 = rtmap_get(map1, refs[i]);
 
-        if (!tmp1 || !tmp2)
-        {
-            free(refs);
-            return false;
-        }
-
-        if (!rtobj_equal(tmp2, tmp2))
+        if (!tmp1 || !tmp2 || !rtobj_equal(tmp2, tmp2))
         {
             free(refs);
             return false;

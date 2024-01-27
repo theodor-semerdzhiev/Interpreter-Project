@@ -5,6 +5,7 @@
 #include "rtfunc.h"
 #include "rtmap.h"
 #include "rtclass.h"
+#include "rtstring.h"
 
 // // Possible runtime types
 typedef enum RtType
@@ -37,17 +38,11 @@ typedef struct RtObject
 
     union
     {
-        // will contain data about runtime object
-        struct NumberConstant
-        {
-            double number;
-        } Number;
+        long Integer;
 
-        struct StringConstant
-        {
-            char *string;
-            unsigned int string_length;
-        } String;
+        long double Number;
+
+        RtString *String;
 
         RtFunction *Func;
 
@@ -65,7 +60,6 @@ typedef struct RtObject
 RtObject *init_RtObject(RtType type);
 
 char *rtobj_toString(const RtObject *obj);
-const char *rtobj_type_toString(const RtObject *obj);
 RtObject *multiply_objs(RtObject *obj1, RtObject *obj2);
 
 RtObject *add_objs(RtObject *obj1, RtObject *obj2);
@@ -98,7 +92,9 @@ RtObject *rtobj_mutate(RtObject *target, const RtObject *new_value, bool deepcpy
 RtObject *rtobj_getindex(RtObject *obj, RtObject *index);
 
 RtObject **rtobj_getrefs(const RtObject *obj);
+void *rtobj_getdata(const RtObject *obj);
 
 void rtobj_free_data(RtObject *obj, bool free_immutable);
 void rtobj_free(RtObject *obj, bool free_immutable);
+void rtobj_shallow_free(RtObject *obj);
 void rtobj_deconstruct(RtObject *obj, int offset);

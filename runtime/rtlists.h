@@ -1,4 +1,5 @@
 #pragma once
+#include <stddef.h>
 #include "rtobjects.h"
 
 #define DEFAULT_RTLIST_LEN 16
@@ -9,6 +10,8 @@ typedef struct RtList
     size_t length; // how many rt objects in the list
 
     size_t memsize; // keep track of size of array block
+
+    bool GCFlag; // used by garbage collector 
 } RtList;
 
 RtList *init_RtList(unsigned long initial_memsize);

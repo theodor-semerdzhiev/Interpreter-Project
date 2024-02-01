@@ -179,7 +179,7 @@ void print_expression_component(ExpressionComponent *component, char *buffer, in
 
     case NUMERIC_CONSTANT:
     {
-        printf(" NUMERIC_CONSTANT -> %f \n", component->meta_data.numeric_const);
+        printf(" NUMERIC_CONSTANT -> %Lf \n", component->meta_data.numeric_const);
         break;
     }
 

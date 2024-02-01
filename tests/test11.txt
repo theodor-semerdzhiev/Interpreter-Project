@@ -1,36 +1,20 @@
 
-class Node(val) {
-    let val = val;
-    let next = null;
-}
-
-class LinkedList() {
-    let size = 0;
-    let head = null;
-    let tail = null;
-
-    func add(val) {
-        if(head == null) {
-            head = Node(val);
-            tail = head;
-        } else {
-            tail->next = Node(val);
-            tail=tail->next;
-        }
-
-        size = size + 1;
-    }
-}
 
 let l = LinkedList();
 let i = 0;
-while(i < 30) {
+while(i < 10) {
     l->add(i);
     i = i + 1;
 }
 
+print(l);
 let tmp = l->head;
+let head = tmp;
 while(!(tmp == null)) {
     println(tmp->val);
     tmp=tmp->next;
 }
+
+let x = head;
+println(x);
+println(head);

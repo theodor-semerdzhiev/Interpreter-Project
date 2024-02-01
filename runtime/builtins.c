@@ -18,16 +18,24 @@
  */
 
 #define BuiltinsInitError() exitprogram(FAILED_BUILTINS_INIT)
+RtObject *builtin_print(RtObject **args, int arg_count);
+RtObject *builtin_println(RtObject **args, int arg_count);
+RtObject *builtin_toString(RtObject **args, int arg_count);
+RtObject *builtin_typeof(RtObject **args, int arg_count);
+RtObject *builtin_input(RtObject **args, int arg_count);
+RtObject *builtin_toNumber(RtObject **args, int arg_count);
+RtObject *builtin_len(RtObject**args, int arg_count);
 
 static GenericMap *builtin_map = NULL;
 
-/* Print function */
+
 static const Builtin _builtin_print = {"print", builtin_print, -1};
 static const Builtin _builtin_println = {"println", builtin_println, -1};
-static const Builtin _builtin_string = {"Str", builtin_toString, -1};
+static const Builtin _builtin_string = {"str", builtin_toString, -1};
 static const Builtin _builtin_typeof = {"typeof", builtin_typeof, 1};
 static const Builtin _builtin_input = {"input", builtin_input, 1};
-static const Builtin _builtin_number = {"Num", builtin_toNumber, 1};
+static const Builtin _builtin_number = {"num", builtin_toNumber, 1};
+static const Builtin _builtin_len = {"len", builtin_len, 1};
 
 /**
  * Defines equality for built in functions
@@ -69,7 +77,10 @@ int init_Builtins()
         GenericHashMap_insert(builtin_map, _builtin_string.builtin_name, (void *)&_builtin_string, false) &&
         GenericHashMap_insert(builtin_map, _builtin_typeof.builtin_name, (void *)&_builtin_typeof, false) &&
         GenericHashMap_insert(builtin_map, _builtin_input.builtin_name, (void *)&_builtin_input, false) &&
-        GenericHashMap_insert(builtin_map, _builtin_number.builtin_name, (void *)&_builtin_number, false))
+        GenericHashMap_insert(builtin_map, _builtin_number.builtin_name, (void *)&_builtin_number, false) &&
+        GenericHashMap_insert(builtin_map, _builtin_len.builtin_name, (void *)&_builtin_len, false)
+    )
+
     {
         return 1;
     }
@@ -129,7 +140,7 @@ void cleanup_builtin()
 /**
  * Implementation for print built in function
  */
-RtObject *builtin_print(const RtObject **args, int arg_count)
+RtObject *builtin_print(RtObject **args, int arg_count)
 {
     for (int i = 0; i < arg_count; i++)
     {
@@ -148,7 +159,7 @@ RtObject *builtin_print(const RtObject **args, int arg_count)
  * Implementation for println built in function
  * Literally the exact same as print, but it prints out a new line
  */
-RtObject *builtin_println(const RtObject **args, int arg_count)
+RtObject *builtin_println(RtObject **args, int arg_count)
 {
     for (int i = 0; i < arg_count; i++)
     {
@@ -165,7 +176,7 @@ RtObject *builtin_println(const RtObject **args, int arg_count)
  * Implementation for string built in function
  * Converts a RtObject to a string
  */
-RtObject *builtin_toString(const RtObject **args, int arg_count)
+RtObject *builtin_toString(RtObject **args, int arg_count)
 {
     char *str = malloc(sizeof(char));
     *str = '\0';
@@ -173,20 +184,17 @@ RtObject *builtin_toString(const RtObject **args, int arg_count)
     for (int i = 0; i < arg_count; i++)
     {
         char *tmp = rtobj_toString(args[i]);
-        char *new_str = malloc(sizeof(char) * (strlen(tmp) + strlen(str) + 1));
-        new_str[0] = '\0';
-        strcat(new_str, tmp);
-        strcat(new_str, str);
-        new_str[strlen(tmp) + strlen(str)] = '\0';
+        char *new_str = concat_strings(tmp, str);
         free(str);
         free(tmp);
         str = new_str;
+
     }
 
     RtObject *string = init_RtObject(STRING_TYPE);
     string->data.String = init_RtString(NULL);
-    string->data.String->string = str;
-    string->data.String->length = strlen(str);
+    string->data.String->string=str;
+    string->data.String->length=strlen(str);
     return string;
 }
 
@@ -198,7 +206,7 @@ RtObject *builtin_toString(const RtObject **args, int arg_count)
  * PARAMS:
  * obj: input to function
  */
-RtObject *builtin_typeof(const RtObject **args, int arg_count)
+RtObject *builtin_typeof(RtObject **args, int arg_count)
 {
     if (arg_count == 0)
     {
@@ -224,7 +232,7 @@ RtObject *builtin_typeof(const RtObject **args, int arg_count)
  * args: arguments to function
  * arg_count: number of arguments
  */
-RtObject *builtin_input(const RtObject **args, int arg_count)
+RtObject *builtin_input(RtObject **args, int arg_count)
 {
     if (arg_count > 1)
     {
@@ -256,7 +264,7 @@ RtObject *builtin_input(const RtObject **args, int arg_count)
  * DESCRIPTION:
  * Converts runtime object to
  */
-RtObject *builtin_toNumber(const RtObject **args, int arg_count)
+RtObject *builtin_toNumber(RtObject **args, int arg_count)
 {
     if (arg_count != 1)
     {
@@ -276,7 +284,7 @@ RtObject *builtin_toNumber(const RtObject **args, int arg_count)
         if (is_token_numeric(str))
         {
             RtObject *num = init_RtObject(NUMBER_TYPE);
-            num->data.Number = atof(str);
+            num->data.Number->number = atof(str);
             return num;
         }
         else
@@ -290,4 +298,61 @@ RtObject *builtin_toNumber(const RtObject **args, int arg_count)
         printf("%s type cannot be converted to a int\n", rtobj_type_toString(args[0]->type));
         return init_RtObject(UNDEFINED_TYPE);
     }
+}
+
+/**
+ * DESCRIPTION:
+ * Implentation of the len built in function for getting the length of objects
+ * This function only expects 1 argument
+ * 
+ * PARAMS:
+ * args: argument objects
+ * arg_count: # of argument
+*/
+RtObject *builtin_len(RtObject**args, int arg_count) {
+    if(arg_count != 1) {
+        printf("len builtin function can only take 1 argument \n");
+        return init_RtObject(UNDEFINED_TYPE);
+    }
+    RtObject *arg = args[0];
+    assert(arg);
+    switch (arg->type)
+    {
+    case HASHMAP_TYPE: {
+        RtObject *length = init_RtObject(NUMBER_TYPE);
+        length->data.Number=init_RtNumber(arg->data.Map->size);
+        return length;
+    }
+
+    case LIST_TYPE: {
+        RtObject *length = init_RtObject(NUMBER_TYPE);
+        length->data.Number=init_RtNumber(arg->data.List->length);
+        return length;
+    }
+
+    case STRING_TYPE: {
+        RtObject *length = init_RtObject(NUMBER_TYPE);
+        length->data.Number=init_RtNumber(arg->data.String->length);
+        return length;
+    }
+    case CLASS_TYPE: {
+        // UNDER CONSTRUCTION
+        // RtObject *length = init_RtObject(NUMBER_TYPE);
+        // length->data.Number = init_RtNumber(0);
+        printf("Cannot get length of Class type\n");
+        return init_RtObject(UNDEFINED_TYPE);
+    }
+
+    case HASHSET_TYPE: {
+        // UNDER CONSTRUCTON
+        printf("UNDER CONSTRUCTION: Cannot get length of HashMap type\n");
+        return init_RtObject(UNDEFINED_TYPE);
+    }
+        
+    
+    default:
+        printf("Cannot get length of object of type %s", rtobj_type_toString(arg->type));
+        return init_RtObject(UNDEFINED_TYPE);
+    }
+    
 }

@@ -3,6 +3,13 @@
 #include <assert.h>
 #include "rtobjects.h"
 
+/**
+ * DESCRIPTION:
+ * Checks if type has associated data pointer in the rtobject
+*/
+bool rrtype_has_data(RtType type) {
+    return type != NULL_TYPE && type != UNDEFINED_TYPE;
+}
 
 /**
  * DESCRIPTION:
@@ -51,11 +58,15 @@ const char *rtobj_type_toString(RtType type)
  * freerefs: wether associated objects should also be freed
 */
 void rttype_freedata(RtType type, void *data, bool freerefs) {
+    assert(data);
     switch (type)
     {
     case NULL_TYPE:
     case UNDEFINED_TYPE:
+        return;
+
     case NUMBER_TYPE:
+        rtnum_free(data);
         return;
     
     case STRING_TYPE:
@@ -63,7 +74,7 @@ void rttype_freedata(RtType type, void *data, bool freerefs) {
         return;
 
     case LIST_TYPE:
-        rtlist_free((RtList*)data);
+        rtlist_free((RtList*)data, freerefs);
         return;
     
     case FUNCTION_TYPE: 
@@ -79,5 +90,76 @@ void rttype_freedata(RtType type, void *data, bool freerefs) {
     
     }
 }
+
+/**
+ * DESCRIPTION:
+ * Sets the GCFlag
+*/
+void rttype_set_GCFlag(void* data, RtType type, bool flag) {
+    assert(data);
+    switch (type)
+    {
+        case NULL_TYPE:
+        case UNDEFINED_TYPE:
+            return;
+        case NUMBER_TYPE:
+            ((RtNumber*)data)->GCFlag = flag;
+            return;
+        case STRING_TYPE:
+            ((RtString*)data)->GCFlag = flag;
+            return;
+        case LIST_TYPE:
+            ((RtList*)data)->GCFlag = flag;
+            return;
+        case FUNCTION_TYPE:
+            ((RtFunction*)data)->GCFlag = flag;
+            return;
+        case HASHMAP_TYPE:
+            ((RtMap*)data)->GCFlag = flag;
+            return;
+        case CLASS_TYPE:
+            ((RtClass*)data)->GCFlag = flag;
+            return;
+    }
+
+}
+
+/**
+ * DESCRIPTION:
+ * Gets the GC Flag of pointer given the type
+ * 
+ * PARAMS:
+ * data: data pointer
+ * type: type of the pointer
+*/
+bool rttype_get_GCFlag(void *data, RtType type) {
+    assert(data);
+    switch (type)
+    {
+    case NULL_TYPE:
+    case UNDEFINED_TYPE:
+        return true;
+    case NUMBER_TYPE:
+        return ((RtNumber*)data)->GCFlag;
+    case STRING_TYPE:
+        return ((RtString*)data)->GCFlag;
+    case LIST_TYPE:
+        return ((RtList*)data)->GCFlag;
+    case FUNCTION_TYPE:
+        return ((RtFunction*)data)->GCFlag;
+    case HASHMAP_TYPE:
+        return ((RtMap*)data)->GCFlag;
+    case CLASS_TYPE:
+        return ((RtClass*)data)->GCFlag;
+
+    case HASHSET_TYPE:
+        // TODO
+        return true;
+    }
+}
+
+
+
+
 
 

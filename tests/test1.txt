@@ -22,6 +22,7 @@ func fact(n) {
     }
     return res;
 }
+
 let PI = 3.1415926;
 
 func sin(x) {

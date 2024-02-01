@@ -165,8 +165,11 @@ RtObject *rtlist_get(RtList *list, long index)
  * NOTE:
  * Does NOT free objects inside list
  */
-void rtlist_free(RtList *list)
-{
+void rtlist_free(RtList *list, bool free_refs)
+{   
+    for(size_t i=0; i < free_refs && list->length; i++)
+        rtobj_free(list->objs[i], false);
+
     free(list->objs);
     free(list);
 }

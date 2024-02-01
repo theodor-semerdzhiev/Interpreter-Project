@@ -233,6 +233,7 @@ int get_pointer_list_length(void **arr)
     return length;
 }
 
+
 /**
  * DESCRIPTION:
  * Takes 2 integer pointers and checks if both are equal
@@ -252,6 +253,12 @@ bool integers_equal(const int *integer1, const int *integer2)
     return (*integer1) == (*integer2);
 }
 
+
+/**
+ * DESCRIPION:
+ * Checks if 2 void pointers are equal. Useful for using Generic Map and Set
+*/
+bool ptr_equal(const void* ptr1, const void* ptr2) {return ptr1 == ptr2;}
 /**
  * DESCRIPTION:
  * Simple function for comparing if an int is larger or equal to the static integer variable

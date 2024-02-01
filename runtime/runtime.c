@@ -62,14 +62,20 @@ static Identifier *init_Identifier(const char *varname, RtObject *obj, AccessMod
 /**
  * Frees identifier node
  * free_rtobj: wether Runtime Object should also be freed
+ * 
+ * NOTE:
+ * if free_rtobj is set to false, the runtime object itself will be freed only 
  */
 static void free_Identifier(Identifier *node, bool free_rtobj)
 {
     if (!node)
         return;
     free(node->key);
-    if (free_rtobj)
-        rtobj_free(node->obj, false);
+    if (free_rtobj) {
+        remove_from_GC_registry(node->obj, true);
+    }
+
+
 
     free(node);
 }
@@ -399,7 +405,12 @@ RtObject **StackMachine_to_list(StackMachine *stk_machine)
 }
 
 /**
+ * DESCRIPTION:
  * Frees Stack Machine
+ * 
+ * PARAMS:
+ * stk_machine: stack machine
+ * free_rtobj: wether objects still on the stack sould be freed
  */
 void free_StackMachine(StackMachine *stk_machine, bool free_rtobj)
 {
@@ -409,8 +420,10 @@ void free_StackMachine(StackMachine *stk_machine, bool free_rtobj)
     {
         StkMachineNode *tmp = stk_machine->head;
         stk_machine->head = tmp->next;
+
         if (free_rtobj)
             rtobj_free(tmp->obj, false);
+
         free(tmp);
     }
 
@@ -509,12 +522,18 @@ CallFrame *init_CallFrame(ByteCodeList *program, RtFunction *function)
 }
 
 /**
+ * DESCRIPTION:
  * Frees Call Frame
- * free_lookup_tb: wether lookup table should be freed
+ * 
+ * PARAMS:
+ * free_rtobj: wether wether rtobj data in lookup table should be freed
+ * 
+ * NOTE:
+ * Rtobjects themselves will always be freed
  */
-void free_CallFrame(CallFrame *call, bool free_rtobj)
+void free_CallFrame(CallFrame *call, bool free_rtobj_data)
 {
-    free_IdentifierTable(call->lookup, free_rtobj);
+    free_IdentifierTable(call->lookup, free_rtobj_data);
 
     free(call);
 }
@@ -549,7 +568,7 @@ RunTime *init_RunTime()
 void free_RunTime(RunTime *rt)
 {
     // objects are gonna be freed by the GC
-    free_StackMachine(rt->stk_machine, false);
+    free_StackMachine(rt->stk_machine, true);
     free(rt);
 }
 
@@ -604,7 +623,7 @@ static void dispose_disposable_obj(RtObject *obj, bool disposable)
     // frees Objects if they are disposable
     if (disposable)
     {
-        remove_from_GC_registry(obj, true);
+        rtobj_free(obj, false);
     }
     else
     {
@@ -648,11 +667,13 @@ static void perform_var_mutation()
     // if new_val is disposable, then a deep cpy is created, since new_val will be freed
     rtobj_mutate(old_val, new_val, new_val_disposable);
 
+    // dispose_disposable_obj(new_val, new_val_disposable);
     // if(new_val_disposable) {
-    //     remove_from_GC_registry(new_val, false);
-    //     rtobj_shallow_free(new_val);
+    //     rtobj_shallow_free(old_val);
     // }
-    dispose_disposable_obj(new_val, new_val_disposable);
+
+    add_to_GC_registry(new_val);
+
     // dispose_disposable_obj(new_val, new_val_disposable);
     // makes sure old_val is put into the GC registry, (it should already be in it)
     add_to_GC_registry(old_val);
@@ -712,7 +733,7 @@ static void perform_conditional_jump(int offset, bool condition, bool pop_stk)
 static void perform_create_function(RtObject *function)
 {
     assert(function->type == FUNCTION_TYPE);
-    RtObject *func = rtobj_shallow_cpy(function);
+    RtObject *func = rtobj_deep_cpy(function);
 
     // adds closure variable objects to function objects
     if (func->data.Func->func_data.user_func.closure_count > 0)
@@ -751,10 +772,9 @@ static int perform_exit()
         return 1;
     }
 
-    int return_code = (int)obj->data.Number;
+    int return_code = (int)obj->data.Number->number;
     dispose_disposable_obj(obj, dispose);
     free_CallFrame(RunTime_pop_callframe(), false);
-
     return return_code;
 }
 
@@ -764,7 +784,7 @@ static int perform_exit()
  */
 
 static void perform_builtin_call(Builtin *builtin, RtObject **args, int arg_count);
-static CallFrame *perform_regular_func_call(RtFunction *function, RtObject **arguments, unsigned int arg_count);
+static CallFrame *perform_regular_func_call(RtFunction *function, RtObject **arguments, bool disposable[],unsigned int arg_count);
 
 CallFrame *perform_function_call(unsigned int arg_count)
 {
@@ -773,6 +793,7 @@ CallFrame *perform_function_call(unsigned int arg_count)
     RtObject *arguments[arg_count];
 
     bool disposable[arg_count];
+
     // adds arguments to registry
     for (int i = arg_count - 1; i >= 0; i--)
     {
@@ -814,7 +835,7 @@ CallFrame *perform_function_call(unsigned int arg_count)
     }
     else
     {
-        new_frame = perform_regular_func_call(func->data.Func, arguments, arg_count);
+        new_frame = perform_regular_func_call(func->data.Func, arguments, disposable, arg_count);
     }
 
     dispose_disposable_obj(func, func_disposable);
@@ -845,13 +866,13 @@ static void perform_builtin_call(Builtin *builtin, RtObject **args, int arg_coun
     }
 
     // pushes result of function onto stack machine
-    StackMachine_push(StackMachine, builtin->builtin_func((const RtObject **)args, arg_count), true);
+    StackMachine_push(StackMachine, builtin->builtin_func((RtObject **)args, arg_count), true);
 }
 
 /**
  * Helper for performing logic for handling function calls
  */
-static CallFrame *perform_regular_func_call(RtFunction *Function, RtObject **arguments, unsigned int arg_count)
+static CallFrame *perform_regular_func_call(RtFunction *Function, RtObject **arguments, bool disposable[], unsigned int arg_count)
 {
 
     // checks argument counts match
@@ -868,12 +889,22 @@ static CallFrame *perform_regular_func_call(RtFunction *Function, RtObject **arg
     CallFrame *new_frame = init_CallFrame(Function->func_data.user_func.body, Function);
 
     // adds function arguments to lookup table and ref list
+    // arguments are shallowed copied if there of a primitive type, and added into GC
+    // if an object is disposable, then no copy is needed
     for (unsigned int i = 0; i < arg_count; i++)
     {
+        RtObject *arg = arguments[i];
+        // primitive types are allows copied
+        // if the primitive arg is disposable, then it wont be used after, so we can pass it as a reference
+        if(rttype_isprimitive(arg->type) && !disposable[i]) {
+            arg = rtobj_shallow_cpy(arg);
+        }
+            
+        add_to_GC_registry(arg);
         Identifier_Table_add_var(
             new_frame->lookup,
             Function->func_data.user_func.args[i],
-            arguments[i],
+            arg,
             DOES_NOT_APPLY);
     }
 
@@ -1057,10 +1088,11 @@ void perform_create_var(char *varname, AccessModifier access)
     CallFrame *frame = getCurrentStackFrame();
 
     RtObject *cpy;
-    if (disposable)
+    if (disposable) {
         cpy = new_val;
-    else
+    } else {
         cpy = rtobj_shallow_cpy(new_val);
+    }
 
     Identifier_Table_add_var(frame->lookup, varname, cpy, access);
 
@@ -1071,11 +1103,11 @@ void perform_create_var(char *varname, AccessModifier access)
 int run_program()
 {
     assert(env);
-    while (1)
+    while (true)
     {
         CallFrame *frame = callStack[env->stack_ptr];
         ByteCodeList *bytecode = frame->pg;
-        while (1)
+        while (true)
         {
             ByteCode *code = bytecode->code[frame->pg_counter];
             bool loop = true;
@@ -1085,7 +1117,7 @@ int run_program()
             case LOAD_CONST:
             {
                 // contants are imbedded within the bytecode
-                // therefor a deep copy is created
+                // therefore a deep copy is created
                 StackMachine_push(StackMachine, rtobj_deep_cpy(code->data.LOAD_CONST.constant), true);
                 break;
             }
@@ -1315,10 +1347,14 @@ int run_program()
             case LOAD_ATTRIBUTE: {
                 // VERY TEMPORARY CODE
                 RtObject *tmp = StackMachine_pop(StackMachine, false);
+                if(tmp->type != CLASS_TYPE) {
+                    printf("UNDER CONSTRUCTION: Cannot get attribute of object with type %s\n", rtobj_type_toString(tmp->type));
+                    break;
+                }
 
                 RtObject *attrsname = init_RtObject(STRING_TYPE);
-                attrsname->data.String = init_RtString(tmp->data.String->string);
-
+                attrsname->data.String = init_RtString(code->data.LOAD_ATTR.attribute_name);
+                // printf("%Li", tmp->data.Class->attrs_table->size);
                 RtObject *attrs = rtmap_get(tmp->data.Class->attrs_table, attrsname);
                 assert(attrs);
                 StackMachine_push(StackMachine, attrs, false);
@@ -1362,13 +1398,14 @@ int run_program()
                 // .
                 //
                 //
-            }
+            }   
 
             if (!loop)
                 break;
 
-            frame->pg_counter++;
             trigger_GC();
+
+            frame->pg_counter++;
         }
     }
     return 0;

@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
     init_Precedence();
 
     // AST_List *ast = parse_file(argv[1]);
-    AST_List *ast = parse_file("./tests/test5.txt");
+    AST_List *ast = parse_file("./tests/test6.txt");
     
     free_keyword_table();
     

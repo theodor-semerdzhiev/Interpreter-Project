@@ -8,7 +8,6 @@
 #include "../compiler/compiler.h"
 #include "../runtime/rtobjects.h"
 #include "../runtime/rtfunc.h"
-
 #include "exprsimplifier.h"
 
 /*
@@ -218,7 +217,7 @@ static void _add_sequence_as_bounded_vars(int recursion_lvl, ExpressionNode **ar
             arg_name,
             recursion_lvl};
 
-        if (!GenericSet_get(bound_var_set, &var))
+        if (!GenericSet_has(bound_var_set, &var))
         {
             FreeVariable *var = _malloc_free_var_struct(arg_name, recursion_lvl);
             GenericSet_insert(bound_var_set, var, false);
@@ -313,7 +312,7 @@ static void _collect_free_vars_from_exp_component(
 
                 // only adds var to free variable set, if and only if
                 // var is not a already in free var set, is not a bound var, or is not a built in identifier
-                if (!GenericSet_get(bound_var_set, &var) && !GenericSet_get(free_var_set, &var) && !ident_is_builtin(var.varname))
+                if (!GenericSet_has(bound_var_set, &var) && !GenericSet_has(free_var_set, &var) && !ident_is_builtin(var.varname))
                 {
                     FreeVariable *var_ = _malloc_free_var_struct(var.varname, var.nesting_lvl);
                     GenericSet_insert(free_var_set, var_, false);
@@ -350,7 +349,7 @@ static void _collect_free_vars_var_declaration(
     var.varname = varname;
 
     // collects free variable for LHS
-    if (!GenericSet_get(bound_var_set, &var))
+    if (!GenericSet_has(bound_var_set, &var))
     {
         FreeVariable *var_ = _malloc_free_var_struct(varname, recursion_lvl);
         GenericSet_insert(bound_var_set, var_, false);
@@ -430,7 +429,7 @@ static void _collect_free_vars_func_declaration(
     FreeVariable var = {func_name, recursion_lvl};
 
     // adds function as a bounded variable
-    if (!GenericSet_get(bound_var_set, &var))
+    if (!GenericSet_has(bound_var_set, &var))
     {
         FreeVariable *var = _malloc_free_var_struct(func_name, recursion_lvl);
         GenericSet_insert(bound_var_set, var, false);
@@ -476,7 +475,7 @@ static void _collect_free_vars_obj_declaration(
     FreeVariable var = {obj_name, recursion_lvl};
 
     // adds object as a bounded variable
-    if (!GenericSet_get(bound_var_set, &var))
+    if (!GenericSet_has(bound_var_set, &var))
     {
         FreeVariable *var = _malloc_free_var_struct(obj_name, recursion_lvl);
         GenericSet_insert(bound_var_set, var, false);
@@ -702,7 +701,7 @@ ByteCodeList *compile_expression_component(ExpressionComponent *cm)
     {
         instruction = init_ByteCode(LOAD_CONST);
         RtObject *number_constant = init_RtObject(NUMBER_TYPE);
-        number_constant->data.Number = cm->meta_data.numeric_const;
+        number_constant->data.Number = init_RtNumber(cm->meta_data.numeric_const);
         instruction->data.LOAD_CONST.constant = number_constant;
         break;
     }
@@ -1150,7 +1149,7 @@ ByteCode *compile_class_body(AST_node *node)
 
     // sets the arguments
     constructor->func_data.user_func.arg_count = arg_count;
-    constructor->func_data.user_func.args = malloc(sizeof(char*) * (arg_count+1));
+    constructor->func_data.user_func.args = malloc(sizeof(char *) * (arg_count + 1));
 
     for (int i = 0; i < arg_count; i++)
     {
@@ -1165,7 +1164,7 @@ ByteCode *compile_class_body(AST_node *node)
 
     constructor->func_data.user_func.closure_count = free_vars_set->size;
     constructor->func_data.user_func.closure_obj = NULL;
-    constructor->func_data.user_func.closures = malloc(sizeof(char*) * free_vars_set->size);
+    constructor->func_data.user_func.closures = malloc(sizeof(char *) * free_vars_set->size);
 
     for (int i = 0; free_vars[i] != NULL; i++)
     {
@@ -1359,7 +1358,7 @@ ByteCodeList *compile_code_body(AST_List *body, bool is_global_scope, bool add_d
             {
                 ByteCode *return_val = init_ByteCode(LOAD_CONST);
                 return_val->data.LOAD_CONST.constant = init_RtObject(NUMBER_TYPE);
-                return_val->data.LOAD_CONST.constant->data.Number = 0;
+                return_val->data.LOAD_CONST.constant->data.Number = init_RtNumber(0);
                 add_bytecode(list, return_val);
             }
 
@@ -1430,8 +1429,6 @@ ByteCodeList *compile_code_body(AST_List *body, bool is_global_scope, bool add_d
             break;
         }
 
-        assert(list);
-
         // ends compilation, since anything after is dead code
         if (node && (node->type == LOOP_CONTINUATION ||
                      node->type == LOOP_TERMINATOR ||
@@ -1458,7 +1455,7 @@ ByteCodeList *compile_code_body(AST_List *body, bool is_global_scope, bool add_d
     {
         ByteCode *return_code_val = init_ByteCode(LOAD_CONST);
         return_code_val->data.LOAD_CONST.constant = init_RtObject(NUMBER_TYPE);
-        return_code_val->data.LOAD_CONST.constant->data.Number = 0;
+        return_code_val->data.LOAD_CONST.constant->data.Number = init_RtNumber(0);
         add_bytecode(list, return_code_val);
         add_bytecode(list, init_ByteCode(EXIT_PROGRAM));
     }

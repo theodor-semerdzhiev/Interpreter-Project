@@ -245,12 +245,13 @@ char *malloc_string_cpy(Parser *parser, const char *str)
 
 /* Computes fractional number (whole: integer part, frac: fractional part)*/
 /* TODO: Fix issue where identifer is too long */
-double compute_fractional_double(Token *whole, Token *frac)
+long double compute_fractional_double(Token *whole, Token *frac)
 {
     assert(whole->type == NUMERIC_LITERAL && frac->type == NUMERIC_LITERAL);
-    double lhs = (double)atoi(whole->ident);
+    char *c;
+    long double lhs = (double)strtold(whole->ident, &c);
 
-    double fraction = (double)atoi(frac->ident) / (pow(10, strlen(frac->ident)));
+    long double fraction = (double)strtold(frac->ident, &c) / (pow(10, strlen(frac->ident)));
     return lhs + fraction;
 }
 
@@ -649,7 +650,9 @@ ExpressionComponent *parse_expression_component(
         }
         else
         {
-            component->meta_data.numeric_const = (double)atoi(list[parser->token_ptr]->ident);
+            char *c;
+            component->meta_data.numeric_const = 
+            (long double)strtold(list[parser->token_ptr]->ident, &c);
         }
         parser->token_ptr++;
     }

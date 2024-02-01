@@ -484,6 +484,7 @@ void map_filter_data(GenericMap *map, bool (*filter_data)(const void *), bool fr
     }
 }
 
+
 /**
  * DESCRIPTION:
  * Frees all memory associated with Map

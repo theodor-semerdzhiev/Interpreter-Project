@@ -21,7 +21,7 @@ RtString *init_RtString(const char* str) {
     RtString *rtstring = malloc(sizeof(RtString));
     if(!rtstring) return NULL;
     rtstring->string = str? cpy_string(str): NULL;
-    if(!rtstring->string) {
+    if(!rtstring->string && str) {
         free(rtstring);
         return NULL;
     }

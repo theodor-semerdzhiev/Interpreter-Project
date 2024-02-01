@@ -194,7 +194,7 @@ rtfunc_toString(RtFunction *function)
         char *funcname = function->func_data.user_func.func_name;
         size_t buffer_length = 65 + strlen(funcname) + 2 * sizeof(void *) + 1;
         char buffer[buffer_length];
-        snprintf(buffer, sizeof(buffer), "%s.func@%p", funcname, function->func_data.built_in.func);
+        snprintf(buffer, sizeof(buffer), "%s.func@%p", funcname, function->func_data.user_func.body);
         return cpy_string(buffer);
     }
     // for unnamed functions (i.e inline functions)
@@ -202,7 +202,7 @@ rtfunc_toString(RtFunction *function)
     {
         size_t buffer_length = 80 + 2 * sizeof(void *) + 1;
         char buffer[buffer_length];
-        snprintf(buffer, sizeof(buffer), "func@%p", function->func_data.user_func.func_name);
+        snprintf(buffer, sizeof(buffer), "func@%p", function->func_data.user_func.body);
 
         return cpy_string(buffer);
     }

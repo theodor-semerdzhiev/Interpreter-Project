@@ -131,7 +131,7 @@ init_GenericSet(
  * set: GenericSet to query
  * data: data used to query set
  */
-bool GenericSet_get(const GenericSet *set, const void *data)
+bool GenericSet_has(const GenericSet *set, const void *data)
 {
     unsigned int index = set->hash(data) % set->max_buckets;
     // if chain list was not created
@@ -420,6 +420,37 @@ GenericSet_to_list(const GenericSet *set)
     return list;
 }
 
+/**
+ * DESCRIPTION:
+ * Checks if a data pointer is contained within the set via a predicate equal function
+ *
+ * NOTE:
+ * equal must return true if both inputs are considered equal, false otherwise
+ *
+ * PARAMS:
+ * set: set
+ * data: data poiner
+ * (*)equal: predicate
+ */
+bool GenericSet_custom_find(const GenericSet *set, void *data, bool (*equal)(const void *, const void *))
+{
+    for (unsigned int i = 0; i < set->max_buckets; i++)
+    {
+        if (!set->buckets[i])
+            continue;
+
+        Node *ptr = set->buckets[i]->head;
+        while (ptr)
+        {
+            if (equal(data, ptr->data))
+                return true;
+
+            ptr = ptr->next;
+        }
+    }
+    return false;
+}
+
 /* Used for debugging purposes */
 void GenericSet_print_contents(const GenericSet *set, void (*print_data)(const void *))
 {
@@ -434,7 +465,6 @@ void GenericSet_print_contents(const GenericSet *set, void (*print_data)(const v
             while (node)
             {
                 print_data(node->data);
-
                 node = node->next;
             }
         }

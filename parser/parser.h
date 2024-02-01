@@ -96,7 +96,7 @@ typedef struct expression_component
     // all the data in this union is mutually exclusive
     union data
     {
-        double numeric_const; // NUMERIC_CONSTANT type
+        long double numeric_const; // NUMERIC_CONSTANT type
 
         char *string_literal; // NUMERIC_CONSTANT type
 
@@ -278,7 +278,7 @@ bool is_lexeme_in_list(enum token_type type, const enum token_type list[], int l
 
 bool lexeme_lists_intersect(
     enum token_type list1[], const int list1_length, enum token_type list2[], const int list2_length);
-double compute_fractional_double(Token *whole, Token *frac);
+long double compute_fractional_double(Token *whole, Token *frac);
 char *malloc_string_cpy(Parser *parser, const char *str);
 
 ExpressionComponent *malloc_expression_component(Parser *parser);

@@ -24,7 +24,7 @@ RtList *rtlist_cpy(RtList *list, bool deepcpy);
 RtObject **rtlist_getrefs(const RtList *list);
 
 bool rtlist_equals(RtList *l1, RtList *l2, bool deep_compare);
-void rtlist_free(RtList *list);
+void rtlist_free(RtList *list, bool free_refs);
 char* rtlist_toString(RtList *list);
 
 #define newDefaultList() init_RtList(DEFAULT_RTLIST_LEN)

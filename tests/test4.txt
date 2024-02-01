@@ -7,12 +7,14 @@ func unfold(function, n, iteration) {
     }
 }
 
-# exception DivByZero;
-
-print(unfold(
+let n = unfold(
     func (n) {
+        println(n);
         return (n+1 / n) * n;
-    }, 1, 5), "\n");
+    }, 1, 5);
+    
+print(n, "\n");
+println(2);
 
 let x = "2";
 let y = "2";

@@ -21,6 +21,7 @@ unsigned int hash_int(const int *integer);
 unsigned int murmurHashUInt(double key);
 bool strings_equal(const char *str1, const char *str2);
 bool integers_equal(const int *integer1, const int *integer2);
+bool ptr_equal(const void* ptr1, const void* ptr2);
 int get_pointer_list_length(void **arr);
 
 typedef bool (*IntFilter)(const int *);

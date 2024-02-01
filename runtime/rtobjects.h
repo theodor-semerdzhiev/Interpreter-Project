@@ -6,6 +6,7 @@
 #include "rtmap.h"
 #include "rtclass.h"
 #include "rtstring.h"
+#include "rtnumber.h"
 
 // // Possible runtime types
 typedef enum RtType
@@ -31,6 +32,7 @@ typedef struct RtMap RtMap;
 typedef struct Identifier Identifier;
 typedef struct RtClass RtClass;
 
+
 // Generic object for all variables
 typedef struct RtObject
 {
@@ -38,9 +40,7 @@ typedef struct RtObject
 
     union
     {
-        long Integer;
-
-        long double Number;
+        RtNumber *Number;
 
         RtString *String;
 
@@ -53,8 +53,6 @@ typedef struct RtObject
         RtClass *Class;
         // HashSet *set;
     } data;
-
-    bool mark; // used for garbage collector
 } RtObject;
 
 RtObject *init_RtObject(RtType type);
@@ -83,16 +81,21 @@ RtObject *logical_not_op(RtObject *target);
 
 bool eval_obj(const RtObject *obj);
 unsigned int rtobj_hash(const RtObject *obj);
+unsigned int rtobj_hash_data_ptr(const RtObject *obj);
+bool rtobj_shallow_equal(const RtObject *obj1, const RtObject *obj2);
 bool rtobj_equal(const RtObject *obj1, const RtObject *obj2);
 
 RtObject *rtobj_shallow_cpy(const RtObject *obj);
 RtObject *rtobj_deep_cpy(const RtObject *obj);
 
-RtObject *rtobj_mutate(RtObject *target, const RtObject *new_value, bool deepcpy);
+RtObject *rtobj_mutate(RtObject *target, const RtObject *new_value, bool new_val_disposable);
 RtObject *rtobj_getindex(RtObject *obj, RtObject *index);
 
 RtObject **rtobj_getrefs(const RtObject *obj);
 void *rtobj_getdata(const RtObject *obj);
+bool rtobj_get_GCFlag(const RtObject *obj);
+void rtobj_set_GCFlag(RtObject *obj, bool flag);
+RtObject *rtobj_init(RtType type, void* data);
 
 void rtobj_free_data(RtObject *obj, bool free_immutable);
 void rtobj_free(RtObject *obj, bool free_immutable);

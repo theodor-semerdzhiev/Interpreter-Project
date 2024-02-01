@@ -6,9 +6,9 @@ typedef struct ChainList ChainList;
 typedef struct GenericSet
 {
 
-    unsigned int size;
+    size_t size;
 
-    unsigned int max_buckets;
+    size_t max_buckets;
     ChainList **buckets;
 
     bool (*is_equal)(const void *, const void *); // used to compare set elements

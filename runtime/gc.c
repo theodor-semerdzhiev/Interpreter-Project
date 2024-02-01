@@ -194,7 +194,6 @@ static void traverse_reference_graph(RtObject *root);
  * For all objects that are visited, a DFS is performed on its reference graph to visit all reachable objects
  * 3- For all objects in the GCRegistry, if its not marked, that it means its unreachable, and its subsequently freed
  * 4- GC flags for all objects in the call frames and stack machine is reset to false
- * 
  * NOTE:
  * In order to prevent double free errors, a set is used to keep track of data pointers that are freed
  */

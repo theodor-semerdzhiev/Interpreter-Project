@@ -72,9 +72,51 @@ _malloc_chain_list()
 }
 
 /**
+ * DESCRIPTION:
+ * Resizes a set by doubling the number of buckets
+ * 
+ * Function returns the input set
+*/
+static GenericSet* resize_GenericSet(GenericSet *set, size_t new_size) {
+    assert(set);
+    ChainList **new_buckets = malloc(sizeof(ChainList*)*new_size);
+    memset(new_buckets, 0, sizeof(ChainList*) * new_size);
+    
+    for(unsigned int i=0; i < set->max_buckets; i++) {
+        if(!set->buckets[i])
+            continue;
+        
+        Node *ptr = set->buckets[i]->head;
+        while(ptr) {
+            Node *tmp = ptr->next;
+            unsigned int index = set->hash(ptr->data) % new_size;
+
+            if(!new_buckets[index]) {
+                new_buckets[index] = _malloc_chain_list();
+            }
+
+            ptr->next = new_buckets[index]->head;
+            new_buckets[index]->head = ptr;
+            ptr = tmp;
+        }
+        free(set->buckets[i]);
+    }
+    free(set->buckets);
+
+    set->max_buckets=new_size;
+    set->buckets = new_buckets;
+    return set;
+}
+
+/**
  * DESCRIPTION: Initial value for number of buckets set will contain
  */
 #define DEFAULT_BUCKET_SIZE 32
+
+/**
+ * DESCRIPTION: Threshold amount of elements in a set that will trigger a resize
+*/
+#define RESIZE_THRESHOLD 32
 
 __attribute__((warn_unused_result))
 /**
@@ -183,18 +225,6 @@ void *GenericSet_insert(GenericSet *set, void *data, bool free_duplicate_data)
     }
 
     Node *node = set->buckets[index]->head;
-    // if list is empty
-    if (!node)
-    {
-        Node *new_node = _malloc_chain_node(data);
-        if (!new_node)
-            return NULL;
-
-        set->buckets[index]->head = new_node;
-        set->buckets[index]->tail = new_node;
-        set->size++;
-        return data;
-    }
 
     while (node)
     {
@@ -211,14 +241,18 @@ void *GenericSet_insert(GenericSet *set, void *data, bool free_duplicate_data)
         node = node->next;
     }
 
-    // if element not in set, then we add it to the tail of the list
+    // if element not in set, then we add it to the head of the list
     Node *new_node = _malloc_chain_node(data);
     if (!new_node)
         return NULL;
 
-    set->buckets[index]->tail->next = new_node;
-    set->buckets[index]->tail = new_node;
+    new_node->next=set->buckets[index]->head;
+    set->buckets[index]->head = new_node;
     set->size++;
+
+    if(set->size == (set->max_buckets + set->max_buckets / 2))
+        resize_GenericSet(set, set->max_buckets * 2);
+
     return data;
 }
 
@@ -247,35 +281,32 @@ GenericSet_remove(GenericSet *set, void *data)
     }
 
     Node *head = set->buckets[index]->head;
-    Node *prev = head;
+    Node *prev = NULL;
 
-    // Case where must remove head of list
-    if (head && set->is_equal(head->data, data))
-    {
-        set->buckets[index]->head = head->next;
-        if (!head->next)
-            set->buckets[index]->tail = NULL;
-
-        set->size--;
-        void *data = head->data;
-        free(head);
-        return data;
-    }
     while (head)
     {
 
         if (set->is_equal(head->data, data))
         {
+            void *data = head->data;
 
-            prev->next = head->next;
+            // case where we must remove the head
+            if(!prev) {
+                set->buckets[index]->head = head->next;
+                if (!head->next)
+                    set->buckets[index]->tail = NULL;
+            } else {
+                prev->next = head->next;
+                if (!head->next)
+                    set->buckets[index]->tail = prev;
 
-            if (!head->next)
-                set->buckets[index]->tail = prev;
-
-            void *removed_data = head->data;
+            }
             free(head);
             set->size--;
-            return removed_data;
+
+            if(set->size == (set->max_buckets / 2) && set->max_buckets > RESIZE_THRESHOLD)
+                resize_GenericSet(set, set->max_buckets / 2);
+            return data;
         }
 
         prev = head;
@@ -455,7 +486,7 @@ bool GenericSet_custom_find(const GenericSet *set, void *data, bool (*equal)(con
 void GenericSet_print_contents(const GenericSet *set, void (*print_data)(const void *))
 {
 
-    printf("Size: %u \n Max Buckets: %u\n", set->size, set->max_buckets);
+    printf("Size: %zu \n Max Buckets: %zu\n", set->size, set->max_buckets);
     for (unsigned long i = 0; i < set->max_buckets; i++)
     {
         if (set->buckets[i])

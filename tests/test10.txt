@@ -25,15 +25,28 @@ class BST() {
     }
 }
 
-
 let t = BST();
 let i = 0;
+
 while(i < 20) {
     println(i);
     t->insert(i);
     i = i + 1;
 }
-print(t);
+
+println(t);
+
+func Inorder(root) {
+    if(root == null) {
+        return;
+    }
+    println(root->val);
+
+    Inorder(root->left);
+    Inorder(root->right);
+}
+
+Inorder(t->root);
 
 
 

@@ -39,9 +39,9 @@ typedef struct ChainingList
 */
 typedef struct GenericMap
 {
-    unsigned int size; // number of elements in map
+    size_t size; // number of elements in map
 
-    unsigned int max_buckets;
+    size_t max_buckets;
     ChainingList **buckets;
 
     unsigned int (*hash)(const void *);                 // function to hash keys (hash function)
@@ -187,15 +187,11 @@ static GenericMap *resize_GenericMap(GenericMap *map)
     ChainingList **resized_buckets = malloc(sizeof(ChainingList *) * new_bucket_size);
 
     if (!resized_buckets)
-    {
         // Handle memory allocation failure
         return NULL;
-    }
 
     for (int i = 0; i < new_bucket_size; i++)
-    {
         resized_buckets[i] = NULL;
-    }
 
     ChainingList **prev_buckets = map->buckets;
     int prev_bucket_size = map->max_buckets;
@@ -228,17 +224,8 @@ static GenericMap *resize_GenericMap(GenericMap *map)
                     return NULL;
                 }
             }
-
-            if (!resized_buckets[new_index]->head)
-            {
-                resized_buckets[new_index]->head = head;
-                resized_buckets[new_index]->tail = head;
-            }
-            else
-            {
-                resized_buckets[new_index]->tail->next = head;
-                resized_buckets[new_index]->tail = head;
-            }
+            head->next = resized_buckets[new_index]->head;
+            resized_buckets[new_index]->head=head;
 
             head = next;
         }
@@ -263,6 +250,11 @@ __attribute__((warn_unused_result))
  * free_data: Function to free data mapped to keys
  *
  * NOTE: Returns NULL if memory error occurs
+ * 
+ * In order for the data structure to work properly,
+ * the hash AND compare_keys function MUST be valid functions
+ * 
+ * If you dont plan on freeing elements inside the list, then free_key AND/OR free_data can be NULL
  */
 GenericMap *init_GenericMap(
     unsigned int (*hash)(const void *),
@@ -348,12 +340,7 @@ void *GenericHashMap_insert(GenericMap *map, void *key, void *value, bool free_d
             return NULL;
     }
 
-    ChainNode *node = malloc_chain_node(key, value);
-    if (!node)
-        return NULL;
-    ChainingList *list = map->buckets[index];
-
-    ChainNode *head = list->head;
+    ChainNode *head = map->buckets[index]->head;
     while (head)
     {
         if (map->are_keys_equal(head->key, key))
@@ -368,16 +355,12 @@ void *GenericHashMap_insert(GenericMap *map, void *key, void *value, bool free_d
         head = head->next;
     }
 
-    if (!list->head)
-    {
-        list->head = node;
-        list->tail = node;
-    }
-    else
-    {
-        list->tail->next = node;
-        list->tail = list->tail->next;
-    }
+    ChainNode *node = malloc_chain_node(key, value);
+    if (!node)
+        return NULL;
+
+    node->next = map->buckets[index]->head;
+    map->buckets[index]->head=node;
 
     map->size++;
 
@@ -523,7 +506,7 @@ void free_GenericMap(GenericMap *map, bool free_key, bool free_data)
 static void GenericMap_print_contents(const GenericMap *map)
 {
 
-    printf("Size: %d \n Max Buckets: %d\n", map->size, map->max_buckets);
+    printf("Size: %zu \n Max Buckets: %zu\n", map->size, map->max_buckets);
     for (unsigned int i = 0; i < map->max_buckets; i++)
     {
         if (!map->buckets[i])

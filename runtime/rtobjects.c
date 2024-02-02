@@ -67,6 +67,9 @@ __attribute__((warn_unused_result))
  * DESCRIPTION:
  * Constructor for Runtime object
  * Function types are set to non built in by default
+ * 
+ * NOTE:
+ * If the type is NULL_TYPE or UNDEFINED_TYPE, then a GC Flag is malloced
  */
 RtObject *
 init_RtObject(RtType type)
@@ -77,6 +80,15 @@ init_RtObject(RtType type)
         return NULL;
     }
     obj->type = type;
+
+    if(type == NULL_TYPE) {
+        obj->data.GCFlag_NULL_TYPE = malloc(sizeof(bool));
+        *obj->data.GCFlag_NULL_TYPE = false;
+    } else if(type == UNDEFINED_TYPE) {
+        obj->data.GCFlag_UNDEFINED_TYPE = malloc(sizeof(bool));
+        *obj->data.GCFlag_UNDEFINED_TYPE = false;
+    }
+
     return obj;
 }
 
@@ -937,8 +949,8 @@ unsigned int rtobj_hash_data_ptr(const RtObject *obj) {
     case STRING_TYPE: return hash_pointer(obj->data.String);
     case FUNCTION_TYPE: return hash_pointer(obj->data.Func);
     case CLASS_TYPE: return hash_pointer(obj->data.Func);
-    case UNDEFINED_TYPE: return hash_pointer(obj);
-    case NULL_TYPE: return hash_pointer(obj);
+    case UNDEFINED_TYPE: return hash_pointer(obj->data.GCFlag_UNDEFINED_TYPE);
+    case NULL_TYPE: return hash_pointer(obj->data.GCFlag_NULL_TYPE);
     case LIST_TYPE: return hash_pointer(obj->data.List);
     case HASHMAP_TYPE: return hash_pointer(obj->data.Map);
     case HASHSET_TYPE:
@@ -962,8 +974,8 @@ bool rtobj_shallow_equal(const RtObject *obj1, const RtObject *obj2) {
     case STRING_TYPE: return obj1->data.String == obj2->data.String;
     case FUNCTION_TYPE: return obj1->data.Func == obj2->data.Func;
     case CLASS_TYPE: return obj1->data.Class == obj2->data.Class;
-    case UNDEFINED_TYPE: return obj1 == obj2;
-    case NULL_TYPE: return obj1 == obj2;
+    case UNDEFINED_TYPE: return obj1->data.GCFlag_UNDEFINED_TYPE == obj2->data.GCFlag_UNDEFINED_TYPE;
+    case NULL_TYPE: return obj1->data.GCFlag_NULL_TYPE == obj2->data.GCFlag_NULL_TYPE;
     case LIST_TYPE: return obj1->data.List == obj2->data.List;
     case HASHMAP_TYPE: return obj1->data.Map == obj2->data.Map;
     case HASHSET_TYPE:
@@ -1062,19 +1074,25 @@ rtobj_shallow_cpy(const RtObject *obj)
         return cpy;
     }
 
-    case STRING_TYPE:
-    {
-        cpy->data.String = obj->data.String;
-        return cpy;
-    }
-
     case NULL_TYPE:
     {
+        // needs to be freed since init_RtObject malloced
+        free(cpy->data.GCFlag_NULL_TYPE);
+        cpy->data.GCFlag_NULL_TYPE = obj->data.GCFlag_NULL_TYPE;
         return cpy;
     }
 
     case UNDEFINED_TYPE:
     {
+        // needs to be freed since init_RtObject malloced
+        free(cpy->data.GCFlag_UNDEFINED_TYPE);
+        cpy->data.GCFlag_UNDEFINED_TYPE = obj->data.GCFlag_UNDEFINED_TYPE;
+        return cpy;
+    }
+
+    case STRING_TYPE:
+    {
+        cpy->data.String = obj->data.String;
         return cpy;
     }
 
@@ -1140,11 +1158,8 @@ rtobj_deep_cpy(const RtObject *obj)
         return cpy;
     }
 
+    // init_RtObject should have malloced a new bool*
     case NULL_TYPE:
-    {
-        return cpy;
-    }
-
     case UNDEFINED_TYPE:
     {
         return cpy;
@@ -1196,6 +1211,11 @@ rtobj_deep_cpy(const RtObject *obj)
 RtObject *rtobj_mutate(RtObject *target, const RtObject *new_value, bool new_val_disposable)
 {
     assert(target && new_value);
+
+    if(target == new_value) {
+        return target;
+    }
+
     // if(new_val_disposable)
     add_to_GC_registry(rtobj_shallow_cpy(target));
     
@@ -1208,19 +1228,23 @@ RtObject *rtobj_mutate(RtObject *target, const RtObject *new_value, bool new_val
         break;
     }
 
-    case STRING_TYPE:
-    {
-        target->data.String =  new_value->data.String;
-        break;
-    }
-
     case NULL_TYPE:
     {
+        target->data.GCFlag_NULL_TYPE = malloc(sizeof(bool));
+        *target->data.GCFlag_NULL_TYPE = false;
         break;
     }
 
     case UNDEFINED_TYPE:
     {
+        target->data.GCFlag_UNDEFINED_TYPE = malloc(sizeof(bool));
+        *target->data.GCFlag_UNDEFINED_TYPE = false;
+        break;
+    }
+
+    case STRING_TYPE:
+    {
+        target->data.String =  new_value->data.String;
         break;
     }
 
@@ -1400,8 +1424,9 @@ bool rtobj_get_GCFlag(const RtObject *obj) {
     switch (obj->type)
     {
     case NULL_TYPE:
+        return *obj->data.GCFlag_NULL_TYPE;
     case UNDEFINED_TYPE:
-        return true;
+        return *obj->data.GCFlag_UNDEFINED_TYPE;
     case NUMBER_TYPE:
         return obj->data.Number->GCFlag;
     case STRING_TYPE:
@@ -1426,7 +1451,10 @@ void rtobj_set_GCFlag(RtObject *obj, bool flag) {
     switch (obj->type)
     {
     case NULL_TYPE:
+        *obj->data.GCFlag_NULL_TYPE=flag;
+        return;
     case UNDEFINED_TYPE:
+        *obj->data.GCFlag_UNDEFINED_TYPE=flag;
         return;
     case NUMBER_TYPE:
         obj->data.Number->GCFlag = flag;
@@ -1468,7 +1496,10 @@ RtObject *rtobj_init(RtType type, void* data) {
     switch (obj->type)
     {
     case NULL_TYPE:
+        obj->data.GCFlag_NULL_TYPE= (bool*)data;
+        break;
     case UNDEFINED_TYPE:
+        obj->data.GCFlag_UNDEFINED_TYPE= (bool*)data;
         break;
     case NUMBER_TYPE:
         obj->data.Number=(RtNumber*)data;
@@ -1504,12 +1535,13 @@ RtObject *rtobj_init(RtType type, void* data) {
  * If object type does not have an associated data pointer, then this function returns obj
 */
 void *rtobj_getdata(const RtObject *obj) {
+    assert(obj);
     switch (obj->type)
     {
     case NULL_TYPE:
+        return obj->data.GCFlag_NULL_TYPE;
     case UNDEFINED_TYPE:
-        return (void*)obj;
-    
+        return obj->data.GCFlag_UNDEFINED_TYPE;
     case NUMBER_TYPE:
         return obj->data.Number;
     case STRING_TYPE:
@@ -1540,7 +1572,10 @@ void rtobj_free_data(RtObject *obj, bool free_immutable)
     switch (obj->type)
     {
     case UNDEFINED_TYPE:
+        free(obj->data.GCFlag_UNDEFINED_TYPE);
+        break;
     case NULL_TYPE:
+        free(obj->data.GCFlag_NULL_TYPE);
         break;
     case NUMBER_TYPE:
         rtnum_free(obj->data.Number);
@@ -1617,9 +1652,7 @@ void rtobj_shallow_free(RtObject *obj) {
 void rtobj_deconstruct(RtObject *obj, int offset)
 {
     if (!obj)
-    {
         return;
-    }
 
     print_offset(offset);
 

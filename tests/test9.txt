@@ -1,15 +1,4 @@
 
-let test = map {
-    1:2, 2:3, 5:2, 23:"123123123123123", "232": 2
-};
-
-println(test[1]);
-println(test[2]);
-println(test[5]);
-println(test[23]);
-println(test["232"]);
-println(test);
-
 
 let l = [
     0,1,-1,-1,-1,-1,-1,-1,-1,-1,-1,

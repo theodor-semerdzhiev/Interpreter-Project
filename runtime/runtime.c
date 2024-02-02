@@ -660,18 +660,20 @@ static void perform_var_mutation()
     
     bool new_val_disposable = disposable();
     RtObject *new_val = StackMachine_pop(env->stk_machine, false);
-    bool mutable_disposable = disposable();
+    bool old_val_disposable = disposable();
     RtObject *old_val = StackMachine_pop(env->stk_machine, false);
+
+    if(old_val_disposable) {
+        dispose_disposable_obj(new_val, new_val_disposable);
+        dispose_disposable_obj(old_val, old_val_disposable);
+        return;
+    }
 
     // mutates data
     // if new_val is disposable, then a deep cpy is created, since new_val will be freed
     rtobj_mutate(old_val, new_val, new_val_disposable);
 
-    // dispose_disposable_obj(new_val, new_val_disposable);
-    // if(new_val_disposable) {
-    //     rtobj_shallow_free(old_val);
-    // }
-
+    
     add_to_GC_registry(new_val);
 
     // dispose_disposable_obj(new_val, new_val_disposable);
@@ -894,10 +896,11 @@ static CallFrame *perform_regular_func_call(RtFunction *Function, RtObject **arg
     for (unsigned int i = 0; i < arg_count; i++)
     {
         RtObject *arg = arguments[i];
-        // primitive types are allows copied
-        // if the primitive arg is disposable, then it wont be used after, so we can pass it as a reference
-        if(rttype_isprimitive(arg->type) && !disposable[i]) {
-            arg = rtobj_shallow_cpy(arg);
+        
+        // primitives are always deep copied
+        if(rttype_isprimitive(arg->type)) {
+            arg = rtobj_deep_cpy(arg);
+            add_to_GC_registry(arg);
         }
             
         add_to_GC_registry(arg);
@@ -914,7 +917,6 @@ static CallFrame *perform_regular_func_call(RtFunction *Function, RtObject **arg
         Identifier_Table_add_var(
             new_frame->lookup,
             Function->func_data.user_func.closures[i],
-            // lookup_variable(Function->func_data.user_func.func_name)
             Function->func_data.user_func.closure_obj[i],
             DOES_NOT_APPLY);
     }

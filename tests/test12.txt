@@ -1,0 +1,12 @@
+
+let x = null;
+print(x);
+let i = 0;
+while(i < 20) {
+    func test() {
+        let y=null;
+        println(y);
+    }
+    test();
+    i = i + 1;
+}

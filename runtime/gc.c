@@ -190,12 +190,10 @@ static void traverse_reference_graph(RtObject *root);
  * This is a Mark and Sweep algorithm, responsible for performing garbage collection
  * 1- Traverses all objects stored in the call frames, for each object visited, its marked
  * 2- Traverses all objects still on the stack machine, for each object visited, its marked
- * NOTE: 
- * For all objects that are visited, a DFS is performed on its reference graph to visit all reachable objects
+ * NOTE: For all objects that are visited, a DFS is performed on its reference graph to visit all reachable objects
  * 3- For all objects in the GCRegistry, if its not marked, that it means its unreachable, and its subsequently freed
  * 4- GC flags for all objects in the call frames and stack machine is reset to false
- * NOTE:
- * In order to prevent double free errors, a set is used to keep track of data pointers that are freed
+ * NOTE: In order to prevent double free errors, a set is used to keep track of data pointers that are freed
  */
 void garbageCollect()
 {
@@ -234,10 +232,11 @@ void garbageCollect()
             continue;
         }
 
-        if (!rttype_get_GCFlag(data, all_active_obj[i]->type)) {
-            remove_from_GC_registry(all_active_obj[i], false);
+        if (!rttype_get_GCFlag(data, all_active_obj[i]->type) ) {
             GenericSet_insert(set, data, false);
-            rtobj_free(all_active_obj[i], false);
+            RtObject *obj = remove_from_GC_registry(all_active_obj[i], false);
+            assert(obj);
+            rtobj_free(obj, false);
             rtobj_freed[i] = true;
         }
     }

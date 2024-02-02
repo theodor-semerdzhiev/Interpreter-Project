@@ -28,7 +28,7 @@ class BST() {
 let t = BST();
 let i = 0;
 
-while(i < 20) {
+while(i < 10) {
     println(i);
     t->insert(i);
     i = i + 1;

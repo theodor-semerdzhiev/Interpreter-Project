@@ -3,13 +3,6 @@
 #include <assert.h>
 #include "rtobjects.h"
 
-/**
- * DESCRIPTION:
- * Checks if type has associated data pointer in the rtobject
-*/
-bool rrtype_has_data(RtType type) {
-    return type != NULL_TYPE && type != UNDEFINED_TYPE;
-}
 
 /**
  * DESCRIPTION:
@@ -62,7 +55,11 @@ void rttype_freedata(RtType type, void *data, bool freerefs) {
     switch (type)
     {
     case NULL_TYPE:
+        free(data);
+        return;
+
     case UNDEFINED_TYPE:
+        free(data);
         return;
 
     case NUMBER_TYPE:
@@ -101,6 +98,7 @@ void rttype_set_GCFlag(void* data, RtType type, bool flag) {
     {
         case NULL_TYPE:
         case UNDEFINED_TYPE:
+            *((bool*)data) = flag;
             return;
         case NUMBER_TYPE:
             ((RtNumber*)data)->GCFlag = flag;
@@ -138,7 +136,7 @@ bool rttype_get_GCFlag(void *data, RtType type) {
     {
     case NULL_TYPE:
     case UNDEFINED_TYPE:
-        return true;
+        return *((bool*)data);
     case NUMBER_TYPE:
         return ((RtNumber*)data)->GCFlag;
     case STRING_TYPE:

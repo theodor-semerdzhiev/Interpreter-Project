@@ -40,6 +40,10 @@ typedef struct RtObject
 
     union
     {
+        bool *GCFlag_NULL_TYPE; // represents the GC flag for the null type, MUST be malloced
+
+        bool *GCFlag_UNDEFINED_TYPE; // represents the undefined type GC flag, MUST be malloced
+
         RtNumber *Number;
 
         RtString *String;

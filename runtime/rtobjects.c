@@ -1216,9 +1216,8 @@ RtObject *rtobj_mutate(RtObject *target, const RtObject *new_value, bool new_val
         return target;
     }
 
-    // if(new_val_disposable)
     add_to_GC_registry(rtobj_shallow_cpy(target));
-    
+
     switch (new_value->type)
     {
     case NUMBER_TYPE:
@@ -1250,7 +1249,6 @@ RtObject *rtobj_mutate(RtObject *target, const RtObject *new_value, bool new_val
 
     case FUNCTION_TYPE:
     {
-        // mutate_func_data(target, new_value, true);
         target->data.Func = new_value->data.Func;
         break;
     }
@@ -1419,7 +1417,10 @@ RtObject **rtobj_getrefs(const RtObject *obj)
     }
 }
 
-// UNDER CONSTRUCTION
+/**
+ * DESCRIPTION:
+ * Gets the GC flag of the data pointer associated with the object depending on its type
+*/
 bool rtobj_get_GCFlag(const RtObject *obj) {
     switch (obj->type)
     {
@@ -1446,7 +1447,10 @@ bool rtobj_get_GCFlag(const RtObject *obj) {
     }
 }
 
-// UNDER Construction
+/**
+ * DESCRIPTION:
+ * Sets the GC flag of the associated data to the flag parameter
+*/
 void rtobj_set_GCFlag(RtObject *obj, bool flag) {
     switch (obj->type)
     {
@@ -1618,9 +1622,6 @@ void rtobj_free_data(RtObject *obj, bool free_immutable)
 }
 
 
-
-
-
 /**
  * DESCRIPTION:
  * Frees Runtime object, functions and objects are immutable
@@ -1658,14 +1659,20 @@ void rtobj_deconstruct(RtObject *obj, int offset)
 
     switch (obj->type)
     {
+    case NULL_TYPE: {
+        printf(" NULL \n");
+        break;
+    }
+
+    case UNDEFINED_TYPE: {
+        printf(" Undefined \n");
+        break;
+    }
     case NUMBER_TYPE:
         printf(" %Lf \n", obj->data.Number->number);
         break;
     case STRING_TYPE:
         printf(" \"%s\" \n", obj->data.String->string);
-        break;
-    case NULL_TYPE:
-        printf(" NULL \n");
         break;
     case FUNCTION_TYPE:
     {

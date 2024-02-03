@@ -26,9 +26,11 @@ class LinkedList() {
 let l = LinkedList();
 let i = 0;
 while(i < 10) {
+    let y = 10'
     l->add(i);
     println(l->head);
     i = i + 1;
+    println(y);
 }
 
 print(l);

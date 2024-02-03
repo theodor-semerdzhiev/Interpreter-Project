@@ -41,6 +41,9 @@ func ChurchFib(n) {
 
 println(getVal(ChurchFib(10)));
 
+let i;
+println(i);
+
 
 
 

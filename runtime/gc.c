@@ -155,6 +155,9 @@ static void cleanup_GCRegistry()
 
     RtObject **objs = (RtObject**)GenericSet_to_list(GCregistry);
     GenericSet_free(GCregistry, false);
+    
+    RtObject *test[liveObjCount];
+    memset(test, 0, sizeof(test));
 
     // marks all unique pointers to free
     for (unsigned long i = 0; objs[i] != NULL; i++) {
@@ -165,7 +168,9 @@ static void cleanup_GCRegistry()
             GenericSet_insert(set, data, false);
             rtobj_free(objs[i], false);
         }
+        test[i]=objs[i];
     }
+
 
     free(objs);
     GenericSet_free(set, false);
@@ -177,9 +182,9 @@ static void cleanup_GCRegistry()
  */
 void cleanup_GarbageCollector()
 {
-    liveObjCount = 0;
     gc_active = false;
     cleanup_GCRegistry();
+    liveObjCount = 0;
     GCregistry = NULL;
 }
 

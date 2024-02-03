@@ -663,22 +663,23 @@ static void perform_var_mutation()
     bool old_val_disposable = disposable();
     RtObject *old_val = StackMachine_pop(env->stk_machine, false);
 
-    if(old_val_disposable) {
-        dispose_disposable_obj(new_val, new_val_disposable);
-        dispose_disposable_obj(old_val, old_val_disposable);
-        return;
-    }
+    // if(old_val_disposable) {
+    //     dispose_disposable_obj(new_val, new_val_disposable);
+    //     dispose_disposable_obj(old_val, old_val_disposable);
+    //     return;
+    // }
 
     // mutates data
     // if new_val is disposable, then a deep cpy is created, since new_val will be freed
     rtobj_mutate(old_val, new_val, new_val_disposable);
 
-    
-    add_to_GC_registry(new_val);
+    if(new_val_disposable)
+        add_to_GC_registry(new_val);
 
     // dispose_disposable_obj(new_val, new_val_disposable);
     // makes sure old_val is put into the GC registry, (it should already be in it)
-    add_to_GC_registry(old_val);
+    if(old_val_disposable)
+        add_to_GC_registry(old_val);
 }
 
 /**
@@ -732,16 +733,20 @@ static void perform_conditional_jump(int offset, bool condition, bool pop_stk)
 /**
  * Handles Logic for CREATE_FUNCTION
  */
-static void perform_create_function(RtObject *function)
+static void perform_create_function(const RtObject *function)
 {
     assert(function->type == FUNCTION_TYPE);
+    assert(!function->data.Func->func_data.user_func.closure_obj);
+    
     RtObject *func = rtobj_deep_cpy(function);
+    assert(!func->data.Func->func_data.user_func.closure_obj);
 
+    unsigned int closure_count = func->data.Func->func_data.user_func.closure_count;
     // adds closure variable objects to function objects
-    if (func->data.Func->func_data.user_func.closure_count > 0)
+    if (closure_count > 0)
     {
-        RtObject **closures = malloc(sizeof(RtObject *) * func->data.Func->func_data.user_func.closure_count);
-        for (unsigned int i = 0; i < func->data.Func->func_data.user_func.closure_count; i++)
+        RtObject **closures = malloc(sizeof(RtObject *) * closure_count);
+        for (unsigned int i = 0; i < closure_count; i++)
         {
             char *name = func->data.Func->func_data.user_func.closures[i];
             closures[i] = lookup_variable(name);
@@ -896,7 +901,7 @@ static CallFrame *perform_regular_func_call(RtFunction *Function, RtObject **arg
     for (unsigned int i = 0; i < arg_count; i++)
     {
         RtObject *arg = arguments[i];
-        
+
         // primitives are always deep copied
         if(rttype_isprimitive(arg->type)) {
             arg = rtobj_deep_cpy(arg);

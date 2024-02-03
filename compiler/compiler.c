@@ -1272,7 +1272,14 @@ ByteCodeList *compile_code_body(AST_List *body, bool is_global_scope, bool add_d
         case VAR_DECLARATION:
         {
             ByteCodeList *compiled_rhs = compile_expression(node->ast_data.exp);
-            list = concat_bytecode_lists(list, compiled_rhs);
+            if(compiled_rhs) {
+                list = concat_bytecode_lists(list, compiled_rhs);
+            } else {
+                ByteCode *code = init_ByteCode(LOAD_CONST);
+                code->data.LOAD_CONST.constant = init_RtObject(UNDEFINED_TYPE);
+
+                add_bytecode(list, code);
+            }
 
             char *varname = node->identifier.declared_var;
             ByteCode *instruction = init_ByteCode(CREATE_VAR);

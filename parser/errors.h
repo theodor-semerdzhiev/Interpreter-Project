@@ -10,6 +10,8 @@ void print_expected_token_err(Parser *parser, const char *expected_token, const 
 void print_invalid_access_modifer_err(Parser *parser, const char *keyword, const char *msg);
 void print_unexpected_end_of_file_err(Parser *parser, const char *msg);
 void print_invalid_expression_component(Parser *parser, const char *msg);
+void print_invalid_for_loop_exp(Parser *parser, const char *msg);
+
 
 /* Semantic errors */
 void print_undeclared_identifier_err(SemanticAnalyzer *sa, ExpressionComponent *comp, const char *msg);
@@ -20,6 +22,7 @@ void print_invalid_terminal_top_component_err(SemanticAnalyzer *sa, ExpressionCo
 void print_invalid_func_call_err(SemanticAnalyzer *sa, ExpressionComponent *cm, const int token_ptr, const char *msg);
 void print_invalid_ast_node(SemanticAnalyzer *sa, const int token_ptr, const char *msg);
 void print_invalid_index_err(SemanticAnalyzer *sa, ExpressionComponent *cm, const int token_ptr, const char *msg);
+void print_for_loop_ast_node_err(SemanticAnalyzer *sa, const int token_ptr, const char *msg);
 void print_invalid_else_if_block_err(SemanticAnalyzer *sa, AST_node *node, const int token_ptr, const char *msg);
 void print_invalid_else_block_err(SemanticAnalyzer *sa, AST_node *node, const int token_ptr, const char *msg);
 void print_empty_exp_err(SemanticAnalyzer *sa, const int token_ptr, const char *msg);

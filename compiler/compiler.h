@@ -261,7 +261,7 @@ ByteCodeList *compile_exps_sequence(ExpressionNode **exps, int exps_length);
 ByteCodeList *compile_expression_component(ExpressionComponent *cm);
 ByteCode *compile_func_declaration(AST_node *function);
 ByteCodeList *compile_conditional_chain(AST_node *node, bool is_global_scope);
-ByteCodeList *compiled_while_loop(AST_node *node);
+ByteCodeList *compiled_while_loop(AST_node *node, bool is_global_scope);
 ByteCodeList *compile_expression(ExpressionNode *root);
 ByteCode *compile_class_body(AST_node *node);
 ByteCodeList *compile_code_body(AST_List *body, bool is_global_scope, bool add_derefs);

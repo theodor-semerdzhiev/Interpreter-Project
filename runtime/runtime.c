@@ -627,7 +627,8 @@ static void dispose_disposable_obj(RtObject *obj, bool disposable)
     }
     else
     {
-        add_to_GC_registry(obj);
+        // add_to_GC_registry(obj);
+        assert(GC_Registry_has(obj));
     }
 }
 /**
@@ -663,23 +664,32 @@ static void perform_var_mutation()
     bool old_val_disposable = disposable();
     RtObject *old_val = StackMachine_pop(env->stk_machine, false);
 
-    // if(old_val_disposable) {
-    //     dispose_disposable_obj(new_val, new_val_disposable);
-    //     dispose_disposable_obj(old_val, old_val_disposable);
-    //     return;
-    // }
+    if(old_val_disposable) {
+        dispose_disposable_obj(new_val, new_val_disposable);
+        dispose_disposable_obj(old_val, old_val_disposable);
+        return;
+    }
+
+    // if(new_val->type == NUMBER_TYPE && old_val->type == NUMBER_TYPE) {
+    //     old_val->data.Number->number = new_val->data.Number->number;
+    // } else {
 
     // mutates data
     // if new_val is disposable, then a deep cpy is created, since new_val will be freed
     rtobj_mutate(old_val, new_val, new_val_disposable);
+    // }
 
-    if(new_val_disposable)
-        add_to_GC_registry(new_val);
+    // if(new_val_disposable)
+    //     add_to_GC_registry(new_val);
+
 
     // dispose_disposable_obj(new_val, new_val_disposable);
     // makes sure old_val is put into the GC registry, (it should already be in it)
-    if(old_val_disposable)
-        add_to_GC_registry(old_val);
+    // if(old_val_disposable)
+    //     add_to_GC_registry(old_val);
+
+    dispose_disposable_obj(new_val, new_val_disposable);
+    dispose_disposable_obj(old_val, old_val_disposable);
 }
 
 /**
@@ -903,12 +913,12 @@ static CallFrame *perform_regular_func_call(RtFunction *Function, RtObject **arg
         RtObject *arg = arguments[i];
 
         // primitives are always deep copied
-        if(rttype_isprimitive(arg->type)) {
+        if(rttype_isprimitive(arg->type) && !disposable[i]) {
             arg = rtobj_deep_cpy(arg);
-            add_to_GC_registry(arg);
         }
             
         add_to_GC_registry(arg);
+
         Identifier_Table_add_var(
             new_frame->lookup,
             Function->func_data.user_func.args[i],
@@ -1405,12 +1415,13 @@ int run_program()
                 // .
                 //
                 //
-            }   
+            }       
+            
+            trigger_GC();
 
             if (!loop)
                 break;
 
-            trigger_GC();
 
             frame->pg_counter++;
         }

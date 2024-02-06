@@ -255,6 +255,15 @@ void print_unexpected_end_of_file_err(Parser *parser, const char *msg)
     print_ctx_dependent_msg(parser->ctx, RED_TEXT);
 }
 
+/* Print outs invalid for loop expression */
+void print_invalid_for_loop_exp(Parser *parser, const char *msg) {
+    _print_context(parser->token_list->list, parser->token_ptr, parser->file_name, parser->lines.lines);
+    printf(RED_TEXT "Invalid for loop expression syntax\n" RESET_COLOR);
+
+    if (msg)
+        printf(RED_TEXT "%s\n" RESET_COLOR, msg);
+}
+
 /* Prints out invalid expression component */
 void print_invalid_expression_component(Parser *parser, const char *msg)
 {
@@ -377,6 +386,18 @@ void print_empty_exp_err(SemanticAnalyzer *sa, const int token_ptr, const char *
 
     printf(RED_TEXT
            "Expression cannot be empty.\n" RESET_COLOR);
+
+    if (msg)
+        printf(RED_TEXT "%s\n" RESET_COLOR, msg);
+}
+
+/* Prints out wring for loop syntac */
+void print_for_loop_ast_node_err(SemanticAnalyzer *sa, const int token_ptr, const char *msg)
+{
+    _print_context(sa->token_list->list, token_ptr, sa->filename, sa->lines.lines);
+
+    printf(RED_TEXT
+           "Expected one AST node.\n" RESET_COLOR);
 
     if (msg)
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);

@@ -612,7 +612,6 @@ bool AST_list_has_consistent_semantics(SemanticAnalyzer *sem_analyzer, AST_List 
     // forward declares function, object declarations
     // Allows for recursive/ recursively dependant definitions
     // forward_declare_obj_func(sem_analyzer, ast_list);
-
     while (node)
     {
         switch (node->type)
@@ -804,6 +803,64 @@ bool AST_list_has_consistent_semantics(SemanticAnalyzer *sem_analyzer, AST_List 
             sem_analyzer->nesting_lvl--;
 
             if (!tmp)
+                return false;
+
+            break;
+        }
+
+        case FOR_LOOP: {
+            AST_List *init = node->ast_data.for_loop.initialization;
+            ExpressionNode *conditional = node->ast_data.for_loop.loop_conditional;
+            AST_List *termination = node->ast_data.for_loop.termination;
+
+            if(init && init->length > 1) {
+                print_for_loop_ast_node_err(sem_analyzer, init->tail->token_num, NULL);
+                return false;
+            }
+
+            if(termination && termination->length > 1) {
+                print_for_loop_ast_node_err(sem_analyzer, termination->tail->token_num, NULL);
+                return false;
+            }
+
+
+            if(init && init->head->type == VAR_DECLARATION) {
+                add_var_to_vartable(
+                    sem_analyzer->symtable,
+                    init->head->identifier.declared_var,
+                    sem_analyzer->filename,
+                    sem_analyzer->nesting_lvl,
+                    SYMBOL_TYPE_VARIABLE
+                );
+            }
+
+            sem_analyzer->nesting_lvl++;
+
+            if(!exp_has_correct_semantics(sem_analyzer, conditional)) 
+                return false;
+
+            if(!AST_list_has_consistent_semantics(sem_analyzer, termination)) 
+                return false;
+
+            bool current_loop_cond = sem_analyzer->is_in_loop;
+
+            sem_analyzer->is_in_loop = true;
+
+            bool tmp = AST_list_has_consistent_semantics(sem_analyzer, node->body);
+            // if tmp false, an error would have been printed out
+
+            sem_analyzer->is_in_loop = current_loop_cond;
+            sem_analyzer->nesting_lvl--;
+
+            if(init && init->head->type == VAR_DECLARATION) {
+                remove_var_from_vartable(
+                    sem_analyzer->symtable,
+                    init->head->identifier.declared_var,
+                    sem_analyzer->nesting_lvl
+                );
+            }
+
+            if(!tmp) 
                 return false;
 
             break;

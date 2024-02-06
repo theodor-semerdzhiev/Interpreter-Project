@@ -24,15 +24,17 @@ class LinkedList() {
 }
 
 let l = LinkedList();
-let i = 0;
-while(i < 10) {
-    let y = 10'
+
+for(let i =0; i < 100; i = i +1;) {
     l->add(i);
-    println(l->head);
-    i = i + 1;
-    println(y);
 }
 
-print(l);
+println(l);
+
+let tmp = l->head;
+while(!(tmp == null)) {
+    println(tmp->val);
+    tmp = tmp->next;
+}
 
 

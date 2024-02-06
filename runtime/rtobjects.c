@@ -15,7 +15,7 @@
  * This file contains the implementation of runtime objects, and the corresponding operations on them
  */
 
-static RtObject *multiply_obj_by_multiplier(double multiplier, RtObject *obj);
+static RtObject *multiply_obj_by_multiplier(double multiplier, const RtObject *obj);
 static void print_offset(int offset);
 static char *repeat_string(int repeated, const char *str, int strlen);
 
@@ -152,7 +152,7 @@ __attribute__((warn_unused_result))
  * For Functions, Bytecode is never copied, and therefor will never be freed
  */
 static RtObject *
-multiply_obj_by_multiplier(double multiplier, RtObject *obj)
+multiply_obj_by_multiplier(double multiplier, const RtObject *obj)
 {
     switch (obj->type)
     {
@@ -177,6 +177,7 @@ multiply_obj_by_multiplier(double multiplier, RtObject *obj)
         RtObject *result = init_RtObject(STRING_TYPE);
         if (!result)
             return NULL;
+
         unsigned int multiplicand_len = obj->data.String->length;
         char *multiplicand = obj->data.String->string;
         char* new_str = malloc(sizeof(char)*(multiplicand_len*multiplier+1));
@@ -189,8 +190,8 @@ multiply_obj_by_multiplier(double multiplier, RtObject *obj)
         new_str[multiplicand_len*(int)multiplier]='\0';
 
         result->data.String=init_RtString(NULL);
-        result->data.String->string=new_str;
-        result->data.String->length = strlen(new_str);
+        result->data.String->string = new_str;
+        result->data.String->length = multiplicand_len*multiplier;
         return result;
     }
 
@@ -1216,7 +1217,14 @@ RtObject *rtobj_mutate(RtObject *target, const RtObject *new_value, bool new_val
         return target;
     }
 
-    add_to_GC_registry(rtobj_shallow_cpy(target));
+    assert(GC_Registry_has(target));
+
+    /**
+     * TODO:
+     * THIS LINE IS VERY PROBLEMATIC
+    */
+
+    // add_to_GC_registry(rtobj_shallow_cpy(target));
 
     switch (new_value->type)
     {

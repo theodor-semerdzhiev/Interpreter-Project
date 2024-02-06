@@ -474,6 +474,29 @@ void print_ast_node(AST_node *node, char *buffer, int rec_lvl)
         break;
     }
 
+    case FOR_LOOP: {
+        
+        printf("@ FOR_LOOP: \n");
+
+        print_repeated_string(buffer, rec_lvl + 1);
+        printf("@ INITIALIZER:\n");
+        print_ast_list(node->ast_data.for_loop.initialization, buffer, rec_lvl + 1);
+
+        print_repeated_string(buffer, rec_lvl + 1);
+        printf("@ CONDITIONAL:\n");
+        print_expression_tree(node->ast_data.for_loop.loop_conditional, buffer, rec_lvl + 1);
+
+        print_repeated_string(buffer, rec_lvl + 1);
+        printf("@ TERMINATOR:\n");
+        print_ast_list(node->ast_data.for_loop.termination, buffer, rec_lvl + 1);
+
+        print_repeated_string(buffer, rec_lvl + 1);
+        printf("@ BODY\n");
+        print_ast_list(node->body, buffer, rec_lvl + 1);
+
+        break;
+    }
+
     case FUNCTION_DECLARATION:
     {
         printf("@ FUNCTION DECLARATION: func %s\n", node->identifier.func_name);

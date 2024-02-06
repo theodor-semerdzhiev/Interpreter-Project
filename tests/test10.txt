@@ -27,11 +27,11 @@ class BST() {
 
 let t = BST();
 let i = 0;
-
+let sign = -1;
 while(i < 10) {
-    println(i);
-    t->insert(i);
+    t->insert(i*sign);
     i = i + 1;
+    sign = sign * -1;
 }
 
 println(t);
@@ -46,7 +46,22 @@ func Inorder(root) {
     Inorder(root->right);
 }
 
+
+
+func Preorder(root) {
+    if(root == null) {
+        return;
+    }
+
+    Preorder(root->left);
+    println(root->val);
+    Preorder(root->right);
+
+}
+
 Inorder(t->root);
+
+Preorder(t->root);
 
 
 

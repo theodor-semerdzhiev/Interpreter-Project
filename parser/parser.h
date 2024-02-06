@@ -75,14 +75,14 @@ typedef enum expression_component_type
 } ExpressionComponentType;
 
 /* pre defines some structs */
-typedef struct expression_node ExpressionNode;
+typedef struct ExpressionNode ExpressionNode;
 typedef struct AST_node AST_node;
-typedef struct ast_list AST_List;
-typedef struct expression_component ExpressionComponent;
+typedef struct AST_List AST_List;
+typedef struct ExpressionComponent ExpressionComponent;
 typedef struct KeyValue KeyValue;
 /*******************************************/
 
-typedef struct expression_component
+typedef struct ExpressionComponent
 {
     enum expression_component_type type;
 
@@ -151,7 +151,7 @@ typedef struct KeyValue
 } KeyValue;
 
 /* General struct for a expression */
-typedef struct expression_node
+typedef struct ExpressionNode
 {
     enum expression_token_type type;
     bool negation; // wether it as a ! op in front
@@ -173,6 +173,7 @@ enum ast_node_type
     ELSE_CONDITIONAL,
     ELSE_IF_CONDITIONAL,
     WHILE_LOOP,
+    FOR_LOOP,
     FUNCTION_DECLARATION,
     RETURN_VAL,
     LOOP_TERMINATOR,
@@ -193,6 +194,18 @@ typedef enum access_modifer
 
     DOES_NOT_APPLY // for ast nodes that do not have access modifiers
 } AccessModifier;
+
+
+/* Top level data structure for ast*/
+typedef struct AST_List
+{
+    AST_node *head;
+    AST_node *tail;
+
+    size_t length;
+    AST_node *parent_block;
+} AST_List;
+
 
 /* Represents the high level representation of the abstract syntax tree */
 typedef struct AST_node
@@ -236,18 +249,25 @@ typedef struct AST_node
         ExpressionNode *exp;
 
         // list of function prototype arguments (for both regular and inline functions )
-        struct func_args
+        struct
         {
             ExpressionNode **func_prototype_args;
             int args_num;
         } func_args;
 
         // list of object prototype arguments
-        struct object_args
+        struct
         {
             ExpressionNode **object_prototype_args;
             int args_num;
         } obj_args;
+
+        struct
+        {
+            AST_List *initialization; 
+            ExpressionNode *loop_conditional;
+            AST_List *termination;
+        } for_loop;
 
     } ast_data;
 
@@ -259,16 +279,6 @@ typedef struct AST_node
     AST_node *prev;
 
 } AST_node;
-
-/* Top level data structure for ast*/
-typedef struct ast_list
-{
-    AST_node *head;
-    AST_node *tail;
-
-    size_t length;
-    AST_node *parent_block;
-} AST_List;
 
 void init_Precedence();
 Parser *init_Parser();
@@ -318,6 +328,7 @@ void push_to_ast_list(AST_List *list, AST_node *node);
 /* Functions responsible for parsing code blocks */
 AST_node *parse_variable_declaration(Parser *parser, int rec_lvl);
 AST_node *parse_while_loop(Parser *parser, int rec_lvl);
+AST_node *parse_for_loop(Parser *parser, int rec_lvl);
 AST_node *parse_if_conditional(Parser *parser, int rec_lvl);
 AST_node *parse_else_conditional(Parser *parser, int rec_lvl);
 AST_node *parse_loop_termination(Parser *parser, int rec_lvl);
@@ -331,5 +342,6 @@ AST_List *parse_code_block(
     Parser *parser,
     AST_node *parent_block,
     int rec_lvl,
-    enum token_type ends_of_exp[],
+    bool parse_single_node,
+    const enum token_type ends_of_exp[],
     const int ends_of_exp_length);

@@ -1123,6 +1123,8 @@ static ExpressionNode *construct_expression_tree(GenericLList *inputList, Generi
 AST_node *malloc_ast_node(Parser *parser)
 {
     AST_node *node = malloc(sizeof(AST_node));
+    if(!node) 
+        MallocError();
     node->body = NULL;
     node->prev = NULL;
     node->next = NULL;
@@ -1184,6 +1186,16 @@ void free_ast_node(AST_node *node)
     case WHILE_LOOP:
     {
         free_expression_tree(node->ast_data.exp);
+        free_ast_list(node->body);
+        free(node);
+        return;
+    }
+
+    case FOR_LOOP: 
+    {
+        free_ast_list(node->ast_data.for_loop.initialization);
+        free_ast_list(node->ast_data.for_loop.termination);
+        free_expression_tree(node->ast_data.for_loop.loop_conditional);
         free_ast_list(node->body);
         free(node);
         return;
@@ -1363,7 +1375,6 @@ AST_node *parse_variable_declaration(Parser *parser, int rec_lvl __attribute__((
     // node->ast_data.exp = parse_expression(parser, NULL, NULL, end_of_exp, 1);
     node->ast_data.exp = parse_expression(parser, end_of_exp, 1);
 
-    skip_recurrent_tokens(parser, end_of_exp[0]);
     return node;
 }
 
@@ -1410,7 +1421,78 @@ AST_node *parse_while_loop(Parser *parser, int rec_lvl)
     // recursively parses inner code block
     parser->token_ptr++;
     enum token_type end_of_block[] = {CLOSING_CURLY_BRACKETS};
-    node->body = parse_code_block(parser, node, rec_lvl + 1, end_of_block, 1);
+    node->body = parse_code_block(parser, node, rec_lvl + 1, false, end_of_block, 1);
+
+    return node;
+}
+
+#define ReachedEndOfFor() list[parser->token_ptr]->type == CLOSING_PARENTHESIS
+
+AST_node *parse_for_loop(Parser *parser, int rec_lvl) {
+    assert(parser);
+    Token **list = parser->token_list->list;
+    assert(get_keyword_type(list[parser->token_ptr]->ident) == FOR_KEYWORD);
+
+    // checks for parenthesis
+    if (list[parser->token_ptr + 1]->type != OPEN_PARENTHESIS)
+    {
+        parser->token_ptr += 1;
+        print_expected_token_err(parser, "Open Parenthesis ('(')", false,
+                                 "Proper Syntax: for (...) { ... }");
+        stop_parsing(parser);
+        return NULL;
+    }
+
+    // Handles case where for loop as empty body, i.e for () {...}
+    if (list[parser->token_ptr + 2]->type == CLOSING_PARENTHESIS)
+    {
+        print_invalid_for_loop_exp(parser, 
+        "To make an infinite loop, do: \n"
+        "for(;;;) { ... } \n");
+        stop_parsing(parser);
+        return NULL;
+    }
+
+    AST_node *node = malloc_ast_node(parser);
+    node->type = FOR_LOOP;
+    node->line_num = list[parser->token_ptr]->line_num;
+    parser->token_ptr += 2;
+
+    node->ast_data.for_loop.initialization = NULL;
+    node->ast_data.for_loop.loop_conditional= NULL;
+    node->ast_data.for_loop.termination = NULL;
+
+    const enum token_type end_of_block1[] = {SEMI_COLON};
+    const enum token_type end_of_block2[] = {CLOSING_PARENTHESIS};
+
+    // parses first part of for loop (what runs before running the loop)
+    node->ast_data.for_loop.initialization = 
+    parse_code_block(parser, NULL, rec_lvl+1, true, end_of_block1, 1);
+
+    // parses loop conditional 
+    node->ast_data.for_loop.loop_conditional = 
+    parse_expression(parser, end_of_block1, 1);
+
+    // parses loop terminator (what runs at the end of every iteration)
+    node->ast_data.for_loop.termination = 
+    parse_code_block(parser, NULL, rec_lvl+1, false , end_of_block2, 1);
+
+    // checks for open curly brackets
+    if (list[parser->token_ptr]->type != OPEN_CURLY_BRACKETS)
+    {
+        print_expected_token_err(parser, "Open Curly Brackets ('{')", false,
+                                 "Proper Syntax: for (init; exp; terminator) { ... }");
+        stop_parsing(parser);
+        return NULL;
+    }
+
+    ParseForBody:;
+
+    parser->token_ptr++;
+
+    // recursively parses inner code block
+    const enum token_type end_of_for_block[] = {CLOSING_CURLY_BRACKETS};
+    node->body = parse_code_block(parser, node, rec_lvl + 1, false, end_of_for_block, 1);
 
     return node;
 }
@@ -1444,7 +1526,6 @@ AST_node *parse_if_conditional(Parser *parser, int rec_lvl)
     // parses conditional expression
     enum token_type end_of_exp[] = {CLOSING_PARENTHESIS};
     node->ast_data.exp = parse_expression(parser, end_of_exp, 1);
-    // node->ast_data.exp = parse_expression(parser, NULL, NULL, end_of_exp, 1);
 
     // checks for open curly brackets
     if (list[parser->token_ptr]->type != OPEN_CURLY_BRACKETS)
@@ -1459,7 +1540,7 @@ AST_node *parse_if_conditional(Parser *parser, int rec_lvl)
 
     // recursively parses inner code block
     enum token_type end_of_block[] = {CLOSING_CURLY_BRACKETS};
-    node->body = parse_code_block(parser, node, rec_lvl + 1, end_of_block, 1);
+    node->body = parse_code_block(parser, node, rec_lvl + 1, false, end_of_block, 1);
 
     return node;
 }
@@ -1539,7 +1620,6 @@ AST_node *parse_return_expression(Parser *parser, int rec_lvl __attribute__((unu
     enum token_type end_of_exp[] = {SEMI_COLON};
     node->ast_data.exp = parse_expression(parser, end_of_exp, 1);
     // node->ast_data.exp = parse_expression(parser, NULL, NULL, end_of_exp, 1);
-    skip_recurrent_tokens(parser, end_of_exp[0]);
     return node;
 }
 
@@ -1587,7 +1667,7 @@ AST_node *parse_else_conditional(Parser *parser, int rec_lvl)
         // recursively parses inner code block
         parser->token_ptr++;
         enum token_type end_of_block[] = {CLOSING_CURLY_BRACKETS};
-        node->body = parse_code_block(parser, node, rec_lvl + 1, end_of_block, 1);
+        node->body = parse_code_block(parser, node, rec_lvl + 1, false, end_of_block, 1);
 
         return node;
         // regular else block
@@ -1601,7 +1681,7 @@ AST_node *parse_else_conditional(Parser *parser, int rec_lvl)
 
         enum token_type end_of_block[] = {CLOSING_CURLY_BRACKETS};
         parser->token_ptr += 2;
-        node->body = parse_code_block(parser, node, rec_lvl + 1, end_of_block, 1);
+        node->body = parse_code_block(parser, node, rec_lvl + 1, false, end_of_block, 1);
 
         return node;
 
@@ -1683,7 +1763,7 @@ AST_node *parse_func_declaration(Parser *parser, int rec_lvl)
     // parses function inner code block
     enum token_type end_of_block[] = {CLOSING_CURLY_BRACKETS};
     parser->token_ptr++;
-    node->body = parse_code_block(parser, node, rec_lvl + 1, end_of_block, 1);
+    node->body = parse_code_block(parser, node, rec_lvl + 1, false, end_of_block, 1);
 
     return node;
 }
@@ -1734,7 +1814,7 @@ AST_node *parse_inline_func(Parser *parser, int rec_lvl)
     // parses function inner code block
     enum token_type end_of_block[] = {CLOSING_CURLY_BRACKETS};
     parser->token_ptr++;
-    node->body = parse_code_block(parser, node, rec_lvl + 1, end_of_block, 1);
+    node->body = parse_code_block(parser, node, rec_lvl + 1, false, end_of_block, 1);
 
     return node;
 }
@@ -1794,7 +1874,7 @@ AST_node *parse_object_declaration(Parser *parser, int rec_lvl)
     // parses object inner code block
     enum token_type end_of_block[] = {CLOSING_CURLY_BRACKETS};
     parser->token_ptr++;
-    node->body = parse_code_block(parser, node, rec_lvl + 1, end_of_block, 1);
+    node->body = parse_code_block(parser, node, rec_lvl + 1, false, end_of_block, 1);
 
     return node;
 }
@@ -1838,8 +1918,6 @@ AST_node *parse_variable_assignment_exp_func_component(Parser *parser, int rec_l
         node->ast_data.exp = parse_expression(parser, end_of_exp, 1);
     }
 
-    skip_recurrent_tokens(parser, SEMI_COLON);
-
     return node;
 }
 
@@ -1849,7 +1927,8 @@ AST_List *parse_code_block(
     Parser *parser,
     AST_node *parent_block,
     int rec_lvl,
-    enum token_type ends_of_block[],
+    bool parse_single_node,
+    const enum token_type ends_of_block[],
     const int ends_of_block_length)
 {
 
@@ -1880,22 +1959,39 @@ AST_List *parse_code_block(
             break;
         }
 
+        // if we encounter a semi colon, the it can be considered like a empty AST_node
+        // which we can skip
+        if(list[parser->token_ptr]->type == SEMI_COLON) {
+            parser->token_ptr++;
+            if(parse_single_node) break;
+            continue;
+        }
+
         switch (get_keyword_type(list[parser->token_ptr]->ident))
         {
 
         // variable declaration
         case LET_KEYWORD:
         {
-        let_keyword:; // label
+            let_keyword:; // label
 
             AST_node *node = parse_variable_declaration(parser, rec_lvl);
             push_to_ast_list(ast_list, node);
             break;
         }
+
         // WHILE loop
         case WHILE_KEYWORD:
         {
             AST_node *node = parse_while_loop(parser, rec_lvl);
+            push_to_ast_list(ast_list, node);
+            break;
+        }
+
+        // FOR loop
+        case FOR_KEYWORD:
+        {
+            AST_node *node = parse_for_loop(parser, rec_lvl);
             push_to_ast_list(ast_list, node);
             break;
         }
@@ -1944,7 +2040,7 @@ AST_List *parse_code_block(
         // function declaration
         case FUNC_KEYWORD:
         {
-        func_keyword:; // label
+            func_keyword:; // label
 
             AST_node *node = parse_func_declaration(parser, rec_lvl);
             push_to_ast_list(ast_list, node);
@@ -1954,7 +2050,7 @@ AST_List *parse_code_block(
         // TODO
         case OBJECT_KEYWORD:
         {
-        object_keyword:;
+            object_keyword:;
 
             AST_node *node = parse_object_declaration(parser, rec_lvl);
             push_to_ast_list(ast_list, node);
@@ -2041,10 +2137,18 @@ AST_List *parse_code_block(
 
             break;
         }
+
         }
+
+        if(parse_single_node)
+            break;
     }
 
     ast_list->parent_block = parent_block;
-    parser->token_ptr++;
+
+    // we only skip over the end of expression token if we dont parse a single AST_node 
+    if(!parse_single_node)
+        parser->token_ptr++;
+    
     return ast_list;
 }

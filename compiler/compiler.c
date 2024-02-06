@@ -596,6 +596,9 @@ ByteCode *init_ByteCode(OpCode code)
 /* Adds bytecode instruction to Byte Code list, return the list itself */
 ByteCodeList *add_bytecode(ByteCodeList *pg, ByteCode *instr)
 {
+    if(!pg->code) {
+
+    }
     pg->code[pg->pg_length] = instr;
     pg->pg_length++;
     if (pg->pg_length == pg->malloc_len)
@@ -1088,25 +1091,8 @@ ByteCodeList *compile_conditional_chain(AST_node *node, bool is_global_scope)
     return compiled_node;
 }
 
-ByteCodeList *compiled_while_loop(AST_node *node)
-{
-    assert(node->type == WHILE_LOOP);
 
-    ByteCodeList *conditional = compile_expression(node->ast_data.exp);
-    ByteCodeList *compiled_body = compile_code_body(node->body, false, true);
-
-    // add_var_derefs_via_list(compiled_body);
-
-    // if while body is empty
-    if (!compiled_body)
-        compiled_body = init_ByteCodeList();
-
-    ByteCode *jump = init_ByteCode(OFFSET_JUMP_IF_FALSE_POP);
-    // +2 because we must jump over the offset jump at the end
-    jump->data.OFFSET_JUMP_IF_FALSE_POP.offset = compiled_body->pg_length + 2;
-
-    ByteCodeList *loop_code = concat_bytecode_lists(add_bytecode(conditional, jump), compiled_body);
-
+ByteCodeList *resolve_loop_continuation_termination(ByteCodeList *loop_code) {
     // resolves jump offsets for loop
     for (int i = 0; i < loop_code->pg_length; i++)
     {
@@ -1124,12 +1110,96 @@ ByteCodeList *compiled_while_loop(AST_node *node)
             }
         }
     }
+    return loop_code;
+}
+
+ByteCodeList *compiled_while_loop(AST_node *node, bool is_global_scope)
+{
+    assert(node->type == WHILE_LOOP);
+
+    ByteCodeList *conditional = compile_expression(node->ast_data.exp);
+    ByteCodeList *compiled_body = compile_code_body(node->body, is_global_scope, true);
+
+    // if while body is empty
+    if (!compiled_body)
+        compiled_body = init_ByteCodeList();
+
+    ByteCode *jump = init_ByteCode(OFFSET_JUMP_IF_FALSE_POP);
+    // +2 because we must jump over the offset jump at the end
+    jump->data.OFFSET_JUMP_IF_FALSE_POP.offset = compiled_body->pg_length + 2;
+
+    ByteCodeList *loop_code = concat_bytecode_lists(add_bytecode(conditional, jump), compiled_body);
+
+    // resolves jump offsets for loop
+    loop_code = resolve_loop_continuation_termination(loop_code);
 
     // End of while loop should back to beginning ot loop
     ByteCode *code = init_ByteCode(OFFSET_JUMP);
     code->data.OFFSET_JUMP.offset = (loop_code->pg_length * -1);
     add_bytecode(loop_code, code);
 
+    return loop_code;
+}
+
+/**
+ * DESCRIPTION:
+ * Logic for compiling for loop
+ * 
+ * PARAMS:
+ * node: for loop ast node
+ * is_global_scope: wether for loop is contained within the global scope
+*/
+ByteCodeList *compile_for_loop(AST_node *node, bool is_global_scope) {
+    assert(node);
+
+    AST_List *init = node->ast_data.for_loop.initialization;
+    ExpressionNode *conditional = node->ast_data.for_loop.loop_conditional;
+    AST_List *terminator = node->ast_data.for_loop.termination;
+
+    ByteCodeList *initializer = 
+    compile_code_body(init, false, false);
+
+    ByteCodeList *cond = 
+    compile_expression(conditional);
+
+    ByteCodeList *termination_code = 
+    compile_code_body(terminator, false, false);
+
+    ByteCodeList *compiled_body = 
+    compile_code_body(node->body, is_global_scope, true);
+
+    compiled_body = concat_bytecode_lists(compiled_body, termination_code);
+
+    ByteCode *jump = NULL;
+
+    if(cond) {
+        jump = init_ByteCode(OFFSET_JUMP_IF_FALSE_POP);
+        // +2 because we must jump over the offset jump at the end
+        jump->data.OFFSET_JUMP_IF_FALSE_POP.offset = compiled_body->pg_length + 2;
+    }
+
+    ByteCodeList *loop_code = concat_bytecode_lists(
+        jump? add_bytecode(cond, jump): cond, // we only add conditional if its non empty
+        compiled_body
+    );
+
+    loop_code = resolve_loop_continuation_termination(loop_code);
+
+    // End of while loop should back to beginning ot loop
+    ByteCode *negative_offset_jump = init_ByteCode(OFFSET_JUMP);
+    negative_offset_jump->data.OFFSET_JUMP.offset = (loop_code->pg_length * -1);
+    add_bytecode(loop_code, negative_offset_jump);
+
+    loop_code = concat_bytecode_lists(initializer, loop_code);
+
+    // adds deref if initializer code creates a variable
+    if(init && init->length == 1 && init->head->type == VAR_DECLARATION) {
+        ByteCode *deref = init_ByteCode(DEREF_VAR);
+        char *varname = node->ast_data.for_loop.initialization->head->identifier.declared_var;
+        deref->data.DEREF_VAR.var = cpy_string(varname);
+        loop_code = add_bytecode(loop_code, deref);
+    }
+    
     return loop_code;
 }
 
@@ -1228,7 +1298,7 @@ static ByteCodeList *add_var_derefs(AST_List *body, ByteCodeList *target)
         if (node->type == VAR_DECLARATION)
         {
             ByteCode *deref = init_ByteCode(DEREF_VAR);
-            deref->data.DEREF_VAR.var = malloc_string_cpy(NULL, node->identifier.declared_var);
+            deref->data.DEREF_VAR.var = cpy_string(node->identifier.declared_var);
             add_bytecode(target, deref);
         }
         node = node->next;
@@ -1247,7 +1317,7 @@ static void add_var_derefs_via_list(ByteCodeList *list)
         if (list->code[i]->op_code == CREATE_VAR)
         {
             ByteCode *deref = init_ByteCode(DEREF_VAR);
-            deref->data.DEREF_VAR.var = malloc_string_cpy(NULL, list->code[i]->data.CREATE_VAR.new_var_name);
+            deref->data.DEREF_VAR.var = cpy_string(list->code[i]->data.CREATE_VAR.new_var_name);
             add_bytecode(list, deref);
         }
     }
@@ -1277,7 +1347,9 @@ ByteCodeList *compile_code_body(AST_List *body, bool is_global_scope, bool add_d
             } else {
                 ByteCode *code = init_ByteCode(LOAD_CONST);
                 code->data.LOAD_CONST.constant = init_RtObject(UNDEFINED_TYPE);
-
+                if(!list)
+                    list = init_ByteCodeList();
+                    
                 add_bytecode(list, code);
             }
 
@@ -1396,7 +1468,13 @@ ByteCodeList *compile_code_body(AST_List *body, bool is_global_scope, bool add_d
 
         case WHILE_LOOP:
         {
-            list = concat_bytecode_lists(list, compiled_while_loop(node));
+            list = concat_bytecode_lists(list, compiled_while_loop(node, is_global_scope));
+            break;
+        }
+
+        case FOR_LOOP: 
+        {
+            list = concat_bytecode_lists(list, compile_for_loop(node, is_global_scope));
             break;
         }
 

@@ -66,7 +66,7 @@ AST_List *parse_file(char *filename)
     }
 
     enum token_type end_of_program[] = {END_OF_FILE};
-    AST_List *ast = parse_code_block(parser, NULL, 0, end_of_program, 1);
+    AST_List *ast = parse_code_block(parser, NULL, 0, false, end_of_program, 1);
 
     if (parser->error_indicator)
         goto parser_error;
@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
     init_Precedence();
 
     // AST_List *ast = parse_file(argv[1]);
-    AST_List *ast = parse_file("./tests/test.txt");
+    AST_List *ast = parse_file("./tests/test1.txt");
     
     free_keyword_table();
     

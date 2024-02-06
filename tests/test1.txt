@@ -30,9 +30,8 @@ func sin(x) {
     let term = x;
     let sign = -1;
     let i = 2;
-    while(i <= 10) {
+    while(i <= 2) {
         term = term * ((x * x) / ((i + 1) * i));
-        #println(term);
         res = res + sign * term;
         sign = sign * -1.0;
         i = i + 2;
@@ -41,10 +40,13 @@ func sin(x) {
 }
 
 func toRad(deg) {
-    return (deg / 360) * 2 * PI;
+    return (deg / 360) * 2 * 3.1415926;
 }
 
-println(toRad(60));
-print(sin(toRad(45)), "\n");
-print(pow(sin(toRad(45)), 2),"\n");
+print(sin(toRad(123)), "\n");
+print(sin(toRad(123)), "\n");
+
+
+
+
 

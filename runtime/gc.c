@@ -51,7 +51,17 @@ RtObject *add_to_GC_registry(RtObject *obj)
 
     GenericSet_insert(GCregistry, obj, false);
     liveObjCount++;
+
+    assert(GCregistry->size == liveObjCount);
     return obj;
+}
+
+/**
+ * DESCRIPTION:
+ * Checks if obj is contained within the GC registry
+*/
+bool GC_Registry_has(const RtObject *obj) {
+    return GenericSet_has(GCregistry, obj);
 }
 
 /**
@@ -82,7 +92,6 @@ RtObject *remove_from_GC_registry(RtObject *obj, bool free_rtobj)
     assert(obj);
 
     RtObject *ptr = (RtObject *)GenericSet_remove(GCregistry, obj);
-
     if (!ptr)
     {
         if (free_rtobj)
@@ -155,9 +164,6 @@ static void cleanup_GCRegistry()
 
     RtObject **objs = (RtObject**)GenericSet_to_list(GCregistry);
     GenericSet_free(GCregistry, false);
-    
-    RtObject *test[liveObjCount];
-    memset(test, 0, sizeof(test));
 
     // marks all unique pointers to free
     for (unsigned long i = 0; objs[i] != NULL; i++) {
@@ -168,9 +174,7 @@ static void cleanup_GCRegistry()
             GenericSet_insert(set, data, false);
             rtobj_free(objs[i], false);
         }
-        test[i]=objs[i];
     }
-
 
     free(objs);
     GenericSet_free(set, false);
@@ -206,7 +210,7 @@ void garbageCollect()
     CallFrame **callStack = getCallStack();
 
     // performs a DFS on all live objects in lookup tables
-    for (int i = 0; i <= getCallStackPointer(); i++)
+    for (int i = getCallStackPointer(); i >= 0 ; i--)
     {
         RtObject **elements = IdentifierTable_to_list(callStack[i]->lookup);
         for (int j = 0; elements[j] != NULL; j++)
@@ -227,9 +231,12 @@ void garbageCollect()
     bool rtobj_freed[liveObjCount];
     memset(rtobj_freed, false, sizeof(rtobj_freed));
 
+    RtObject *test[liveObjCount];
+
     // Frees all unreachable nodes
     for (unsigned long i = 0; i < liveObjCount; i++)
     {
+        test[i] = all_active_obj[i];
         void *data = rtobj_getdata(all_active_obj[i]);
         if(GenericSet_has(set, data)) {
             rtobj_shallow_free(all_active_obj[i]);
@@ -245,6 +252,11 @@ void garbageCollect()
             rtobj_freed[i] = true;
         }
     }
+
+    for(size_t i=0; i < liveObjCount; i++)
+        for(size_t j=0; j < liveObjCount; j++)
+            if(i != j)
+                assert(test[i] != test[j]);
     
     GenericSet_free(set, false);
 

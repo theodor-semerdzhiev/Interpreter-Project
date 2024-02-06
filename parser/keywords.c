@@ -92,6 +92,7 @@ void init_keyword_table()
     insert_keyword_to_table("if", IF_KEYWORD);
     insert_keyword_to_table("else", ELSE_KEYWORD);
     insert_keyword_to_table("while", WHILE_KEYWORD);
+    insert_keyword_to_table("for", FOR_KEYWORD);
     insert_keyword_to_table("continue", CONTINUE_KEYWORD);
     insert_keyword_to_table("null", NULL_KEYWORD);
     insert_keyword_to_table("global", GLOBAL_KEYWORD);

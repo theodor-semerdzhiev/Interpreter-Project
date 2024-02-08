@@ -485,6 +485,12 @@ __attribute__((warn_unused_result))
 char *
 rtmap_toString(const RtMap *map)
 {
+    // handles empty string
+    if (map->size == 0)
+    {
+        return cpy_string("{}");
+    }
+    
     RtObject **keyvals = rtmap_getrefs(map, true, true);
     char *str = NULL;
     for (int i = 0; keyvals[i] != NULL;)
@@ -515,12 +521,6 @@ rtmap_toString(const RtMap *map)
         }
 
         i += 2;
-    }
-    // handles empty string
-    if (!str)
-    {
-        free(keyvals);
-        return cpy_string("{}");
     }
 
     char *tmp = concat_strings("{", str);

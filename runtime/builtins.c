@@ -18,6 +18,7 @@
  */
 
 #define BuiltinsInitError() exitprogram(FAILED_BUILTINS_INIT)
+
 RtObject *builtin_print(RtObject **args, int arg_count);
 RtObject *builtin_println(RtObject **args, int arg_count);
 RtObject *builtin_toString(RtObject **args, int arg_count);
@@ -71,16 +72,17 @@ int init_Builtins()
         return 0;
     }
 
-    if (
+    bool successful_init = 
         GenericHashMap_insert(builtin_map, _builtin_print.builtin_name, (void *)&_builtin_print, false) &&
         GenericHashMap_insert(builtin_map, _builtin_println.builtin_name, (void *)&_builtin_println, false) &&
         GenericHashMap_insert(builtin_map, _builtin_string.builtin_name, (void *)&_builtin_string, false) &&
         GenericHashMap_insert(builtin_map, _builtin_typeof.builtin_name, (void *)&_builtin_typeof, false) &&
         GenericHashMap_insert(builtin_map, _builtin_input.builtin_name, (void *)&_builtin_input, false) &&
         GenericHashMap_insert(builtin_map, _builtin_number.builtin_name, (void *)&_builtin_number, false) &&
-        GenericHashMap_insert(builtin_map, _builtin_len.builtin_name, (void *)&_builtin_len, false)
-    )
+        GenericHashMap_insert(builtin_map, _builtin_len.builtin_name, (void *)&_builtin_len, false);
 
+    
+    if(successful_init)
     {
         return 1;
     }

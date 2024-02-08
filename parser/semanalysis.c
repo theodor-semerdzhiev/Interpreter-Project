@@ -260,6 +260,12 @@ bool expression_component_has_correct_semantics(SemanticAnalyzer *sem_analyzer, 
                 return false;
             }
 
+            for(int i=0; i < node->meta_data.list_const.list_length; i++) {
+                if(!exp_has_correct_semantics(
+                    sem_analyzer, node->meta_data.list_const.list_elements[i]))
+                    return false;
+            }
+
             break;
         }
 

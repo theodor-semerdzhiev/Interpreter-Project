@@ -57,7 +57,6 @@ RtObject *rtlist_append(RtList *list, RtObject *obj)
         list->objs = realloc(list->objs, sizeof(RtObject *) * list->length * 2);
         if (!list->objs)
             return NULL;
-        list->length *= 2;
         list->memsize *= 2;
     }
 

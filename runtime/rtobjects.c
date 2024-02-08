@@ -923,7 +923,8 @@ unsigned int rtobj_hash(const RtObject *obj)
     case STRING_TYPE:
         return djb2_string_hash(obj->data.String->string);
     case FUNCTION_TYPE:
-        return obj->data.Func->is_builtin ? hash_pointer((void *)obj->data.Func->func_data.built_in.func) : hash_pointer((void *)obj->data.Func->func_data.user_func.body);
+        return rtfunc_hash(obj->data.Func);
+
     case CLASS_TYPE:
         // TODO
         return false;
@@ -1019,12 +1020,7 @@ bool rtobj_equal(const RtObject *obj1, const RtObject *obj2)
 
     case FUNCTION_TYPE:
     {
-        // functions are compare by reference
-        if (obj2->data.Func->is_builtin != obj1->data.Func->is_builtin)
-        {
-            return false;
-        }
-        return obj2->data.Func->is_builtin ? obj2->data.Func->func_data.built_in.func == obj1->data.Func->func_data.built_in.func : obj2->data.Func->func_data.user_func.body == obj1->data.Func->func_data.user_func.body;
+        return rtfunc_equal(obj1->data.Func, obj2->data.Func);
     }
 
     case LIST_TYPE:
@@ -1220,38 +1216,47 @@ RtObject *rtobj_mutate(RtObject *target, const RtObject *new_value, bool new_val
     assert(GC_Registry_has(target));
 
     /**
-     * TODO:
-     * THIS LINE IS VERY PROBLEMATIC
+     * Fixed
     */
-
-    // add_to_GC_registry(rtobj_shallow_cpy(target));
+    add_to_GC_registry(rtobj_shallow_cpy(target));
 
     switch (new_value->type)
     {
     case NUMBER_TYPE:
     {
         // new copy is created each time
-        target->data.Number = init_RtNumber(new_value->data.Number->number);
+        target->data.Number = 
+        new_val_disposable?
+        new_value->data.Number:
+        init_RtNumber(new_value->data.Number->number);
         break;
     }
 
     case NULL_TYPE:
     {
-        target->data.GCFlag_NULL_TYPE = malloc(sizeof(bool));
-        *target->data.GCFlag_NULL_TYPE = false;
+        if(new_val_disposable) {
+            target->data.GCFlag_NULL_TYPE = malloc(sizeof(bool));
+            *target->data.GCFlag_NULL_TYPE = false;
+        } else {
+            target->data.GCFlag_NULL_TYPE = new_value->data.GCFlag_NULL_TYPE;
+        }
         break;
     }
 
     case UNDEFINED_TYPE:
     {
-        target->data.GCFlag_UNDEFINED_TYPE = malloc(sizeof(bool));
-        *target->data.GCFlag_UNDEFINED_TYPE = false;
+        if(new_val_disposable) {
+            target->data.GCFlag_UNDEFINED_TYPE = malloc(sizeof(bool));
+            *target->data.GCFlag_UNDEFINED_TYPE = false;
+        } else {
+            target->data.GCFlag_UNDEFINED_TYPE = new_value->data.GCFlag_UNDEFINED_TYPE;
+        }
         break;
     }
 
     case STRING_TYPE:
     {
-        target->data.String =  new_value->data.String;
+        target->data.String = new_value->data.String;
         break;
     }
 
@@ -1684,17 +1689,24 @@ void rtobj_deconstruct(RtObject *obj, int offset)
         break;
     case FUNCTION_TYPE:
     {
-        printf("BuiltIn: %s\n", obj->data.Func->is_builtin ? "true" : "false");
+        printf("Type: %s\n", rtfunc_type_toString(obj->data.Func));
         print_offset(offset);
 
         // prints out name
-        if (obj->data.Func->is_builtin)
+        switch (obj->data.Func->functype)
         {
+        case REGULAR_BUILTIN: {
             printf("Name: %s\n", obj->data.Func->func_data.built_in.func->builtin_name);
             print_offset(offset);
+            break;
         }
-        else
-        {
+        case ATTR_BUILTIN: {
+            printf("Name: %s\n", obj->data.Func->func_data.attr_built_in.func->attrsname);
+            print_offset(offset);
+            break;
+        }
+
+        case REGULAR: {
             printf("Name: %s\n", obj->data.Func->func_data.user_func.func_name);
             print_offset(offset);
             // prints closures
@@ -1729,6 +1741,8 @@ void rtobj_deconstruct(RtObject *obj, int offset)
             print_offset(offset);
             printf("Body:\n");
             deconstruct_bytecode(obj->data.Func->func_data.user_func.body, offset + 1);
+            break;
+        }
         }
         break;
     }

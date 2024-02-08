@@ -501,7 +501,6 @@ RtObject *lookup_variable(const char *var)
         return obj;
 
     RtObject *built_in = get_builtin_func(var);
-    // add_to_GC_registry(built_in);
 
     return built_in;
 }
@@ -604,7 +603,7 @@ int prep_runtime_env(ByteCodeList *code)
     env = init_RunTime();
     RunTime_push_callframe(init_CallFrame(code, NULL));
     init_GarbageCollector();
-
+    init_AttrRegistry();
     return env ? 1 : 0;
 }
 
@@ -669,26 +668,13 @@ static void perform_var_mutation()
         dispose_disposable_obj(old_val, old_val_disposable);
         return;
     }
-
-    // if(new_val->type == NUMBER_TYPE && old_val->type == NUMBER_TYPE) {
-    //     old_val->data.Number->number = new_val->data.Number->number;
-    // } else {
-
-    // mutates data
-    // if new_val is disposable, then a deep cpy is created, since new_val will be freed
+    
     rtobj_mutate(old_val, new_val, new_val_disposable);
-    // }
+    
+    if(new_val_disposable) {
+        rtobj_shallow_free(new_val);
+    }
 
-    // if(new_val_disposable)
-    //     add_to_GC_registry(new_val);
-
-
-    // dispose_disposable_obj(new_val, new_val_disposable);
-    // makes sure old_val is put into the GC registry, (it should already be in it)
-    // if(old_val_disposable)
-    //     add_to_GC_registry(old_val);
-
-    dispose_disposable_obj(new_val, new_val_disposable);
     dispose_disposable_obj(old_val, old_val_disposable);
 }
 
@@ -802,6 +788,7 @@ static int perform_exit()
 
 static void perform_builtin_call(Builtin *builtin, RtObject **args, int arg_count);
 static CallFrame *perform_regular_func_call(RtFunction *function, RtObject **arguments, bool disposable[],unsigned int arg_count);
+static void perform_attrbuiltin_call(RtObject *target, AttrBuiltin *builtin, RtObject **args, int arg_count);
 
 CallFrame *perform_function_call(unsigned int arg_count)
 {
@@ -815,8 +802,18 @@ CallFrame *perform_function_call(unsigned int arg_count)
     for (int i = arg_count - 1; i >= 0; i--)
     {
         disposable[i] = disposable();
-        arguments[i] = StackMachine_pop(env->stk_machine, false);
-        if (!disposable[i])
+        RtObject *arg = StackMachine_pop(env->stk_machine, false);
+
+        if(!disposable[i] && rttype_isprimitive(arg->type)) {
+            arguments[i] = rtobj_deep_cpy(arg);
+        } else {
+            arguments[i] = arg;
+        }
+
+        // If its disposable or not disposable but its primitive object
+        // then we must add that object to the GC Registry since its not in it already
+        // or in the latter case, it was just created
+        if(disposable[i] || (!disposable[i] && rttype_isprimitive(arg->type)))
             add_to_GC_registry(arguments[i]);
     }
 
@@ -832,7 +829,7 @@ CallFrame *perform_function_call(unsigned int arg_count)
     }
 
     // temporary for now
-    if (env->stack_ptr >= MAX_STACK_SIZE - 1 && !func->data.Func->is_builtin)
+    if (env->stack_ptr >= MAX_STACK_SIZE - 1 && func->data.Func->functype != REGULAR)
     {
 
         printf("Stack Overflow Error when calling function '%s' \n",
@@ -843,16 +840,26 @@ CallFrame *perform_function_call(unsigned int arg_count)
 
     CallFrame *new_frame = NULL;
 
-    // built in function
-    if (func->data.Func->is_builtin)
+    switch (func->data.Func->functype)
     {
-        perform_builtin_call(func->data.Func->func_data.built_in.func, arguments, arg_count);
-        for (unsigned int i = 0; i < arg_count; i++)
-            dispose_disposable_obj(arguments[i], disposable[i]);
-    }
-    else
-    {
-        new_frame = perform_regular_func_call(func->data.Func, arguments, disposable, arg_count);
+        case REGULAR_BUILTIN: 
+            perform_builtin_call(func->data.Func->func_data.built_in.func, arguments, arg_count);
+            break;
+        
+
+        case ATTR_BUILTIN: {
+            AttrBuiltin *attrfunc = func->data.Func->func_data.attr_built_in.func;
+            RtObject *target = func->data.Func->func_data.attr_built_in.target;
+
+            RtObject *new_obj = attrfunc->builtin_func(target, arguments, arg_count);
+            StackMachine_push(StackMachine, new_obj, new_obj != target);
+
+            break;
+        }
+        
+        case REGULAR: 
+            new_frame = perform_regular_func_call(func->data.Func, arguments, disposable, arg_count);
+            break;
     }
 
     dispose_disposable_obj(func, func_disposable);
@@ -860,7 +867,14 @@ CallFrame *perform_function_call(unsigned int arg_count)
     return new_frame;
 }
 
+static void perform_attrbuiltin_call(RtObject *target, AttrBuiltin *builtin, RtObject **args, int arg_count) {
+    // TODO
+    RtObject *new_obj = builtin->builtin_func(target, args, arg_count);
+    StackMachine_push(StackMachine, new_obj, new_obj != target);
+}
+
 /**
+ * DESCRIPTION:
  * Helper for performing built in function call
  * Adds new Callframe to call stack
  */
@@ -893,7 +907,7 @@ static CallFrame *perform_regular_func_call(RtFunction *Function, RtObject **arg
 {
 
     // checks argument counts match
-    if (!Function->is_builtin &&
+    if (Function->functype == REGULAR &&
         Function->func_data.user_func.arg_count != arg_count)
     {
         printf("Function '%s' expected %d arguments, but got %d\n",
@@ -911,13 +925,6 @@ static CallFrame *perform_regular_func_call(RtFunction *Function, RtObject **arg
     for (unsigned int i = 0; i < arg_count; i++)
     {
         RtObject *arg = arguments[i];
-
-        // primitives are always deep copied
-        if(rttype_isprimitive(arg->type) && !disposable[i]) {
-            arg = rtobj_deep_cpy(arg);
-        }
-            
-        add_to_GC_registry(arg);
 
         Identifier_Table_add_var(
             new_frame->lookup,
@@ -950,15 +957,10 @@ static CallFrame *perform_regular_func_call(RtFunction *Function, RtObject **arg
             DOES_NOT_APPLY);
 
         // call frame is pushed before adding func to GC registry
-        RunTime_push_callframe(new_frame);
         add_to_GC_registry(cpy_func);
     }
-    else
-    {
-        // add new call frame to call stack
-        RunTime_push_callframe(new_frame);
-    }
-
+    
+    RunTime_push_callframe(new_frame);
     return new_frame;
 }
 
@@ -1108,13 +1110,52 @@ void perform_create_var(char *varname, AccessModifier access)
     if (disposable) {
         cpy = new_val;
     } else {
-        cpy = rtobj_shallow_cpy(new_val);
+        assert(GC_Registry_has(new_val));
+        if(rttype_isprimitive(new_val->type))
+            cpy = rtobj_deep_cpy(new_val);
+        else
+            cpy = rtobj_shallow_cpy(new_val);
     }
 
     Identifier_Table_add_var(frame->lookup, varname, cpy, access);
 
     // if(!disposable)
     add_to_GC_registry(cpy);
+}
+
+
+/**
+ * DESCRIPTION:
+ * Contains logic for getting atribute from a rt object
+*/
+static void perform_get_attribute(char *attrs) {
+    // VERY TEMPORARY CODE
+    RtObject *tmp = StackMachine_pop(StackMachine, false);
+
+    if(tmp->type == CLASS_TYPE) {
+        RtObject *attrsname = init_RtObject(STRING_TYPE);
+        attrsname->data.String = init_RtString(attrs);
+        RtObject *attrs = rtmap_get(tmp->data.Class->attrs_table, attrsname);
+
+        if(attrs) {
+            StackMachine_push(StackMachine, attrs, false);
+
+            rtobj_free(attrsname, false);
+            return;
+        }
+    }
+
+    RtObject *builtin_attr_func = rtattr_getfunc(tmp, attrs);
+
+    if(!builtin_attr_func) {
+        printf("Object of type %s does not have builtin attribute %s", 
+        rtobj_type_toString(tmp->type), 
+        attrs);
+        StackMachine_push(StackMachine, init_RtObject(UNDEFINED_TYPE), true);
+        return;
+    }
+
+    StackMachine_push(StackMachine, builtin_attr_func, true);
 }
 
 int run_program()
@@ -1362,21 +1403,7 @@ int run_program()
             }
 
             case LOAD_ATTRIBUTE: {
-                // VERY TEMPORARY CODE
-                RtObject *tmp = StackMachine_pop(StackMachine, false);
-                if(tmp->type != CLASS_TYPE) {
-                    printf("UNDER CONSTRUCTION: Cannot get attribute of object with type %s\n", rtobj_type_toString(tmp->type));
-                    break;
-                }
-
-                RtObject *attrsname = init_RtObject(STRING_TYPE);
-                attrsname->data.String = init_RtString(code->data.LOAD_ATTR.attribute_name);
-                // printf("%Li", tmp->data.Class->attrs_table->size);
-                RtObject *attrs = rtmap_get(tmp->data.Class->attrs_table, attrsname);
-                assert(attrs);
-                StackMachine_push(StackMachine, attrs, false);
-
-                rtobj_free(attrsname, false);
+                perform_get_attribute(code->data.LOAD_ATTR.attribute_name);
                 break;
             }
 
@@ -1443,5 +1470,6 @@ void perform_cleanup()
 
     cleanup_builtin();
     cleanup_GarbageCollector();
+    cleanup_AttrsRegistry();
     Runtime_active = false;
 }

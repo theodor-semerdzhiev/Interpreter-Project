@@ -19,6 +19,7 @@ SRC_FILES = \
   runtime/builtins.c \
   runtime/gc.c \
   runtime/rtfunc.c \
+  runtime/rtattrs.c \
   runtime/rtlists.c \
   runtime/rtmap.c \
   runtime/rtclass.c \

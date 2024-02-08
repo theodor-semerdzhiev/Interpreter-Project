@@ -3,12 +3,12 @@
 NbOfTests=0
 passed=0
 failed=0
-test_files=($(ls ./tests))
+test_files=($(ls ./tests/test*))
 
 
 make clean
 make
-ite=0
+ite=1
 for file in "${test_files[@]}"; do
     ./main.out ./tests/$file >/dev/null
     if [ $? -eq 0 ]; then

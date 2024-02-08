@@ -7,22 +7,7 @@
 #include "rtclass.h"
 #include "rtstring.h"
 #include "rtnumber.h"
-
-// // Possible runtime types
-typedef enum RtType
-{
-    UNDEFINED_TYPE,
-    NULL_TYPE,
-    NUMBER_TYPE,
-    STRING_TYPE,
-    CLASS_TYPE,
-    FUNCTION_TYPE,
-    LIST_TYPE,
-    HASHMAP_TYPE,
-    HASHSET_TYPE,
-} RtType;
-
-#define DEFAULT_REF 8
+#include "rttype.h"
 
 // Forward declaration
 typedef struct RtObject RtObject;

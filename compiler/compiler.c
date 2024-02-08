@@ -974,7 +974,7 @@ ByteCode *compile_func_declaration(AST_node *function)
 
     // Initializes function object
     // RtObject *func = init_RtObject(FUNCTION_TYPE);
-    RtFunction *func = init_rtfunc(false);
+    RtFunction *func = init_rtfunc(REGULAR);
     func->func_data.user_func.body = compile_code_body(func_body, false, false);
     func->func_data.user_func.func_name =
         function->type == FUNCTION_DECLARATION ? malloc_string_cpy(NULL, func_name) : NULL;
@@ -1213,7 +1213,7 @@ ByteCode *compile_class_body(AST_node *node)
     ExpressionNode **args = node->ast_data.obj_args.object_prototype_args;
     int arg_count = node->ast_data.obj_args.args_num;
 
-    RtFunction *constructor = init_rtfunc(false);
+    RtFunction *constructor = init_rtfunc(REGULAR);
     constructor->func_data.user_func.body = compile_code_body(node->body, false, false);
     constructor->func_data.user_func.func_name = cpy_string(node->identifier.obj_name);
 

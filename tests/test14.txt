@@ -1,0 +1,16 @@
+
+let l = [];
+
+for(let i=0; i < 100; i=i+1;) {
+    l->append(i);
+}
+
+for(let i=0; i < len(l); i = i+1;) {
+    println(l[i]);
+}
+
+let tmp = l[0];
+l[0] = l[99];
+l[99] = tmp;
+ 
+println(l);

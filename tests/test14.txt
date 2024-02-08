@@ -1,16 +1,42 @@
 
 let l = [];
-
-for(let i=0; i < 100; i=i+1;) {
-    l->append(i);
-}
-
-for(let i=0; i < len(l); i = i+1;) {
-    println(l[i]);
-}
-
-let tmp = l[0];
-l[0] = l[99];
-l[99] = tmp;
- 
 println(l);
+l->append(20, 23, 23);
+println(l);
+l->popLast();
+println(l);
+
+let m = map {};
+println(m);
+m->add(10, "23123");
+println(m);
+println(m[10]);
+
+println(typeof(l));
+println(typeof(m));
+
+class Tuple(list_) {
+    let tuple = func () {
+        if(typeof(list_) == "List") {
+            return list_;
+        } else {
+            println("Argument must be a list");
+            return [];
+        }
+    }();
+    
+    func printTuple() {
+
+        print("(");
+        for(let i=0; i < len(tuple); i = i + 1;) {
+            print(" ", tuple[i]);
+            if(!(i == len(tuple) -1)) {
+                print(",");
+            }
+        } 
+        print(")");
+    }
+}
+
+let t = Tuple([1,3,4]);
+t->printTuple();

@@ -1213,12 +1213,6 @@ RtObject *rtobj_mutate(RtObject *target, const RtObject *new_value, bool new_val
         return target;
     }
 
-    assert(GC_Registry_has(target));
-
-    /**
-     * Fixed
-    */
-    add_to_GC_registry(rtobj_shallow_cpy(target));
 
     switch (new_value->type)
     {

@@ -16,6 +16,3 @@ RtNumber *init_RtNumber(long double number) {
     num->GCFlag=false;
     return num;
 }
-
-
-

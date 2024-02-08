@@ -465,9 +465,18 @@ KeyValue **parser_key_value_pair_exps(
     enum token_type pair_seperators,
     enum token_type end_of_exp)
 {
+
     KeyValue **pairs = malloc(sizeof(KeyValue) * DEFAULT_ARG_LIST_LENGTH);
     int pair_list_max_length = DEFAULT_ARG_LIST_LENGTH;
     int pair_count = 0;
+    
+    // handles special case where an empty body is declared
+    enum token_type type = parser->token_list->list[parser->token_ptr]->type;
+    if(type == end_of_exp) {
+        pairs[pair_count] = NULL;
+        parser->token_ptr++;
+        return pairs;
+    }
 
     enum token_type seperators1[] = {key_val_seperators};
     enum token_type seperators2[] = {pair_seperators, end_of_exp};
@@ -478,9 +487,6 @@ KeyValue **parser_key_value_pair_exps(
     // iterates until end_of_exp lexeme is reached
     while (parser->token_list->list[parser->token_ptr - 1]->type != end_of_exp)
     {
-        // ExpressionNode *key = parse_expression(parser, NULL, NULL, seperators1, 1);
-        // ExpressionNode *value = parse_expression(parser, NULL, NULL, seperators2, 2);
-
         ExpressionNode *key = parse_expression(parser, seperators1, 1);
         ExpressionNode *value = parse_expression(parser, seperators2, 2);
 

@@ -69,7 +69,7 @@ static void _collect_free_vars_func_declaration(int recursion_lvl, AST_node *nod
 static void _collect_free_vars_inline_func_declaration(int recursion_lvl, AST_node *node, GenericSet *free_var_set, GenericSet *bound_var_set);
 static void _collect_free_vars_obj_declaration(int recursion_lvl, AST_node *node, GenericSet *free_var_set, GenericSet *bound_var_set);
 static void _collect_free_vars_from_ast_node(int recursion_lvl, AST_node *node, GenericSet *free_var_set, GenericSet *bound_var_set);
-static void _collect_free_vars_from_body(int recursion_lvl, AST_List *body, GenericSet *free_var_set, GenericSet *bound_var_set);
+static void _collect_free_vars_from_body(int recursion_lvl, AST_List *body, bool filter_free_vars ,GenericSet *free_var_set, GenericSet *bound_var_set);
 
 /******************************************/
 
@@ -96,7 +96,7 @@ GenericSet *collect_free_vars(AST_List *node)
         return NULL;
     }
 
-    _collect_free_vars_from_body(0, node, free_var_table, bound_var_table);
+    _collect_free_vars_from_body(0, node, true, free_var_table, bound_var_table);
     GenericSet_free(bound_var_table, true);
     return free_var_table;
 }
@@ -283,7 +283,7 @@ static void _collect_free_vars_from_exp_component(
             // adds function arguments as bounded variables
             _add_sequence_as_bounded_vars(recursion_lvl, args, arg_count, bound_var_set);
 
-            _collect_free_vars_from_body(recursion_lvl + 1, node->meta_data.inline_func->body, free_var_set, bound_var_set);
+            _collect_free_vars_from_body(recursion_lvl + 1, node->meta_data.inline_func->body, true, free_var_set, bound_var_set);
             break;
         }
         case FUNC_CALL:
@@ -385,7 +385,7 @@ static void _collect_free_vars_if_conditional(
     _collect_free_vars_from_exp(recursion_lvl, node->ast_data.exp, free_var_set, bound_var_set);
 
     // collects free variables in if body
-    _collect_free_vars_from_body(recursion_lvl + 1, node->body, free_var_set, bound_var_set);
+    _collect_free_vars_from_body(recursion_lvl + 1, node->body, true, free_var_set, bound_var_set);
 }
 
 /* Handles case for else if conditional*/
@@ -399,7 +399,7 @@ static void _collect_free_vars_else_if_conditional(
     _collect_free_vars_from_exp(recursion_lvl, node->ast_data.exp, free_var_set, bound_var_set);
 
     // collects free variables in if body
-    _collect_free_vars_from_body(recursion_lvl + 1, node->body, free_var_set, bound_var_set);
+    _collect_free_vars_from_body(recursion_lvl + 1, node->body, true, free_var_set, bound_var_set);
 }
 
 /* Handles case for while loop */
@@ -412,7 +412,41 @@ static void _collect_free_vars_while_loop(
     // collects free variable in while expression
     _collect_free_vars_from_exp(recursion_lvl, node->ast_data.exp, free_var_set, bound_var_set);
     // collects free_variables in while body
-    _collect_free_vars_from_body(recursion_lvl + 1, node->body, free_var_set, bound_var_set);
+    _collect_free_vars_from_body(recursion_lvl + 1, node->body, true, free_var_set, bound_var_set);
+}
+
+
+/* Collects free vars from for loops */
+static void _collect_free_vars_for_loop(
+    int recursion_lvl,
+    AST_node *node,
+    GenericSet *free_var_set,
+    GenericSet *bound_var_set)
+{
+    assert(node->type == FOR_LOOP);
+
+    _collect_free_vars_from_body(
+        recursion_lvl + 1, 
+        node->ast_data.for_loop.initialization,
+        false,
+        free_var_set,
+        bound_var_set);
+
+    _collect_free_vars_from_exp(recursion_lvl + 1, node->ast_data.for_loop.loop_conditional, free_var_set, bound_var_set);
+
+    _collect_free_vars_from_body(
+        recursion_lvl + 1, 
+        node->ast_data.for_loop.termination,
+        false,
+        free_var_set,
+        bound_var_set);
+
+    _collect_free_vars_from_body(
+        recursion_lvl + 1, 
+        node->body, 
+        true,
+        free_var_set, 
+        bound_var_set);
 }
 
 /* Handles case for function declaration */
@@ -438,7 +472,7 @@ static void _collect_free_vars_func_declaration(
     // collects bound variables from function arguments
     _add_sequence_as_bounded_vars(recursion_lvl, args, arg_count, bound_var_set);
     // collects free variables from function body
-    _collect_free_vars_from_body(recursion_lvl + 1, node->body, free_var_set, bound_var_set);
+    _collect_free_vars_from_body(recursion_lvl + 1, node->body, true, free_var_set, bound_var_set);
 }
 
 /* Handles case for inline function delclaration */
@@ -455,7 +489,7 @@ static void _collect_free_vars_inline_func_declaration(
     _add_sequence_as_bounded_vars(recursion_lvl, args, arg_count, bound_var_set);
 
     // collects free variables in function body
-    _collect_free_vars_from_body(recursion_lvl + 1, node->body, free_var_set, bound_var_set);
+    _collect_free_vars_from_body(recursion_lvl + 1, node->body, true, free_var_set, bound_var_set);
 }
 
 /* Handles case for object declarations */
@@ -482,7 +516,7 @@ static void _collect_free_vars_obj_declaration(
     }
 
     // collects free variables in object body
-    _collect_free_vars_from_body(recursion_lvl + 1, node->body, free_var_set, bound_var_set);
+    _collect_free_vars_from_body(recursion_lvl + 1, node->body, true, free_var_set, bound_var_set);
 }
 
 /* Logic for capturing all free variables within the body of a ast node*/
@@ -507,7 +541,7 @@ static void _collect_free_vars_from_ast_node(
         break;
     case ELSE_CONDITIONAL:
         // collects free variables in else body
-        _collect_free_vars_from_body(recursion_lvl + 1, node->body, free_var_set, bound_var_set);
+        _collect_free_vars_from_body(recursion_lvl + 1, node->body, true, free_var_set, bound_var_set);
         break;
     case ELSE_IF_CONDITIONAL:
         _collect_free_vars_else_if_conditional(recursion_lvl, node, free_var_set, bound_var_set);
@@ -515,9 +549,13 @@ static void _collect_free_vars_from_ast_node(
     case WHILE_LOOP:
         _collect_free_vars_while_loop(recursion_lvl, node, free_var_set, bound_var_set);
         break;
+    case FOR_LOOP: 
+        _collect_free_vars_for_loop(recursion_lvl, node, free_var_set, bound_var_set);
+        break;
     case FUNCTION_DECLARATION:
         _collect_free_vars_func_declaration(recursion_lvl, node, free_var_set, bound_var_set);
         break;
+
 
     case RETURN_VAL:
         // collects free variables in return expression
@@ -551,10 +589,25 @@ static void _collect_free_vars_from_ast_node(
     }
 }
 
-/* Collects free vars contained wihtin the body of a AST node */
+/**
+ * DESCRIPTION:
+ * This function is responsible for collecting free variables from a code body
+ * It iterates through the entire AST block and collects the free vars from each AST node
+ * 
+ * At the end, if filter_bounded_vars is set to true, then we clear all bounded variables
+ * that must have been declared in the current scope or lower
+ * 
+ * PARAMS:
+ * recursion_lvl: Keeps track of the nesting lvl of the code body, needed to keep track of local variables 
+ * body: the code body
+ * filter_bounded_vars: wether we should clear bounded variables before returning (this is useful for FOR loops)
+ * free_var_set: set of free variables
+ * bound_var_set: set of bounded variables
+*/
 static void _collect_free_vars_from_body(
     int recursion_lvl,
     AST_List *body,
+    bool filter_bounded_vars,
     GenericSet *free_var_set,
     GenericSet *bound_var_set)
 {
@@ -568,8 +621,9 @@ static void _collect_free_vars_from_body(
         ptr = ptr->next;
     }
 
-    /* Removes all bounded variables defined at equal or deeper nesting level */
-    GenericSet_filter(bound_var_set, (bool (*)(void *))_filter_bge_nesting_lvl(recursion_lvl), true);
+    if(filter_bounded_vars)
+        /* Removes all bounded variables defined at equal or deeper nesting level */
+        GenericSet_filter(bound_var_set, (bool (*)(void *))_filter_bge_nesting_lvl(recursion_lvl), true);
 }
 
 /**

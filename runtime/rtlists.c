@@ -151,7 +151,7 @@ RtObject *rtlist_remove(RtList *list, size_t index)
 RtObject *rtlist_get(RtList *list, long index)
 {
     assert(list);
-    if ((size_t)index >= list->length)
+    if ((size_t)index >= list->length && (size_t)index < 0)
         return NULL;
     else
         return list->objs[index];
@@ -263,6 +263,16 @@ rtlist_toString(RtList *list)
     for (size_t i = 0; i < list->length; i++)
     {
         char *obj_to_str = rtobj_toString(list->objs[i]);
+        
+        // if its a string
+        if(list->objs[i]->type == STRING_TYPE) {
+            char* tmp = concat_strings("\"", obj_to_str);
+            free(obj_to_str);
+            char *tmp1 = concat_strings(tmp, "\"");
+            free(tmp);
+            obj_to_str=tmp1;
+        }
+
         if (i + 1 == list->length)
         {
             char *tmp = concat_strings(str, obj_to_str);

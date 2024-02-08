@@ -49,7 +49,7 @@ init_RtMap(unsigned long initial_bucket_size)
         free(map);
         return NULL;
     }
-    map->GCFlag=false;
+    map->GCFlag = false;
     map->size = 0;
     return map;
 }
@@ -234,7 +234,7 @@ RtObject *rtmap_insert(RtMap *map, RtObject *key, RtObject *val)
 
     MapNode *node = init_MapNode(key, val);
     node->next = map->buckets[index];
-    map->buckets[index]=node;
+    map->buckets[index] = node;
     map->size++;
 
     // Resizes buckets array if needed
@@ -358,7 +358,8 @@ rtmap_getrefs(const RtMap *map, bool getkeys, bool getvals)
         arr = malloc(sizeof(RtObject *) * (map->size + 1));
     }
 
-    if (!arr) {
+    if (!arr)
+    {
         MallocError();
         return NULL;
     }
@@ -417,7 +418,7 @@ rtmap_cpy(const RtMap *map, bool deepcpy_key, bool deepcpy_val)
         rtmap_insert(
             cpy,
             deepcpy_key ? rtobj_deep_cpy(refs[i]) : refs[i],
-            deepcpy_val ? rtobj_deep_cpy(refs[i+1]) : refs[i+1]);
+            deepcpy_val ? rtobj_deep_cpy(refs[i + 1]) : refs[i + 1]);
 
         i += 2;
     }
@@ -459,12 +460,15 @@ void rtmap_free(RtMap *map, bool free_keys, bool free_vals, bool free_immutable)
 /**
  * DESCRIPTION:
  * Simple helper for surrounding string by quotation marks
-*/
-static char *add_quotation_marks(char *str) {
+ */
+static char *add_quotation_marks(char *str)
+{
     char *tmp = concat_strings("\"", str);
-    if(!tmp) MallocError();
+    if (!tmp)
+        MallocError();
     char *tmp1 = concat_strings(tmp, "\"");
-    if(!tmp1) MallocError();
+    if (!tmp1)
+        MallocError();
     free(str);
     free(tmp);
     return tmp1;
@@ -486,17 +490,17 @@ rtmap_toString(const RtMap *map)
     for (int i = 0; keyvals[i] != NULL;)
     {
         char *keystr = rtobj_toString(keyvals[i]);
-        if(keyvals[i]->type == STRING_TYPE)
+        if (keyvals[i]->type == STRING_TYPE)
             keystr = add_quotation_marks(keystr);
-        
+
         char *valstr = rtobj_toString(keyvals[i + 1]);
-        if(keyvals[i+1]->type == STRING_TYPE)
+        if (keyvals[i + 1]->type == STRING_TYPE)
             valstr = add_quotation_marks(valstr);
 
         char *tmp = concat_strings(keystr, " : ");
         char *tmp_ = concat_strings(tmp, valstr);
         free(tmp);
-        tmp = concat_strings(str,tmp_);
+        tmp = concat_strings(str, tmp_);
         free(keystr);
         free(valstr);
         free(tmp_);
@@ -514,7 +518,10 @@ rtmap_toString(const RtMap *map)
     }
     // handles empty string
     if (!str)
+    {
+        free(keyvals);
         return cpy_string("{}");
+    }
 
     char *tmp = concat_strings("{", str);
     char *tmp_ = concat_strings(tmp, "}");

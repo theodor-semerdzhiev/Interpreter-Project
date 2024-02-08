@@ -669,6 +669,8 @@ static void perform_var_mutation()
         return;
     }
     
+    add_to_GC_registry(rtobj_shallow_cpy(old_val));
+    
     rtobj_mutate(old_val, new_val, new_val_disposable);
     
     if(new_val_disposable) {

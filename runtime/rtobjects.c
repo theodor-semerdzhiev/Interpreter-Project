@@ -309,8 +309,8 @@ add_objs(RtObject *obj1, RtObject *obj2)
             RtObject *result = init_RtObject(STRING_TYPE);
             if (!result)
                 return NULL;
-            char *adder2 = obj1->data.String->string;
-            int length2 = obj1->data.String->length;
+            char *adder2 = obj2->data.String->string;
+            int length2 = obj2->data.String->length;
             result->data.String=init_RtString(NULL);
             result->data.String->string = concat_strings(adder1, adder2);
             result->data.String->length = length1 + length2;

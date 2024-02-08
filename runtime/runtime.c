@@ -171,11 +171,6 @@ RtObject *IdentifierTable_get(IdentTable *table, const char *key)
     Identifier *node = table->buckets[index];
     while (node)
     {
-        // if (strings_equal(node->key, "fib") && strings_equal(key, "fib"))
-        // {
-        //     printf("GET %d: %s\n", env->stack_ptr, obj_type_toString(node->obj));
-        // }
-
         if (strings_equal(node->key, key))
             return node->obj;
         node = node->next;

@@ -669,6 +669,7 @@ static void perform_var_mutation()
     rtobj_mutate(old_val, new_val, new_val_disposable);
     
     if(new_val_disposable) {
+        assert(!GC_Registry_has(new_val));
         rtobj_shallow_free(new_val);
     }
 
@@ -1089,7 +1090,6 @@ static void perform_return_class()
     RtObject *class = init_RtObject(CLASS_TYPE);
     class->data.Class = cl;
 
-    add_to_GC_registry(class);
     StackMachine_push(StackMachine, class, true);
 }
 /******************************************************/

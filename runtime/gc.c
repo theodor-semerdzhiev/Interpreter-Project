@@ -17,11 +17,14 @@
  */
 
 /* When the number of active objects reached this amount, garbage collector performs a rotation     */
-static unsigned long GC_THRESHOLD = 3;
-
+static unsigned long GC_THRESHOLD = 100;
 static unsigned long liveObjCount = 0;
+
+static unsigned long ticks_since_last_collection = 0;
+
 static bool gc_active = false;
 static GenericSet *GCregistry = NULL;
+static GenericSet *freed_ptrs_set = NULL;
 
 bool is_GC_Active() { return gc_active; }
 
@@ -73,7 +76,10 @@ void trigger_GC()
     if (liveObjCount >= GC_THRESHOLD)
     {
         garbageCollect();
-        GC_THRESHOLD *= 2;
+        GC_THRESHOLD = liveObjCount * 10;
+        ticks_since_last_collection = 0;
+    } else {
+        ticks_since_last_collection++;
     }
 }
 
@@ -164,6 +170,7 @@ static void cleanup_GCRegistry()
 
     RtObject **objs = (RtObject**)GenericSet_to_list(GCregistry);
     GenericSet_free(GCregistry, false);
+    GenericSet_free(freed_ptrs_set, false);
 
     // marks all unique pointers to free
     for (unsigned long i = 0; objs[i] != NULL; i++) {
@@ -190,6 +197,7 @@ void cleanup_GarbageCollector()
     cleanup_GCRegistry();
     liveObjCount = 0;
     GCregistry = NULL;
+    freed_ptrs_set = NULL;
 }
 
 static void traverse_reference_graph(RtObject *root);
@@ -226,45 +234,31 @@ void garbageCollect()
 
     RtObject **all_active_obj = (RtObject **)GenericSet_to_list(GCregistry);
 
-    GenericSet *set = InitPtrSet(NULL);
-
-    bool rtobj_freed[liveObjCount];
-    memset(rtobj_freed, false, sizeof(rtobj_freed));
-
-    RtObject *test[liveObjCount];
+    if(!freed_ptrs_set)
+        freed_ptrs_set = InitPtrSet(NULL);
 
     // Frees all unreachable nodes
     for (unsigned long i = 0; i < liveObjCount; i++)
     {
-        test[i] = all_active_obj[i];
         void *data = rtobj_getdata(all_active_obj[i]);
-        if(GenericSet_has(set, data)) {
+        assert(data);
+
+        if(GenericSet_has(freed_ptrs_set, data)) {
             rtobj_shallow_free(all_active_obj[i]);
-            rtobj_freed[i] = true;
             continue;
         }
 
         if (!rttype_get_GCFlag(data, all_active_obj[i]->type) ) {
-            GenericSet_insert(set, data, false);
+            GenericSet_insert(freed_ptrs_set, data, false);
             RtObject *obj = remove_from_GC_registry(all_active_obj[i], false);
             assert(obj);
             rtobj_free(obj, false);
-            rtobj_freed[i] = true;
+        } else {
+            rtobj_set_GCFlag(all_active_obj[i], false);
         }
     }
-
-    for(size_t i=0; i < liveObjCount; i++)
-        for(size_t j=0; j < liveObjCount; j++)
-            if(i != j)
-                assert(test[i] != test[j]);
     
-    GenericSet_free(set, false);
-
-    // resets mark flags in the GCRegistry
-    for(int i=0; all_active_obj[i] != NULL; i++) {
-        if(rtobj_freed[i]) continue;
-        rtobj_set_GCFlag(all_active_obj[i], false);
-    }
+    GenericSet_clear(freed_ptrs_set, false);
 
     // resets mark flags in the stack machine
     for (unsigned long i = 0; stk_machine_list[i] != NULL; i++)

@@ -482,6 +482,38 @@ bool GenericSet_custom_find(const GenericSet *set, void *data, bool (*equal)(con
     return false;
 }
 
+/**
+ * DESCRIPTION:
+ * Clears entire set
+ *
+ *
+ * PARAMS:
+ * set: set
+ * free_val: wether val should be freed
+ */
+void GenericSet_clear(GenericSet *set, bool free_val) {
+    for (unsigned int i = 0; i < set->max_buckets; i++)
+    {
+        if (!set->buckets[i])
+            continue;
+
+        Node *ptr = set->buckets[i]->head;
+        while (ptr)
+        {
+            Node *tmp = ptr->next;
+            if(free_val)
+                set->free_data(ptr->data);
+            free(ptr);
+            ptr = tmp;
+            set->size--;
+        }
+        free(set->buckets[i]);
+        set->buckets[i]=NULL;
+    }
+    assert(set->size == 0);
+}
+
+
 /* Used for debugging purposes */
 void GenericSet_print_contents(const GenericSet *set, void (*print_data)(const void *))
 {

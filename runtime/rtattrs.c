@@ -18,6 +18,7 @@
 static RtObject *builtin_list_append(RtObject *list, RtObject **args, int argcount);
 static RtObject *builtin_list_pop(RtObject *obj, RtObject **args, int argcount);
 static RtObject *builtin_list_popLast(RtObject *obj, RtObject **args, int argcount);
+static RtObject *builtin_list_popFirst(RtObject *obj, RtObject **args, int argcount);
 
 static RtObject *builtin_map_add(RtObject *obj, RtObject **args, int argcount);
 
@@ -37,6 +38,9 @@ static const AttrBuiltin _list_pop = {LIST_TYPE, builtin_list_pop, -1, "pop"};
 
 static const AttrBuiltinKey _list_popLast_key = {LIST_TYPE, "popLast"};
 static const AttrBuiltin _list_popLast = {LIST_TYPE, builtin_list_popLast, -1, "popLast"};
+
+static const AttrBuiltinKey _list_popFirst_key = {LIST_TYPE, "popFirst"};
+static const AttrBuiltin _list_popFirst = {LIST_TYPE, builtin_list_popFirst, -1, "popFirst"};
 
 static const AttrBuiltinKey _map_add_key = {HASHMAP_TYPE, "add"};
 static const AttrBuiltin _map_add = {HASHMAP_TYPE, builtin_map_add, -1, "add"};
@@ -99,6 +103,7 @@ void init_AttrRegistry()
     addToAttrRegistry(_list_append_key, _list_append);
     addToAttrRegistry(_list_pop_key, _list_pop);
     addToAttrRegistry(_list_popLast_key, _list_popLast);
+    addToAttrRegistry(_list_popFirst_key, _list_popFirst);
 
     addToAttrRegistry(_map_add_key, _map_add);
 }
@@ -154,6 +159,18 @@ static RtObject *builtin_list_popLast(RtObject *obj, RtObject **args, int argcou
     assert(argcount == 0); 
     assert(obj->type == LIST_TYPE);
     rtlist_poplast(obj->data.List);
+    return obj;
+}
+
+/**
+ * DESCRIPTION:
+ * Built in function for adding a element into a specific index of a rt list
+*/
+static RtObject *builtin_list_popFirst(RtObject *obj, RtObject **args, int argcount) {
+    // temporary
+    assert(argcount == 0); 
+    assert(obj->type == LIST_TYPE);
+    rtlist_popfirst(obj->data.List);
     return obj;
 }
 

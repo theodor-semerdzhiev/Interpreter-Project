@@ -1,8 +1,8 @@
-for(let i =0 ; i < 30; i = i + 1;) {
-    for(let j =0 ; j < 30; j = j + 1;) {
-        for(let k =0 ; k < 30; k = k + 1;) {
-            for(let n =0 ; n < 30; n = n + 1;) {
-                println(i,j,k,n);
+for(let i =0 ; i < 10; i = i + 1;) {
+    for(let j =0 ; j < 100; j = j + 1;) {
+        for(let k =0 ; k < 10; k = k + 1;) {
+            for(let n =0 ; n < 10; n = n + 1;) {
+                println(i,j,n);
             }
         }
     }

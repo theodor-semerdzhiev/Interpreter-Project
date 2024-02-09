@@ -46,8 +46,6 @@ func Inorder(root) {
     Inorder(root->right);
 }
 
-
-
 func Preorder(root) {
     if(root == null) {
         return;

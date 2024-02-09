@@ -10,7 +10,7 @@ make clean
 make
 ite=1
 for file in "${test_files[@]}"; do
-    ./main.out ./tests/$file >/dev/null
+    ./main.out $file >/dev/null
     if [ $? -eq 0 ]; then
         ((passed++))
         echo "TEST $ite $file: PASSED"

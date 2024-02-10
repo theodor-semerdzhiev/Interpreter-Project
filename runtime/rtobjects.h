@@ -1,22 +1,22 @@
 #pragma once
 #include <stdbool.h>
-#include "builtins.h"
+#include "rttype.h"
+#include "../rtlib/builtins.h"
 #include "rtlists.h"
 #include "rtfunc.h"
 #include "rtmap.h"
 #include "rtclass.h"
 #include "rtstring.h"
 #include "rtnumber.h"
-#include "rttype.h"
 
 // Forward declaration
 typedef struct RtObject RtObject;
 typedef struct ByteCodeList ByteCodeList;
 typedef struct RtList RtList;
-typedef struct RtMap RtMap;
+typedef struct RtSet RtSet;
 typedef struct Identifier Identifier;
 typedef struct RtClass RtClass;
-
+typedef enum RtType RtType;
 
 // Generic object for all variables
 typedef struct RtObject
@@ -37,7 +37,7 @@ typedef struct RtObject
 
         RtList *List;
 
-        RtMap *Map;
+        RtSet *Map;
 
         RtClass *Class;
         // HashSet *set;
@@ -84,7 +84,7 @@ RtObject **rtobj_getrefs(const RtObject *obj);
 void *rtobj_getdata(const RtObject *obj);
 bool rtobj_get_GCFlag(const RtObject *obj);
 void rtobj_set_GCFlag(RtObject *obj, bool flag);
-RtObject *rtobj_init(RtType type, void* data);
+RtObject *rtobj_init(RtType type, void *data);
 
 void rtobj_free_data(RtObject *obj, bool free_immutable);
 void rtobj_free(RtObject *obj, bool free_immutable);

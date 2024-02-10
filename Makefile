@@ -1,6 +1,6 @@
 CC = clang
-# CFLAGS = -fsanitize=address -fno-omit-frame-pointer -fstack-protector -g  -Wextra -std=c17
-CFLAGS = -g -Wextra -std=c17
+CFLAGS = -fsanitize=address -fno-omit-frame-pointer -fstack-protector -g  -Wextra -std=c17
+# CFLAGS = -g -Wextra -std=c17
 
 SRC_FILES = \
   main.c \
@@ -16,16 +16,17 @@ SRC_FILES = \
   compiler/exprsimplifier.c \
   runtime/rtobjects.c \
   runtime/runtime.c \
-  runtime/builtins.c \
   runtime/gc.c \
   runtime/rtfunc.c \
-  runtime/rtattrs.c \
   runtime/rtlists.c \
   runtime/rtmap.c \
   runtime/rtclass.c \
   runtime/rtstring.c \
   runtime/rttype.c \
   runtime/rtnumber.c \
+  rtlib/builtins.c \
+  rtlib/rtattrs.c \
+  rtlib/rtattrslist.c \
   generics/hashset.c \
   generics/hashmap.c \
   generics/linkedlist.c \
@@ -66,6 +67,11 @@ $(BUILD_DIR)/%.o: compiler/%.c | $(BUILD_DIR)
 # Generic rule for compiling source files in the /runtime directory
 $(BUILD_DIR)/%.o: runtime/%.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
+
+# Generic rule for compiling source files in the /rtlib directory
+$(BUILD_DIR)/%.o: rtlib/%.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
 
 $(EXECUTABLE): $(OBJ_FILES)
 	$(CC) $(CFLAGS) $^ -o $@ 

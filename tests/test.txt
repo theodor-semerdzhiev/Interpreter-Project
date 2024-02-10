@@ -19,5 +19,3 @@ while(i < 0) {
 let y;
 print(y);
 
-
-

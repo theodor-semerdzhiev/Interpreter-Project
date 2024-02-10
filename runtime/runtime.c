@@ -5,7 +5,7 @@
 #include <string.h>
 #include "../generics/utilities.h"
 #include "../compiler/compiler.h"
-#include "builtins.h"
+#include "../rtlib/builtins.h"
 #include "runtime.h"
 #include "rtlists.h"
 #include "rttype.h"
@@ -62,20 +62,19 @@ static Identifier *init_Identifier(const char *varname, RtObject *obj, AccessMod
 /**
  * Frees identifier node
  * free_rtobj: wether Runtime Object should also be freed
- * 
+ *
  * NOTE:
- * if free_rtobj is set to false, the runtime object itself will be freed only 
+ * if free_rtobj is set to false, the runtime object itself will be freed only
  */
 static void free_Identifier(Identifier *node, bool free_rtobj)
 {
     if (!node)
         return;
     free(node->key);
-    if (free_rtobj) {
+    if (free_rtobj)
+    {
         remove_from_GC_registry(node->obj, true);
     }
-
-
 
     free(node);
 }
@@ -402,7 +401,7 @@ RtObject **StackMachine_to_list(StackMachine *stk_machine)
 /**
  * DESCRIPTION:
  * Frees Stack Machine
- * 
+ *
  * PARAMS:
  * stk_machine: stack machine
  * free_rtobj: wether objects still on the stack sould be freed
@@ -518,10 +517,10 @@ CallFrame *init_CallFrame(ByteCodeList *program, RtFunction *function)
 /**
  * DESCRIPTION:
  * Frees Call Frame
- * 
+ *
  * PARAMS:
  * free_rtobj: wether wether rtobj data in lookup table should be freed
- * 
+ *
  * NOTE:
  * Rtobjects themselves will always be freed
  */
@@ -652,23 +651,27 @@ static void perform_binary_operation(
  */
 static void perform_var_mutation()
 {
-    
+
     bool new_val_disposable = disposable();
     RtObject *new_val = StackMachine_pop(env->stk_machine, false);
     bool old_val_disposable = disposable();
     RtObject *old_val = StackMachine_pop(env->stk_machine, false);
 
-    if(old_val_disposable) {
+    assert(new_val && old_val);
+
+    if (old_val_disposable)
+    {
         dispose_disposable_obj(new_val, new_val_disposable);
         dispose_disposable_obj(old_val, old_val_disposable);
         return;
     }
-    
+
     add_to_GC_registry(rtobj_shallow_cpy(old_val));
-    
+
     rtobj_mutate(old_val, new_val, new_val_disposable);
-    
-    if(new_val_disposable) {
+
+    if (new_val_disposable)
+    {
         assert(!GC_Registry_has(new_val));
         rtobj_shallow_free(new_val);
     }
@@ -731,7 +734,7 @@ static void perform_create_function(const RtObject *function)
 {
     assert(function->type == FUNCTION_TYPE);
     assert(!function->data.Func->func_data.user_func.closure_obj);
-    
+
     RtObject *func = rtobj_deep_cpy(function);
     assert(!func->data.Func->func_data.user_func.closure_obj);
 
@@ -785,12 +788,11 @@ static int perform_exit()
  */
 
 static void perform_builtin_call(Builtin *builtin, RtObject **args, int arg_count);
-static CallFrame *perform_regular_func_call(RtFunction *function, RtObject **arguments, bool disposable[],unsigned int arg_count);
+static CallFrame *perform_regular_func_call(RtFunction *function, RtObject **arguments, bool disposable[], unsigned int arg_count);
 static void perform_attrbuiltin_call(RtObject *target, AttrBuiltin *builtin, RtObject **args, int arg_count);
 
 CallFrame *perform_function_call(unsigned int arg_count)
 {
-
     // gets the arguments
     RtObject *arguments[arg_count];
 
@@ -802,16 +804,19 @@ CallFrame *perform_function_call(unsigned int arg_count)
         disposable[i] = disposable();
         RtObject *arg = StackMachine_pop(env->stk_machine, false);
 
-        if(!disposable[i] && rttype_isprimitive(arg->type)) {
+        if (!disposable[i] && rttype_isprimitive(arg->type))
+        {
             arguments[i] = rtobj_deep_cpy(arg);
-        } else {
+        }
+        else
+        {
             arguments[i] = arg;
         }
 
         // If its disposable or not disposable but its primitive object
         // then we must add that object to the GC Registry since its not in it already
         // or in the latter case, it was just created
-        if(disposable[i] || (!disposable[i] && rttype_isprimitive(arg->type)))
+        if (disposable[i] || (!disposable[i] && rttype_isprimitive(arg->type)))
             add_to_GC_registry(arguments[i]);
     }
 
@@ -840,24 +845,24 @@ CallFrame *perform_function_call(unsigned int arg_count)
 
     switch (func->data.Func->functype)
     {
-        case REGULAR_BUILTIN: 
-            perform_builtin_call(func->data.Func->func_data.built_in.func, arguments, arg_count);
-            break;
-        
+    case REGULAR_BUILTIN:
+        perform_builtin_call(func->data.Func->func_data.built_in.func, arguments, arg_count);
+        break;
 
-        case ATTR_BUILTIN: {
-            AttrBuiltin *attrfunc = func->data.Func->func_data.attr_built_in.func;
-            RtObject *target = func->data.Func->func_data.attr_built_in.target;
+    case ATTR_BUILTIN:
+    {
+        AttrBuiltin *attrfunc = func->data.Func->func_data.attr_built_in.func;
+        RtObject *target = func->data.Func->func_data.attr_built_in.target;
 
-            RtObject *new_obj = attrfunc->builtin_func(target, arguments, arg_count);
-            StackMachine_push(StackMachine, new_obj, new_obj != target);
+        RtObject *new_obj = attrfunc->func.builtin_func(target, arguments, arg_count);
+        StackMachine_push(StackMachine, new_obj, new_obj != target);
 
-            break;
-        }
-        
-        case REGULAR: 
-            new_frame = perform_regular_func_call(func->data.Func, arguments, disposable, arg_count);
-            break;
+        break;
+    }
+
+    case REGULAR:
+        new_frame = perform_regular_func_call(func->data.Func, arguments, disposable, arg_count);
+        break;
     }
 
     dispose_disposable_obj(func, func_disposable);
@@ -865,9 +870,10 @@ CallFrame *perform_function_call(unsigned int arg_count)
     return new_frame;
 }
 
-static void perform_attrbuiltin_call(RtObject *target, AttrBuiltin *builtin, RtObject **args, int arg_count) {
+static void perform_attrbuiltin_call(RtObject *target, AttrBuiltin *builtin, RtObject **args, int arg_count)
+{
     // TODO
-    RtObject *new_obj = builtin->builtin_func(target, args, arg_count);
+    RtObject *new_obj = builtin->func.builtin_func(target, args, arg_count);
     StackMachine_push(StackMachine, new_obj, new_obj != target);
 }
 
@@ -957,7 +963,7 @@ static CallFrame *perform_regular_func_call(RtFunction *Function, RtObject **arg
         // call frame is pushed before adding func to GC registry
         add_to_GC_registry(cpy_func);
     }
-    
+
     RunTime_push_callframe(new_frame);
     return new_frame;
 }
@@ -1014,7 +1020,7 @@ static void perform_create_map(unsigned long size)
     RtObject *keys[size / 2];
     RtObject *values[size / 2];
 
-    RtMap *map = init_RtMap(size / 2);
+    RtSet *map = init_RtMap(size / 2);
 
     // fetches all maps and keys
     for (unsigned long i = 0; i < size; i++)
@@ -1070,11 +1076,13 @@ static void perform_return_class()
 
     RtClass *cl = init_RtClass(getCurrentStackFrame()->function->func_data.user_func.func_name);
 
-    if(!cl) MallocError();
+    if (!cl)
+        MallocError();
 
     for (unsigned int i = 0; fields[i] != NULL; i++)
     {
-        if(fields[i]->access != PUBLIC_ACCESS) continue;
+        if (fields[i]->access != PUBLIC_ACCESS)
+            continue;
 
         RtObject *attrname = init_RtObject(STRING_TYPE);
         attrname->data.String = init_RtString(fields[i]->key);
@@ -1104,11 +1112,14 @@ void perform_create_var(char *varname, AccessModifier access)
     CallFrame *frame = getCurrentStackFrame();
 
     RtObject *cpy;
-    if (disposable) {
+    if (disposable)
+    {
         cpy = new_val;
-    } else {
+    }
+    else
+    {
         assert(GC_Registry_has(new_val));
-        if(rttype_isprimitive(new_val->type))
+        if (rttype_isprimitive(new_val->type))
             cpy = rtobj_deep_cpy(new_val);
         else
             cpy = rtobj_shallow_cpy(new_val);
@@ -1120,21 +1131,23 @@ void perform_create_var(char *varname, AccessModifier access)
     add_to_GC_registry(cpy);
 }
 
-
 /**
  * DESCRIPTION:
  * Contains logic for getting atribute from a rt object
-*/
-static void perform_get_attribute(char *attrs) {
+ */
+static void perform_get_attribute(char *attrs)
+{
     // VERY TEMPORARY CODE
     RtObject *tmp = StackMachine_pop(StackMachine, false);
 
-    if(tmp->type == CLASS_TYPE) {
+    if (tmp->type == CLASS_TYPE)
+    {
         RtObject *attrsname = init_RtObject(STRING_TYPE);
         attrsname->data.String = init_RtString(attrs);
         RtObject *attrs = rtmap_get(tmp->data.Class->attrs_table, attrsname);
 
-        if(attrs) {
+        if (attrs)
+        {
             StackMachine_push(StackMachine, attrs, false);
 
             rtobj_free(attrsname, false);
@@ -1142,17 +1155,18 @@ static void perform_get_attribute(char *attrs) {
         }
     }
 
-    RtObject *builtin_attr_func = rtattr_getfunc(tmp, attrs);
+    RtObject *builtin_attr = rtattr_getattr(tmp, attrs);
 
-    if(!builtin_attr_func) {
-        printf("Object of type %s does not have builtin attribute %s", 
-        rtobj_type_toString(tmp->type), 
-        attrs);
+    if (!builtin_attr)
+    {
+        printf("Object of type %s does not have builtin attribute %s",
+               rtobj_type_toString(tmp->type),
+               attrs);
         StackMachine_push(StackMachine, init_RtObject(UNDEFINED_TYPE), true);
         return;
     }
 
-    StackMachine_push(StackMachine, builtin_attr_func, true);
+    StackMachine_push(StackMachine, builtin_attr, true);
 }
 
 int run_program()
@@ -1353,7 +1367,8 @@ int run_program()
                 continue;
             }
 
-            case ABSOLUTE_JUMP: {
+            case ABSOLUTE_JUMP:
+            {
                 frame->pg_counter = code->data.ABSOLUTE_JUMP.offset;
                 continue;
             }
@@ -1399,7 +1414,8 @@ int run_program()
                 break;
             }
 
-            case LOAD_ATTRIBUTE: {
+            case LOAD_ATTRIBUTE:
+            {
                 perform_get_attribute(code->data.LOAD_ATTR.attribute_name);
                 break;
             }
@@ -1439,13 +1455,12 @@ int run_program()
                 // .
                 //
                 //
-            }       
-            
+            }
+
             trigger_GC();
 
             if (!loop)
                 break;
-
 
             frame->pg_counter++;
         }

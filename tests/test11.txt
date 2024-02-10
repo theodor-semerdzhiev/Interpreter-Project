@@ -25,7 +25,7 @@ class LinkedList() {
 
 let l = LinkedList();
 
-for(let i =0; i < 100; i = i +1;) {
+for(let i =0; i < 6; i = i +1;) {
     l->add(i);
 }
 

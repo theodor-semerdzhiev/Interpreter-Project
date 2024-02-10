@@ -237,6 +237,8 @@ void garbageCollect()
     if(!freed_ptrs_set)
         freed_ptrs_set = InitPtrSet(NULL);
 
+    bool freed_obj[liveObjCount];
+
     // Frees all unreachable nodes
     for (unsigned long i = 0; i < liveObjCount; i++)
     {
@@ -245,20 +247,28 @@ void garbageCollect()
 
         if(GenericSet_has(freed_ptrs_set, data)) {
             rtobj_shallow_free(all_active_obj[i]);
+            freed_obj[i]=true;
             continue;
         }
 
-        if (!rttype_get_GCFlag(data, all_active_obj[i]->type) ) {
+        if (!rttype_get_GCFlag(data, all_active_obj[i]->type)) {
             GenericSet_insert(freed_ptrs_set, data, false);
             RtObject *obj = remove_from_GC_registry(all_active_obj[i], false);
             assert(obj);
             rtobj_free(obj, false);
-        } else {
-            rtobj_set_GCFlag(all_active_obj[i], false);
+            freed_obj[i]=true;
+            continue;
         }
+        
+        freed_obj[i]=false;
     }
     
     GenericSet_clear(freed_ptrs_set, false);
+
+    for(unsigned long i=0; i < liveObjCount; i++) {
+        if(freed_obj[i]) continue;
+        rtobj_set_GCFlag(all_active_obj[i], false);
+    }
 
     // resets mark flags in the stack machine
     for (unsigned long i = 0; stk_machine_list[i] != NULL; i++)

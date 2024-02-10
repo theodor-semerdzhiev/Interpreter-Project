@@ -78,7 +78,7 @@ void rttype_freedata(RtType type, void *data, bool freerefs) {
         rtfunc_free((RtFunction*) data, false);
         return;
     case HASHMAP_TYPE:
-        rtmap_free((RtMap*)data, freerefs, freerefs, false);
+        rtmap_free((RtSet*)data, freerefs, freerefs, false);
         return;
 
     case CLASS_TYPE:
@@ -113,7 +113,7 @@ void rttype_set_GCFlag(void* data, RtType type, bool flag) {
             ((RtFunction*)data)->GCFlag = flag;
             return;
         case HASHMAP_TYPE:
-            ((RtMap*)data)->GCFlag = flag;
+            ((RtSet*)data)->GCFlag = flag;
             return;
         case CLASS_TYPE:
             ((RtClass*)data)->GCFlag = flag;
@@ -146,7 +146,7 @@ bool rttype_get_GCFlag(void *data, RtType type) {
     case FUNCTION_TYPE:
         return ((RtFunction*)data)->GCFlag;
     case HASHMAP_TYPE:
-        return ((RtMap*)data)->GCFlag;
+        return ((RtSet*)data)->GCFlag;
     case CLASS_TYPE:
         return ((RtClass*)data)->GCFlag;
 

@@ -1525,7 +1525,7 @@ RtObject *rtobj_init(RtType type, void* data) {
         obj->data.Func=(RtFunction*)data;
         break;
     case HASHMAP_TYPE:
-        obj->data.Map=(RtMap*)data;
+        obj->data.Map=(RtSet*)data;
         break;
     case CLASS_TYPE:
         obj->data.Class=(RtClass*)data;

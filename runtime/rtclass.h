@@ -2,7 +2,7 @@
 #include "rtmap.h"
 #include "../compiler/compiler.h"
 
-typedef struct RtMap RtMap;
+typedef struct RtSet RtSet;
 
 typedef struct RtClass {
     /// @brief These 2 fields are immutable, they DO NOT get freed during runtime
@@ -11,7 +11,7 @@ typedef struct RtClass {
     
     //////
 
-    RtMap *attrs_table;
+    RtSet *attrs_table;
 
     bool GCFlag;
 } RtClass;

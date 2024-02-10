@@ -492,6 +492,7 @@ bool GenericSet_custom_find(const GenericSet *set, void *data, bool (*equal)(con
  * free_val: wether val should be freed
  */
 void GenericSet_clear(GenericSet *set, bool free_val) {
+    assert(set);
     for (unsigned int i = 0; i < set->max_buckets; i++)
     {
         if (!set->buckets[i])

@@ -1,8 +1,9 @@
 #pragma once
 #include "rtobjects.h"
-#include "rtattrs.h"
+#include "../rtlib/rtattrs.h"
 
 typedef struct ByteCodeList ByteCodeList;
+typedef struct AttrBuiltin AttrBuiltin;
 
 typedef enum RtFuncType {
     REGULAR,

@@ -25,9 +25,9 @@ func addChurch(f,g) {
 
 let ZERO = church(0);
 let ONE = church(1);
-#let FIVE = church(5);
+let FIVE = church(5);
 
-#println(getVal(addChurch(church(4), church(4))));
+println(getVal(addChurch(church(30), church(4))));
 
 func ChurchFib(n) {
     if(n == 0) {
@@ -39,23 +39,6 @@ func ChurchFib(n) {
     }
 }
 
-println(getVal(ChurchFib(10)));
 
-let i;
-println(i);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+println(getVal(ChurchFib(11)));
 

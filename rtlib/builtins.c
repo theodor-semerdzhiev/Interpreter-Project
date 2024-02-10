@@ -6,14 +6,20 @@
 #include "../compiler/compiler.h"
 #include "../generics/utilities.h"
 #include "../generics/hashmap.h"
-#include "runtime.h"
-#include "rtobjects.h"
-#include "rttype.h"
+#include "../runtime/runtime.h"
+#include "../runtime/rtobjects.h"
+#include "../runtime/rttype.h"
 #include "builtins.h"
 
 /**
  * This file contains the implementation of all general built in functions:
  * - print
+ * - println
+ * - str
+ * - typeof
+ * - input
+ * - num
+ * - len
  *
  */
 

@@ -6,6 +6,8 @@
 #include "rtattrs.h"
 #include "builtins.h"
 #include "rtattrslist.h"
+#include "rtattrsmap.h"
+#include "rtattrsset.h"
 #include "../runtime/rtobjects.h"
 #include "../generics/utilities.h"
 #include "../runtime/rtlists.h"
@@ -17,13 +19,7 @@
  * This file will contain ALL built in (attribute) functions for all rt types
  */
 
-static RtObject *builtin_map_add(RtObject *obj, RtObject **args, int argcount);
-
 static GenericMap *attrsRegistry = NULL;
-
-static const AttrBuiltinKey _map_add_key = {HASHMAP_TYPE, "add"};
-static const AttrBuiltin _map_add =
-    {HASHMAP_TYPE, {.builtin_func = builtin_map_add}, -1, "add", true};
 
 static unsigned int _hash_attrbuiltin(const AttrBuiltinKey *attr)
 {
@@ -89,8 +85,8 @@ void init_AttrRegistry()
     }
 
     init_RtListAttr(attrsRegistry);
-
-    addToAttrRegistry(attrsRegistry, _map_add_key, _map_add);
+    init_RtMapAttr(attrsRegistry);
+    init_RtSetAttr(attrsRegistry);
 }
 
 void cleanup_AttrsRegistry()
@@ -101,18 +97,3 @@ void cleanup_AttrsRegistry()
     attrsRegistry = NULL;
 }
 
-/**
- * DESCRIPTION:
- * Builtin function for adding key value pairs to a map
- */
-static RtObject *builtin_map_add(RtObject *obj, RtObject **args, int argcount)
-{
-    assert(argcount == 2); // temporary
-    assert(obj->type == HASHMAP_TYPE);
-
-    RtMap *map = obj->data.Map;
-    RtObject *key = args[0];
-    RtObject *val = args[1];
-    rtmap_insert(map, key, val);
-    return obj;
-}

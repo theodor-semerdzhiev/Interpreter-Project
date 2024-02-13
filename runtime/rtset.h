@@ -23,4 +23,5 @@ void rtset_free(RtSet *set, bool free_obj, bool free_immutable);
 char *rtset_toString(const RtSet *set);
 RtSet *rtset_cpy(const RtSet *set, bool deepcpy);
 bool rtset_equal(const RtSet *set1, const RtSet *set2);
+RtSet *rtset_clear(RtSet *set, bool free_obj, bool free_immutable); 
 

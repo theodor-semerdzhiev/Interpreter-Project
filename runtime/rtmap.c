@@ -569,3 +569,35 @@ bool rtmap_equal(const RtMap *map1, const RtMap *map2)
     free(refs);
     return true;
 }
+
+/**
+ * DESCRIPTION:
+ * Function that clears a map of its elements
+ * 
+ * PARAMS:
+ * map: map
+ * free_key: if key objects should be freed
+ * free_val: if val objects should be freed
+ * free_immutable: wether immutable rt object data should be freed
+*/
+RtMap *rtmap_clear(RtMap *map,  bool free_key, bool free_val, bool free_immutable) {
+    assert(map);
+
+    for(size_t i=0; i < map->bucket_size; i++) {
+        if(!map->buckets[i])
+            continue;
+        
+        MapNode *node = map->buckets[i];
+        while(node) {
+            MapNode *tmp = node->next;
+            free_MapNode(node, free_key, free_val, free_immutable);
+            map->size--;
+            node = tmp;
+        }
+
+        map->buckets[i]= NULL;
+    }
+
+    assert(map->size == 0);
+    return map;
+}

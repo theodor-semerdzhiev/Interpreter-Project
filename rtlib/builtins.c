@@ -20,6 +20,7 @@
  * - input
  * - num
  * - len
+ * - cmd
  *
  */
 
@@ -32,9 +33,11 @@ static RtObject *builtin_typeof(RtObject **args, int arg_count);
 static RtObject *builtin_input(RtObject **args, int arg_count);
 static RtObject *builtin_toNumber(RtObject **args, int arg_count);
 static RtObject *builtin_len(RtObject**args, int arg_count);
+static RtObject *builtin_cmd(RtObject **args, int arg_count);
 
 
-static GenericMap *builtin_map = NULL;
+static GenericMap *Builtin_Registry = NULL;
+
 static const Builtin _builtin_print = {"print", builtin_print, -1};
 static const Builtin _builtin_println = {"println", builtin_println, -1};
 static const Builtin _builtin_string = {"str", builtin_toString, -1};
@@ -42,6 +45,7 @@ static const Builtin _builtin_typeof = {"typeof", builtin_typeof, 1};
 static const Builtin _builtin_input = {"input", builtin_input, 1};
 static const Builtin _builtin_number = {"num", builtin_toNumber, 1};
 static const Builtin _builtin_len = {"len", builtin_len, 1};
+static const Builtin _builtin_cmd = {"cmd", builtin_cmd, 1};
 
 /**
  * Defines equality for built in functions
@@ -50,6 +54,8 @@ static bool builtins_equal(const Builtin *builtin1, const Builtin *builtin2)
 {
     return builtin1->arg_count == builtin2->arg_count && builtin1->builtin_func == builtin2->builtin_func;
 }
+
+#define InsertBuiltIn(name, builtin_struct) GenericHashMap_insert(Builtin_Registry, name, (void *)&builtin_struct, false)
 
 /**
  * Initializes builtins table
@@ -62,29 +68,30 @@ static bool builtins_equal(const Builtin *builtin1, const Builtin *builtin2)
 int init_Builtins()
 {
     /* If builtins are already initialized */
-    if (builtin_map)
+    if (Builtin_Registry)
         return 1;
 
-    builtin_map = init_GenericMap(
+    Builtin_Registry = init_GenericMap(
         (unsigned int (*)(const void *))djb2_string_hash,
         (bool (*)(const void *, const void *))strings_equal,
         (void (*)(void *))NULL,
         (void (*)(void *))NULL);
 
-    if (!builtin_map)
+    if (!Builtin_Registry)
     {
         printf("Failed to initialize Built in functions \n");
         return 0;
     }
 
     bool successful_init = 
-        GenericHashMap_insert(builtin_map, _builtin_print.builtin_name, (void *)&_builtin_print, false) &&
-        GenericHashMap_insert(builtin_map, _builtin_println.builtin_name, (void *)&_builtin_println, false) &&
-        GenericHashMap_insert(builtin_map, _builtin_string.builtin_name, (void *)&_builtin_string, false) &&
-        GenericHashMap_insert(builtin_map, _builtin_typeof.builtin_name, (void *)&_builtin_typeof, false) &&
-        GenericHashMap_insert(builtin_map, _builtin_input.builtin_name, (void *)&_builtin_input, false) &&
-        GenericHashMap_insert(builtin_map, _builtin_number.builtin_name, (void *)&_builtin_number, false) &&
-        GenericHashMap_insert(builtin_map, _builtin_len.builtin_name, (void *)&_builtin_len, false);
+        InsertBuiltIn(_builtin_println.builtin_name, _builtin_println) &&
+        InsertBuiltIn(_builtin_println.builtin_name, _builtin_println) &&
+        InsertBuiltIn(_builtin_string.builtin_name, _builtin_string) &&
+        InsertBuiltIn(_builtin_typeof.builtin_name, _builtin_typeof) &&
+        InsertBuiltIn(_builtin_input.builtin_name, _builtin_input) &&
+        InsertBuiltIn(_builtin_number.builtin_name, _builtin_number) &&
+        InsertBuiltIn(_builtin_len.builtin_name, _builtin_len) &&
+        InsertBuiltIn(_builtin_cmd.builtin_name, _builtin_cmd);
 
     
     if(successful_init)
@@ -110,7 +117,7 @@ bool ident_is_builtin(const char *identifier)
     if (!init_Builtins())
         BuiltinsInitError();
 
-    return GenericHashMap_contains_key(builtin_map, (void *)identifier);
+    return GenericHashMap_contains_key(Builtin_Registry, (void *)identifier);
 }
 
 /**
@@ -125,7 +132,7 @@ RtObject *get_builtin_func(const char *identifier)
     if (!init_Builtins())
         BuiltinsInitError();
 
-    Builtin *builtin = (Builtin *)GenericHashMap_get(builtin_map, (void *)identifier);
+    Builtin *builtin = (Builtin *)GenericHashMap_get(Builtin_Registry, (void *)identifier);
     if (!builtin)
         return NULL;
 
@@ -140,8 +147,8 @@ RtObject *get_builtin_func(const char *identifier)
  */
 void cleanup_builtin()
 {
-    free_GenericMap(builtin_map, false, false);
-    builtin_map = NULL;
+    free_GenericMap(Builtin_Registry, false, false);
+    Builtin_Registry = NULL;
 }
 
 /**
@@ -343,6 +350,13 @@ static RtObject *builtin_len(RtObject**args, int arg_count) {
         length->data.Number=init_RtNumber(arg->data.String->length);
         return length;
     }
+
+    case HASHSET_TYPE: {
+        RtObject *length = init_RtObject(NUMBER_TYPE);
+        length->data.Number = init_RtNumber(arg->data.Set->size);
+        return length;
+    }
+        
     case CLASS_TYPE: {
         // UNDER CONSTRUCTION
         // RtObject *length = init_RtObject(NUMBER_TYPE);
@@ -350,17 +364,64 @@ static RtObject *builtin_len(RtObject**args, int arg_count) {
         printf("Cannot get length of Class type\n");
         return init_RtObject(UNDEFINED_TYPE);
     }
-
-    case HASHSET_TYPE: {
-        // UNDER CONSTRUCTON
-        printf("UNDER CONSTRUCTION: Cannot get length of HashMap type\n");
-        return init_RtObject(UNDEFINED_TYPE);
-    }
-        
     
     default:
         printf("Cannot get length of object of type %s", rtobj_type_toString(arg->type));
         return init_RtObject(UNDEFINED_TYPE);
     }
     
+}
+
+/**
+ * DESCRIPTION:
+ * Built in function for running commands in the command line
+*/
+static RtObject *builtin_cmd(RtObject **args, int arg_count) {
+    if(arg_count != 1) {
+        printf("Built in function cmd must take exactly one argument\n");
+        return init_RtObject(UNDEFINED_TYPE);
+    }
+    if(args[0]->type != STRING_TYPE) {
+        printf("Built in function cmd must take a string type argument\n");
+        return init_RtObject(UNDEFINED_TYPE);
+    }
+
+    char stdoutbuffer[5000];
+    FILE *fp = NULL;
+    char *command = args[0]->data.String->string;
+    char* output = NULL;
+    size_t output_size = 0;
+    size_t bytes_read;
+
+    /* Open the command for reading. */
+    fp = popen(command, "r");
+    if (fp == NULL) {
+        printf("Failed to run command '%s'\n", command);
+        return init_RtObject(UNDEFINED_TYPE);
+    }
+
+    // Read the entire command output
+    while ((bytes_read = fread(stdoutbuffer, 1, sizeof(stdoutbuffer), fp)) > 0) {
+        // Resize output buffer
+        output_size += bytes_read;
+        output = realloc(output, output_size + 1);
+        if (output == NULL) {
+            perror("Memory allocation failed");
+            pclose(fp);
+            return NULL;
+        }
+
+        // Append current chunk to output
+        memcpy(output + output_size - bytes_read, stdoutbuffer, bytes_read);
+    }
+
+    pclose(fp);
+
+    system(command);
+
+    RtObject *stdout_ = init_RtObject(STRING_TYPE);
+    stdout_->data.String = init_RtString(NULL);
+    stdout_->data.String->string = output;
+
+    return stdout_;
 }

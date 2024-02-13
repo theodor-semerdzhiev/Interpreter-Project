@@ -9,3 +9,24 @@ class HelloWorld() {
 }
 
 HelloWorld()->helloworld("Hello","World");
+
+let m = map {
+    1:2, 
+    4:4, 
+    "123132": "gedasd"
+};
+
+println(m);
+
+m->clear();
+println(m);
+
+let s = set {1,2,3,4,5,6,76, "123123123", 23123};
+let l = s->toList;
+println(l());
+
+
+
+
+
+

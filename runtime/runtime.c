@@ -375,10 +375,7 @@ RtObject *StackMachine_push(StackMachine *stk_machine, RtObject *obj, bool dispo
     node->next = stk_machine->head;
     stk_machine->head = node;
     stk_machine->size++;
-    if (obj == (RtObject *)0x0000000102d10810)
-    {
-        return obj;
-    }
+
     return obj;
 }
 

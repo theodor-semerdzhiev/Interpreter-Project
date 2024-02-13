@@ -445,6 +445,36 @@ bool rtset_equal(const RtSet *set1, const RtSet *set2)
     return true;
 }
 
+/**
+ * DESCRIPTION:
+ * Function that clears a set of its elements
+ * 
+ * PARAMS:
+ * set: set
+ * free_obj: if rt objects should be freed
+ * free_immutable: wether immutable rt object data should be freed
+*/
+RtSet *rtset_clear(RtSet *set, bool free_obj, bool free_immutable) {
+    assert(set);
+
+    for(size_t i=0; i < set->bucket_size; i++) {
+        if(!set->buckets[i])
+            continue;
+        
+        SetNode *node = set->buckets[i];
+        while(node) {
+            SetNode *tmp = node->next;
+            free_SetNode(node, free_obj, free_immutable);
+            set->size--;
+            node = tmp;
+        }
+
+        set->buckets[i]= NULL;
+    }
+
+    assert(set->size == 0);
+    return set;
+}
 
 
 __attribute__((warn_unused_result))

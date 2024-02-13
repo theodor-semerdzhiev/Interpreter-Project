@@ -28,6 +28,8 @@ SRC_FILES = \
   rtlib/builtins.c \
   rtlib/rtattrs.c \
   rtlib/rtattrslist.c \
+  rtlib/rtattrsmap.c \
+  rtlib/rtattrsset.c \
   generics/hashset.c \
   generics/hashmap.c \
   generics/linkedlist.c \

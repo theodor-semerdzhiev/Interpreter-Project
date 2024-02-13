@@ -127,7 +127,7 @@ char *surround_string(const char *str, size_t strlen, char start, char end)
 {
     assert(str);
     char *newstr = malloc(sizeof(char) * (strlen + 2));
-    if(newstr) return NULL;
+    if(!newstr) return NULL;
     newstr[0] = start;
     strcpy(&newstr[1], str);
     newstr[strlen+1]=end;

@@ -5,6 +5,7 @@
 #include "rtlists.h"
 #include "rtfunc.h"
 #include "rtmap.h"
+#include "rtset.h"
 #include "rtclass.h"
 #include "rtstring.h"
 #include "rtnumber.h"
@@ -13,6 +14,7 @@
 typedef struct RtObject RtObject;
 typedef struct ByteCodeList ByteCodeList;
 typedef struct RtList RtList;
+typedef struct RtMap RtMap;
 typedef struct RtSet RtSet;
 typedef struct Identifier Identifier;
 typedef struct RtClass RtClass;
@@ -37,10 +39,11 @@ typedef struct RtObject
 
         RtList *List;
 
-        RtSet *Map;
+        RtMap *Map;
 
         RtClass *Class;
-        // HashSet *set;
+
+        RtSet *Set;
     } data;
 } RtObject;
 

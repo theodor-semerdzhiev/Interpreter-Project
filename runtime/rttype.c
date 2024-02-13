@@ -57,34 +57,30 @@ void rttype_freedata(RtType type, void *data, bool freerefs) {
     case NULL_TYPE:
         free(data);
         return;
-
     case UNDEFINED_TYPE:
         free(data);
         return;
-
     case NUMBER_TYPE:
         rtnum_free(data);
         return;
-    
     case STRING_TYPE:
         rtstr_free(data);
         return;
-
     case LIST_TYPE:
         rtlist_free((RtList*)data, freerefs);
         return;
-    
     case FUNCTION_TYPE: 
         rtfunc_free((RtFunction*) data, false);
         return;
     case HASHMAP_TYPE:
-        rtmap_free((RtSet*)data, freerefs, freerefs, false);
+        rtmap_free((RtMap*)data, freerefs, freerefs, false);
         return;
-
+    case HASHSET_TYPE:
+        rtset_free((RtSet*)data, freerefs, false);
+        return;
     case CLASS_TYPE:
         rtclass_free((RtClass*)data, freerefs, false);
         return;
-    
     }
 }
 
@@ -113,11 +109,15 @@ void rttype_set_GCFlag(void* data, RtType type, bool flag) {
             ((RtFunction*)data)->GCFlag = flag;
             return;
         case HASHMAP_TYPE:
-            ((RtSet*)data)->GCFlag = flag;
+            ((RtMap*)data)->GCFlag = flag;
             return;
         case CLASS_TYPE:
             ((RtClass*)data)->GCFlag = flag;
             return;
+        case HASHSET_TYPE:
+            ((RtSet*)data)->GCFlag = flag;
+            return;
+
     }
 
 }
@@ -146,13 +146,11 @@ bool rttype_get_GCFlag(void *data, RtType type) {
     case FUNCTION_TYPE:
         return ((RtFunction*)data)->GCFlag;
     case HASHMAP_TYPE:
-        return ((RtSet*)data)->GCFlag;
+        return ((RtMap*)data)->GCFlag;
     case CLASS_TYPE:
         return ((RtClass*)data)->GCFlag;
-
     case HASHSET_TYPE:
-        // TODO
-        return true;
+        return ((RtSet*)data)->GCFlag;
     }
 }
 

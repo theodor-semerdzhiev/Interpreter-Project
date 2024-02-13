@@ -274,7 +274,7 @@ rtfunc_getrefs(const RtFunction *func)
 {
     if(func->functype == ATTR_BUILTIN) {
         RtObject **refs = malloc(sizeof(RtObject *)*2);
-        if(!refs) return NULL;
+        if(!refs) MallocError();
         refs[1]=NULL;
         refs[0]=func->func_data.attr_built_in.target;
         return refs;
@@ -282,15 +282,14 @@ rtfunc_getrefs(const RtFunction *func)
 
     if(func->functype == REGULAR_BUILTIN) {
         RtObject **refs = malloc(sizeof(RtObject *));
-        if(!refs) return NULL;
+        if(!refs) MallocError();
         refs[0]=NULL;
         return refs;
     }
 
     unsigned int length = func->func_data.user_func.closure_count;
     RtObject **refs = malloc(sizeof(RtObject *) * (length + 1));
-    if (!refs)
-        return NULL;
+    if (!refs) MallocError();
     for (unsigned int i = 0; i < length; i++)
     {
         refs[i] = func->func_data.user_func.closure_obj[i];

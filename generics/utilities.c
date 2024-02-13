@@ -13,7 +13,7 @@
 /**
  * DESCRIPTION:
  * Checks if string is an integer, string must not have whitespace
- * 
+ *
  * PARAMS:
  * token: string to parse
  * */
@@ -34,7 +34,7 @@ bool is_token_integer(char *token)
 /**
  * DESCRIPTION:
  * Checks if string is an numeric value, can be a double, string cant have whitespace
- * 
+ *
  * PARAMS:
  * token: string to parse
  * */
@@ -47,8 +47,9 @@ bool is_token_numeric(char *token)
     bool encountered_dot = false;
     for (; i < (int)strlen(token); i++)
     {
-        if(token[i] == '.' && !encountered_dot) {
-            encountered_dot=true;
+        if (token[i] == '.' && !encountered_dot)
+        {
+            encountered_dot = true;
             continue;
         }
 
@@ -98,17 +99,39 @@ cpy_string(const char *str)
 /**
  * DESCRIPTION:
  * Creates a new string with an extra char appended to it. This strings malloced
- * 
+ *
  * PARAMS:
  * str: string to append to
  * c: char to add
-*/
-char* append_char(const char *str, char c) {
-    char *cpy = malloc(sizeof(char)*(strlen(str)+2));
+ */
+char *append_char(const char *str, char c)
+{
+    char *cpy = malloc(sizeof(char) * (strlen(str) + 2));
     strcpy(cpy, str);
-    cpy[strlen(str)]=c;
-    cpy[strlen(str)+1] = '\0';
+    cpy[strlen(str)] = c;
+    cpy[strlen(str) + 1] = '\0';
     return cpy;
+}
+
+/**
+ * DESCRIPTION:
+ * Simple helper for surrounding string by given char
+ * 
+ * PARAMS:
+ * str: string to surround
+ * strlen: length of the string
+ * start: character at the beginning of the string
+ * end: character at the end of the string
+ */
+char *surround_string(const char *str, size_t strlen, char start, char end)
+{
+    assert(str);
+    char *newstr = malloc(sizeof(char) * (strlen + 2));
+    if(newstr) return NULL;
+    newstr[0] = start;
+    strcpy(&newstr[1], str);
+    newstr[strlen+1]=end;
+    return newstr;
 }
 
 /**
@@ -147,11 +170,12 @@ unsigned int hash_int(const int *integer)
 /**
  * DESCRIPTION:
  * Hash function for raw pointers
- * 
+ *
  * PARAMS:
  * ptr: pointer to hash
-*/
-unsigned int hash_pointer(const void* ptr) {
+ */
+unsigned int hash_pointer(const void *ptr)
+{
     uintptr_t uintptr = (uintptr_t)ptr;
     uintptr_t hash = uintptr;
     hash ^= (hash >> 21);
@@ -163,13 +187,14 @@ unsigned int hash_pointer(const void* ptr) {
 /**
  * DESCRIPTION:
  * MurmurHash3 implementation for 64-bit doubles, returning unsigned int
-*/
-unsigned int murmurHashUInt(double key) {
-    const uint64_t seed = 0xc70f6907ULL;  // Seed value for the hash function
+ */
+unsigned int murmurHashUInt(double key)
+{
+    const uint64_t seed = 0xc70f6907ULL; // Seed value for the hash function
     const uint64_t m = 0xc6a4a7935bd1e995ULL;
     const int r = 47;
     uint64_t h = seed ^ (sizeof(double) * m);
-    uint64_t k = *((uint64_t*)&key);
+    uint64_t k = *((uint64_t *)&key);
     k *= m;
     k ^= k >> r;
     k *= m;
@@ -233,7 +258,6 @@ int get_pointer_list_length(void **arr)
     return length;
 }
 
-
 /**
  * DESCRIPTION:
  * Takes 2 integer pointers and checks if both are equal
@@ -253,12 +277,11 @@ bool integers_equal(const int *integer1, const int *integer2)
     return (*integer1) == (*integer2);
 }
 
-
 /**
  * DESCRIPION:
  * Checks if 2 void pointers are equal. Useful for using Generic Map and Set
-*/
-bool ptr_equal(const void* ptr1, const void* ptr2) {return ptr1 == ptr2;}
+ */
+bool ptr_equal(const void *ptr1, const void *ptr2) { return ptr1 == ptr2; }
 /**
  * DESCRIPTION:
  * Simple function for comparing if an int is larger or equal to the static integer variable

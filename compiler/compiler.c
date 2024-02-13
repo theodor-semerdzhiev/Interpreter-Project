@@ -669,7 +669,7 @@ ByteCodeList *add_bytecode(ByteCodeList *pg, ByteCode *instr)
     return pg;
 }
 
-#define DEFAULT_BYTECODE_LIST_LENGTH 256;
+#define DEFAULT_BYTECODE_LIST_LENGTH 64;
 
 /* Initializes Byte Code list */
 ByteCodeList *init_ByteCodeList()
@@ -677,7 +677,10 @@ ByteCodeList *init_ByteCodeList()
     ByteCodeList *list = malloc(sizeof(ByteCodeList));
     list->malloc_len = DEFAULT_BYTECODE_LIST_LENGTH;
     list->pg_length = 0;
-    list->code = malloc(sizeof(ByteCode *) * list->malloc_len);
+    list->code = malloc(sizeof(ByteCode *) * (list->malloc_len+1));
+    for(int i=0; i < list->malloc_len; i++) {
+        list->code[i]=NULL;
+    }
     return list;
 }
 

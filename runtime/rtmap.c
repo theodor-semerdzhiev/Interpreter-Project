@@ -1,5 +1,7 @@
 #include <stdlib.h>
+#include <string.h>
 #include <assert.h>
+#include "../generics/utilities.h"
 #include "rtmap.h"
 #include "rtobjects.h"
 #include "../generics/utilities.h"
@@ -34,10 +36,10 @@ __attribute__((warn_unused_result))
  * NOTE:
  * This function returns NULL, if malloc fails
  */
-RtSet *
+RtMap *
 init_RtMap(unsigned long initial_bucket_size)
 {
-    RtSet *map = malloc(sizeof(RtSet));
+    RtMap *map = malloc(sizeof(RtMap));
     if (!map)
         return NULL;
     map->bucket_size =
@@ -84,7 +86,7 @@ init_MapNode(RtObject *key, RtObject *val)
  * map: map to be reisized
  * fact
  */
-static RtSet *rtmap_resize(RtSet *map)
+static RtMap *rtmap_resize(RtMap *map)
 {
     assert(map);
     MapNode **resized = calloc(map->bucket_size * 2, sizeof(MapNode *));
@@ -133,7 +135,7 @@ static RtSet *rtmap_resize(RtSet *map)
  * PARAMS:
  * map: map to be downsized
  */
-static RtSet *rtmap_downsize(RtSet *map)
+static RtMap *rtmap_downsize(RtMap *map)
 {
     assert(map);
     MapNode **resized = calloc(map->bucket_size / 2, sizeof(MapNode *));
@@ -203,7 +205,7 @@ static void free_MapNode(MapNode *node, bool free_key, bool free_val, bool free_
  * NOTE:
  * If a duplicate is found, then that node is replaced with our new info, no new Map Node is created.
  */
-RtObject *rtmap_insert(RtSet *map, RtObject *key, RtObject *val)
+RtObject *rtmap_insert(RtMap *map, RtObject *key, RtObject *val)
 {
     assert(map && key && val);
     unsigned int index = GetIndexedHash(map, key);
@@ -257,7 +259,7 @@ RtObject *rtmap_insert(RtSet *map, RtObject *key, RtObject *val)
  * Key inside the map is not freed, its assumed the GC will take care of that
  *
  */
-RtObject *rtmap_remove(RtSet *map, RtObject *key)
+RtObject *rtmap_remove(RtMap *map, RtObject *key)
 {
     assert(map && key);
     unsigned int index = GetIndexedHash(map, key);
@@ -307,7 +309,7 @@ RtObject *rtmap_remove(RtSet *map, RtObject *key)
  * map: map
  * key: key
  */
-RtObject *rtmap_get(const RtSet *map, RtObject *key)
+RtObject *rtmap_get(const RtMap *map, RtObject *key)
 {
     assert(map && key);
     unsigned int index = GetIndexedHash(map, key);
@@ -345,7 +347,7 @@ __attribute__((warn_unused_result))
  * getVals: wether vals should be included in array
  */
 RtObject **
-rtmap_getrefs(const RtSet *map, bool getkeys, bool getvals)
+rtmap_getrefs(const RtMap *map, bool getkeys, bool getvals)
 {
     assert(map);
     RtObject **arr = NULL;
@@ -403,11 +405,11 @@ __attribute__((warn_unused_result))
  * deepcpy_key: wether key object should be deep copied
  * deepcpy_val: wether value object should be deep copied
  */
-RtSet *
-rtmap_cpy(const RtSet *map, bool deepcpy_key, bool deepcpy_val)
+RtMap *
+rtmap_cpy(const RtMap *map, bool deepcpy_key, bool deepcpy_val)
 {
     assert(map);
-    RtSet *cpy = init_RtMap(map->bucket_size);
+    RtMap *cpy = init_RtMap(map->bucket_size);
     if (!cpy)
         return NULL;
 
@@ -437,7 +439,7 @@ rtmap_cpy(const RtSet *map, bool deepcpy_key, bool deepcpy_val)
  * free_vals: wether the values shouls be freed
  * free_immutable: if any object is to be freed, then should immutable data be freed as well
  */
-void rtmap_free(RtSet *map, bool free_keys, bool free_vals, bool free_immutable)
+void rtmap_free(RtMap *map, bool free_keys, bool free_vals, bool free_immutable)
 {
 
     for (size_t i = 0; i < map->bucket_size; i++)
@@ -483,7 +485,7 @@ __attribute__((warn_unused_result))
  * map: map
  */
 char *
-rtmap_toString(const RtSet *map)
+rtmap_toString(const RtMap *map)
 {
     // handles empty string
     if (map->size == 0)
@@ -495,13 +497,22 @@ rtmap_toString(const RtSet *map)
     char *str = NULL;
     for (int i = 0; keyvals[i] != NULL;)
     {
-        char *keystr = rtobj_toString(keyvals[i]);
-        if (keyvals[i]->type == STRING_TYPE)
-            keystr = add_quotation_marks(keystr);
-
-        char *valstr = rtobj_toString(keyvals[i + 1]);
-        if (keyvals[i + 1]->type == STRING_TYPE)
-            valstr = add_quotation_marks(valstr);
+        char *keystr;
+        char *valstr;
+        
+        keystr = rtobj_toString(keyvals[i]);
+        if (keyvals[i]->type == STRING_TYPE) {
+            char *tmp = surround_string(keystr, keyvals[i]->data.String->length, '"', '"');
+            free(keystr);
+            keystr=tmp;
+        }
+        
+        valstr = rtobj_toString(keyvals[i + 1]);
+        if (keyvals[i + 1]->type == STRING_TYPE) {
+            char *tmp = surround_string(valstr, keyvals[i]->data.String->length, '"', '"');
+            free(valstr);
+            valstr=tmp;
+        }
 
         char *tmp = concat_strings(keystr, " : ");
         char *tmp_ = concat_strings(tmp, valstr);
@@ -522,13 +533,11 @@ rtmap_toString(const RtSet *map)
 
         i += 2;
     }
-
-    char *tmp = concat_strings("{", str);
-    char *tmp_ = concat_strings(tmp, "}");
-    free(str);
-    free(tmp);
-    str = tmp_;
     free(keyvals);
+
+    char *tmp = surround_string(str, strlen(str), '{', '}');
+    free(str);
+    str = tmp;
     return str;
 }
 
@@ -537,7 +546,7 @@ rtmap_toString(const RtSet *map)
  * Checks if 2 maps are equivalent, i.e contains the same number of elements and each key-value pair is equivalent
  *
  */
-bool rtmap_equal(const RtSet *map1, const RtSet *map2)
+bool rtmap_equal(const RtMap *map1, const RtMap *map2)
 {
     assert(map1 && map2);
     if (map1 == map2)

@@ -217,6 +217,7 @@ static RtObject *builtin_typeof(RtObject **args, int arg_count)
 {
     if (arg_count == 0)
     {
+        printf("Built in function typeof expects more than 0 arg\n");
         return init_RtObject(UNDEFINED_TYPE);
     }
     if (arg_count > 1)

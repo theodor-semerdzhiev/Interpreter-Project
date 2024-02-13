@@ -45,6 +45,7 @@ RtObject *rtattr_getattr(RtObject *obj, const char *attrname)
     AttrBuiltin *val = (AttrBuiltin *)GenericHashMap_get(attrsRegistry, &key);
     if (!val)
     {
+        assert(val);
         return NULL;
     }
 
@@ -109,7 +110,7 @@ static RtObject *builtin_map_add(RtObject *obj, RtObject **args, int argcount)
     assert(argcount == 2); // temporary
     assert(obj->type == HASHMAP_TYPE);
 
-    RtSet *map = obj->data.Map;
+    RtMap *map = obj->data.Map;
     RtObject *key = args[0];
     RtObject *val = args[1];
     rtmap_insert(map, key, val);

@@ -15,6 +15,7 @@ bool is_token_numeric(char *token);
 void exitprogram(ErrorCode code);
 char *cpy_string(const char *str);
 char* append_char(const char *str, char c);
+char *surround_string(const char *str, size_t strlen, char start, char end);
 unsigned int djb2_string_hash(const char *str);
 unsigned int hash_pointer(const void* ptr);
 unsigned int hash_int(const int *integer);

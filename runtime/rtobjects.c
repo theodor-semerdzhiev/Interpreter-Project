@@ -120,29 +120,19 @@ rtobj_toString(const RtObject *obj)
         return cpy_string(obj->data.String->string);
 
     case FUNCTION_TYPE:
-    {
         return rtfunc_toString(obj->data.Func);
-    }
 
     case CLASS_TYPE:
-    {
         return rtclass_toString(obj->data.Class);
-    }
 
     case LIST_TYPE:
-    {
         return rtlist_toString(obj->data.List);
-    }
 
     case HASHMAP_TYPE:
-    {
         return rtmap_toString(obj->data.Map);
-    }
 
     case HASHSET_TYPE:
-    {
-        return NULL;
-    }
+        return rtset_toString(obj->data.Set);
     }
 }
 
@@ -895,17 +885,13 @@ bool eval_obj(const RtObject *obj)
     case FUNCTION_TYPE:
         return true;
     case CLASS_TYPE:
-        // TODO
-        return false;
+        return true;
     case LIST_TYPE:
-        // TODO
         return obj->data.List->length > 0;
     case HASHMAP_TYPE:
-        // TODO
-        return false;
+        return obj->data.Map->size > 0;
     case HASHSET_TYPE:
-        // TODO
-        return false;
+        return obj->data.Set->size > 0;
     }
 }
 
@@ -955,9 +941,7 @@ unsigned int rtobj_hash_data_ptr(const RtObject *obj) {
     case NULL_TYPE: return hash_pointer(obj->data.GCFlag_NULL_TYPE);
     case LIST_TYPE: return hash_pointer(obj->data.List);
     case HASHMAP_TYPE: return hash_pointer(obj->data.Map);
-    case HASHSET_TYPE:
-        // TODO
-        return 0;
+    case HASHSET_TYPE: return hash_pointer(obj->data.Set);
     }
 }
 
@@ -980,9 +964,7 @@ bool rtobj_shallow_equal(const RtObject *obj1, const RtObject *obj2) {
     case NULL_TYPE: return obj1->data.GCFlag_NULL_TYPE == obj2->data.GCFlag_NULL_TYPE;
     case LIST_TYPE: return obj1->data.List == obj2->data.List;
     case HASHMAP_TYPE: return obj1->data.Map == obj2->data.Map;
-    case HASHSET_TYPE:
-        // TODO
-        return 0;
+    case HASHSET_TYPE: return obj1->data.Set == obj2->data.Set;
     }
 }
 
@@ -1004,46 +986,28 @@ bool rtobj_equal(const RtObject *obj1, const RtObject *obj2)
     case UNDEFINED_TYPE:
         return true;
     case NULL_TYPE:
-    {
         return true;
-    }
 
     case NUMBER_TYPE:
-    {
         return obj1->data.Number->number == obj2->data.Number->number;
-    }
 
     case STRING_TYPE:
-    {
         return strings_equal(obj1->data.String->string, obj2->data.String->string);
-    }
 
     case FUNCTION_TYPE:
-    {
         return rtfunc_equal(obj1->data.Func, obj2->data.Func);
-    }
 
     case LIST_TYPE:
-    {
-        return rtlist_equals(obj1->data.List, obj2->data.List, false);
-    }
+        return obj1->data.List == obj2->data.List;
 
     case HASHMAP_TYPE:
-    {
-        return rtmap_equal(obj1->data.Map, obj2->data.Map);
-    }
+        return obj1->data.Map == obj2->data.Map;
 
     case HASHSET_TYPE:
-    {
-        // TODO
-        return false;
-    }
+        return obj1->data.Set == obj2->data.Set;
 
     case CLASS_TYPE:
-    {
-        // TODO
-        return false;
-    }
+        return obj1->data.Class == obj2->data.Class;
     }
 }
 
@@ -1121,9 +1085,8 @@ rtobj_shallow_cpy(const RtObject *obj)
 
     case HASHSET_TYPE:
     {
-
-        // TODO
-        return NULL;
+        cpy->data.Set = obj->data.Set;
+        return cpy;
     }
 
     }
@@ -1183,8 +1146,7 @@ rtobj_deep_cpy(const RtObject *obj)
 
     case HASHSET_TYPE:
     {
-
-        // TODO
+        cpy->data.Set = rtset_cpy(obj->data.Set, true);
         return NULL;
     }
 
@@ -1274,9 +1236,8 @@ RtObject *rtobj_mutate(RtObject *target, const RtObject *new_value, bool new_val
 
     case HASHSET_TYPE:
     {
-
-        // TODO
-        return NULL;
+        target->data.Set = new_value->data.Set;
+        break;
     }
 
     case CLASS_TYPE:
@@ -1347,6 +1308,7 @@ RtObject *rtobj_getindex(RtObject *obj, RtObject *index)
             char *obj_str = rtobj_toString(index);
             // TODO SHOULD RAISE EXCEPTION
             printf("%s could not be found as a key in map\n", obj_str);
+            free(obj_str);
             return NULL;
         }
         return tmp;
@@ -1354,15 +1316,25 @@ RtObject *rtobj_getindex(RtObject *obj, RtObject *index)
 
     case HASHSET_TYPE:
     {
+        RtObject *tmp = rtset_get(obj->data.Set, index);
 
-        // TODO
-        return NULL;
+        // element is not found
+        if (!tmp)
+        {
+            char *obj_str = rtobj_toString(index);
+            // TODO SHOULD RAISE EXCEPTION
+            printf("%s could not be found in set\n", obj_str);
+            free(obj_str);
+            return NULL;
+        }
+        return tmp;
     }
 
     case CLASS_TYPE:
     {
 
         // TODO
+        assert(false);
         return NULL;
     }
     }
@@ -1418,8 +1390,8 @@ RtObject **rtobj_getrefs(const RtObject *obj)
 
     case HASHSET_TYPE:
     {
-        // TODO
-        return NULL;
+        RtObject **refs = rtset_getrefs(obj->data.Set);
+        return refs;
     }
     }
 }
@@ -1447,10 +1419,8 @@ bool rtobj_get_GCFlag(const RtObject *obj) {
         return obj->data.Map->GCFlag;
     case CLASS_TYPE:
         return obj->data.Class->GCFlag;
-
     case HASHSET_TYPE:
-        // TODO
-        return true;
+        return obj->data.Set->GCFlag;
     }
 }
 
@@ -1485,9 +1455,8 @@ void rtobj_set_GCFlag(RtObject *obj, bool flag) {
     case CLASS_TYPE:
         obj->data.Class->GCFlag = flag;
         return;
-
     case HASHSET_TYPE:
-        // TODO
+        obj->data.Set->GCFlag = flag;
         return;
     }
 }
@@ -1525,14 +1494,13 @@ RtObject *rtobj_init(RtType type, void* data) {
         obj->data.Func=(RtFunction*)data;
         break;
     case HASHMAP_TYPE:
-        obj->data.Map=(RtSet*)data;
+        obj->data.Map=(RtMap*)data;
         break;
     case CLASS_TYPE:
         obj->data.Class=(RtClass*)data;
         break;
-
     case HASHSET_TYPE:
-        // TODO
+        obj->data.Set =(RtSet*)data;
         break;
     }
     return obj;
@@ -1566,8 +1534,7 @@ void *rtobj_getdata(const RtObject *obj) {
     case HASHMAP_TYPE:
         return obj->data.Map;
     case HASHSET_TYPE:
-        // return NULL
-        return NULL;
+        return obj->data.Set;
     }
     return NULL;
 }
@@ -1622,7 +1589,8 @@ void rtobj_free_data(RtObject *obj, bool free_immutable)
     }
     case HASHSET_TYPE:
     {
-        // TODO
+        rtset_free(obj->data.Set, false, free_immutable);
+        obj->data.Set = NULL;
         break;
     }
     }

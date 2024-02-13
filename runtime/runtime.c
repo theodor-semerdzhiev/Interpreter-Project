@@ -375,6 +375,10 @@ RtObject *StackMachine_push(StackMachine *stk_machine, RtObject *obj, bool dispo
     node->next = stk_machine->head;
     stk_machine->head = node;
     stk_machine->size++;
+    if (obj == (RtObject *)0x0000000102d10810)
+    {
+        return obj;
+    }
     return obj;
 }
 
@@ -696,6 +700,9 @@ static void perform_load_var(char *varname)
 
     // if its a built in function reference, then the object is disposable by default
     bool dispose = !IdentifierTable_get(callStack[getCallStackPointer()]->lookup, varname);
+    // if(!dispose)
+    //     assert(GC_Registry_has(var));
+
     StackMachine_push(StackMachine, var, dispose);
 }
 
@@ -747,6 +754,7 @@ static void perform_create_function(const RtObject *function)
         {
             char *name = func->data.Func->func_data.user_func.closures[i];
             closures[i] = lookup_variable(name);
+            assert(GC_Registry_has(closures[i]));
             assert(closures[i]);
         }
         func->data.Func->func_data.user_func.closure_obj = closures;
@@ -789,7 +797,6 @@ static int perform_exit()
 
 static void perform_builtin_call(Builtin *builtin, RtObject **args, int arg_count);
 static CallFrame *perform_regular_func_call(RtFunction *function, RtObject **arguments, bool disposable[], unsigned int arg_count);
-static void perform_attrbuiltin_call(RtObject *target, AttrBuiltin *builtin, RtObject **args, int arg_count);
 
 CallFrame *perform_function_call(unsigned int arg_count)
 {
@@ -822,6 +829,11 @@ CallFrame *perform_function_call(unsigned int arg_count)
 
     bool func_disposable = disposable();
     RtObject *func = StackMachine_pop(env->stk_machine, false);
+
+    // if(func_disposable)
+    //     assert(!GC_Registry_has(func));
+    // else
+    //     assert(GC_Registry_has(func));
 
     // called object is not a function
     if (func->type != FUNCTION_TYPE)
@@ -866,15 +878,7 @@ CallFrame *perform_function_call(unsigned int arg_count)
     }
 
     dispose_disposable_obj(func, func_disposable);
-
     return new_frame;
-}
-
-static void perform_attrbuiltin_call(RtObject *target, AttrBuiltin *builtin, RtObject **args, int arg_count)
-{
-    // TODO
-    RtObject *new_obj = builtin->func.builtin_func(target, args, arg_count);
-    StackMachine_push(StackMachine, new_obj, new_obj != target);
 }
 
 /**
@@ -909,7 +913,7 @@ static void perform_builtin_call(Builtin *builtin, RtObject **args, int arg_coun
  */
 static CallFrame *perform_regular_func_call(RtFunction *Function, RtObject **arguments, bool disposable[], unsigned int arg_count)
 {
-
+    assert(Function);
     // checks argument counts match
     if (Function->functype == REGULAR &&
         Function->func_data.user_func.arg_count != arg_count)
@@ -930,6 +934,8 @@ static CallFrame *perform_regular_func_call(RtFunction *Function, RtObject **arg
     {
         RtObject *arg = arguments[i];
 
+        assert(GC_Registry_has(arg));
+
         Identifier_Table_add_var(
             new_frame->lookup,
             Function->func_data.user_func.args[i],
@@ -940,6 +946,7 @@ static CallFrame *perform_regular_func_call(RtFunction *Function, RtObject **arg
     // adds closure variables
     for (unsigned int i = 0; i < Function->func_data.user_func.closure_count; i++)
     {
+
         Identifier_Table_add_var(
             new_frame->lookup,
             Function->func_data.user_func.closures[i],
@@ -963,7 +970,6 @@ static CallFrame *perform_regular_func_call(RtFunction *Function, RtObject **arg
         // call frame is pushed before adding func to GC registry
         add_to_GC_registry(cpy_func);
     }
-
     RunTime_push_callframe(new_frame);
     return new_frame;
 }
@@ -999,7 +1005,6 @@ static void perform_create_list(unsigned long length)
 
     listobj->data.List = list;
     StackMachine_push(StackMachine, listobj, true);
-    add_to_GC_registry(listobj);
 
     for (unsigned long i = 0; i < list->length; i++)
     {
@@ -1020,7 +1025,7 @@ static void perform_create_map(unsigned long size)
     RtObject *keys[size / 2];
     RtObject *values[size / 2];
 
-    RtSet *map = init_RtMap(size / 2);
+    RtMap *map = init_RtMap(size / 2);
 
     // fetches all maps and keys
     for (unsigned long i = 0; i < size; i++)
@@ -1041,9 +1046,28 @@ static void perform_create_map(unsigned long size)
     RtObject *mapobj = init_RtObject(HASHMAP_TYPE);
     mapobj->data.Map = map;
 
-    add_to_GC_registry(mapobj);
-
     StackMachine_push(StackMachine, mapobj, true);
+}
+
+/**
+ * DESCRIPTION:
+ * Creates a runtime set by popping some amount of objects from the stack machine
+*/
+static void perform_create_set(int setsize) {
+
+    RtSet *set = init_RtSet(setsize+1);
+
+    for(int i = 0; i < setsize; i++) {
+        RtObject *obj = StackMachine_pop(StackMachine, false);
+        assert(obj);
+        rtset_insert(set, obj);
+        add_to_GC_registry(obj);
+    }
+
+    RtObject *setobj = init_RtObject(HASHSET_TYPE);
+    setobj->data.Set=set;
+
+    StackMachine_push(StackMachine, setobj, true);
 }
 
 /**
@@ -1138,33 +1162,38 @@ void perform_create_var(char *varname, AccessModifier access)
 static void perform_get_attribute(char *attrs)
 {
     // VERY TEMPORARY CODE
-    RtObject *tmp = StackMachine_pop(StackMachine, false);
+    bool target_disposable = disposable();
+    RtObject *target = StackMachine_pop(StackMachine, false);
 
-    if (tmp->type == CLASS_TYPE)
+    if (target->type == CLASS_TYPE)
     {
         RtObject *attrsname = init_RtObject(STRING_TYPE);
         attrsname->data.String = init_RtString(attrs);
-        RtObject *attrs = rtmap_get(tmp->data.Class->attrs_table, attrsname);
+        RtObject *attrs = rtmap_get(target->data.Class->attrs_table, attrsname);
 
         if (attrs)
         {
             StackMachine_push(StackMachine, attrs, false);
 
             rtobj_free(attrsname, false);
+            dispose_disposable_obj(target, target_disposable);
             return;
         }
     }
 
-    RtObject *builtin_attr = rtattr_getattr(tmp, attrs);
+    RtObject *builtin_attr = rtattr_getattr(target, attrs);
 
     if (!builtin_attr)
     {
         printf("Object of type %s does not have builtin attribute %s",
-               rtobj_type_toString(tmp->type),
+               rtobj_type_toString(target->type),
                attrs);
         StackMachine_push(StackMachine, init_RtObject(UNDEFINED_TYPE), true);
+        dispose_disposable_obj(target, target_disposable);
         return;
     }
+
+    dispose_disposable_obj(target, target_disposable);
 
     StackMachine_push(StackMachine, builtin_attr, true);
 }
@@ -1438,6 +1467,12 @@ int run_program()
                 break;
             }
 
+            case CREATE_SET: 
+            {
+                perform_create_set(code->data.CREATE_SET.set_size);
+                break;
+            }
+
             case LOAD_INDEX:
             {
                 perform_get_index();
@@ -1457,7 +1492,7 @@ int run_program()
                 //
             }
 
-            trigger_GC();
+            // trigger_GC();
 
             if (!loop)
                 break;
@@ -1469,8 +1504,9 @@ int run_program()
 }
 
 /**
- * This function performs cleanup
- *
+ * DESCRIPTION:
+ * This function performs runtime cleanup
+ * After Program execution
  * */
 void perform_cleanup()
 {

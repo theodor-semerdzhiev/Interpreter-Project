@@ -1,4 +1,11 @@
-let x = "hello ";
-let y = "world";
+class HelloWorld() {
+    func helloworld(x, y) {
+        if(!(typeof(x) == "String" && typeof(y) == "String")) {
+            println("Arg must be strings, x: " + typeof(x) + "  y: " + typeof(y));
+            return;
+        }
+        println(x + " " + y);
+    }
+}
 
-print(x + y);
+HelloWorld()->helloworld("Hello","World");

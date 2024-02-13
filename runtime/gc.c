@@ -17,7 +17,7 @@
  */
 
 /* When the number of active objects reached this amount, garbage collector performs a rotation     */
-static unsigned long GC_THRESHOLD = 100;
+static unsigned long GC_THRESHOLD = 2;
 static unsigned long liveObjCount = 0;
 
 static unsigned long ticks_since_last_collection = 0;
@@ -28,7 +28,7 @@ static GenericSet *freed_ptrs_set = NULL;
 
 bool is_GC_Active() { return gc_active; }
 
-// Macro for 
+// Macro for
 #define InitPtrSet(free_func) init_GenericSet(ptr_equal, hash_pointer, free_func);
 
 /**
@@ -62,8 +62,9 @@ RtObject *add_to_GC_registry(RtObject *obj)
 /**
  * DESCRIPTION:
  * Checks if obj is contained within the GC registry
-*/
-bool GC_Registry_has(const RtObject *obj) {
+ */
+bool GC_Registry_has(const RtObject *obj)
+{
     return GenericSet_has(GCregistry, obj);
 }
 
@@ -78,7 +79,9 @@ void trigger_GC()
         garbageCollect();
         GC_THRESHOLD = liveObjCount * 10;
         ticks_since_last_collection = 0;
-    } else {
+    }
+    else
+    {
         ticks_since_last_collection++;
     }
 }
@@ -155,7 +158,6 @@ void init_GarbageCollector()
     }
 }
 
-
 /**
  * DESCRIPTION:
  * This function contains all logic for freeing and disposing of the GC registry permanently
@@ -163,21 +165,26 @@ void init_GarbageCollector()
 static void cleanup_GCRegistry()
 {
     GenericSet *set = InitPtrSet(NULL);
-    if (!set) {
+    if (!set)
+    {
         printf("Memory Allocation Error occurred during GC Registry cleanup");
         MallocError();
     }
 
-    RtObject **objs = (RtObject**)GenericSet_to_list(GCregistry);
+    RtObject **objs = (RtObject **)GenericSet_to_list(GCregistry);
     GenericSet_free(GCregistry, false);
     GenericSet_free(freed_ptrs_set, false);
 
     // marks all unique pointers to free
-    for (unsigned long i = 0; objs[i] != NULL; i++) {
+    for (unsigned long i = 0; objs[i] != NULL; i++)
+    {
         void *data = rtobj_getdata(objs[i]);
-        if(GenericSet_has(set, data)) {
+        if (GenericSet_has(set, data))
+        {
             rtobj_shallow_free(objs[i]);
-        } else {
+        }
+        else
+        {
             GenericSet_insert(set, data, false);
             rtobj_free(objs[i], false);
         }
@@ -208,21 +215,29 @@ static void traverse_reference_graph(RtObject *root);
  * 1- Traverses all objects stored in the call frames, for each object visited, its marked
  * 2- Traverses all objects still on the stack machine, for each object visited, its marked
  * NOTE: For all objects that are visited, a DFS is performed on its reference graph to visit all reachable objects
- * 3- For all objects in the GCRegistry, if its not marked, that it means its unreachable, and its subsequently freed
+maek * 3- For all objects in the GCRegistry, if its not marked, that it means its unreachable, and its subsequently freed
  * 4- GC flags for all objects in the call frames and stack machine is reset to false
  * NOTE: In order to prevent double free errors, a set is used to keep track of data pointers that are freed
  */
 void garbageCollect()
 {
-
     CallFrame **callStack = getCallStack();
 
     // performs a DFS on all live objects in lookup tables
-    for (int i = getCallStackPointer(); i >= 0 ; i--)
+    for (int i = getCallStackPointer(); i >= 0; i--)
     {
+
         RtObject **elements = IdentifierTable_to_list(callStack[i]->lookup);
+
         for (int j = 0; elements[j] != NULL; j++)
+        {
             traverse_reference_graph(elements[j]);
+        }
+
+        if (callStack[i]->function)
+        {
+            callStack[i]->function->GCFlag=true;
+        }
 
         free(elements);
     }
@@ -230,11 +245,13 @@ void garbageCollect()
     // performs a DFS on the Stack Machine
     RtObject **stk_machine_list = StackMachine_to_list(getCurrentStkMachineInstance());
     for (unsigned int i = 0; stk_machine_list[i] != NULL; i++)
+    {
         traverse_reference_graph(stk_machine_list[i]);
+    }
 
     RtObject **all_active_obj = (RtObject **)GenericSet_to_list(GCregistry);
 
-    if(!freed_ptrs_set)
+    if (!freed_ptrs_set)
         freed_ptrs_set = InitPtrSet(NULL);
 
     bool freed_obj[liveObjCount];
@@ -242,38 +259,42 @@ void garbageCollect()
     // Frees all unreachable nodes
     for (unsigned long i = 0; i < liveObjCount; i++)
     {
+        
         void *data = rtobj_getdata(all_active_obj[i]);
         assert(data);
 
-        if(GenericSet_has(freed_ptrs_set, data)) {
+        if (GenericSet_has(freed_ptrs_set, data))
+        {
             rtobj_shallow_free(all_active_obj[i]);
-            freed_obj[i]=true;
+            freed_obj[i] = true;
             continue;
         }
 
-        if (!rttype_get_GCFlag(data, all_active_obj[i]->type)) {
+        if (!rttype_get_GCFlag(data, all_active_obj[i]->type))
+        {
             GenericSet_insert(freed_ptrs_set, data, false);
             RtObject *obj = remove_from_GC_registry(all_active_obj[i], false);
             assert(obj);
             rtobj_free(obj, false);
-            freed_obj[i]=true;
+            freed_obj[i] = true;
             continue;
         }
-        
-        freed_obj[i]=false;
+
+        freed_obj[i] = false;
     }
-    
+
     GenericSet_clear(freed_ptrs_set, false);
 
-    for(unsigned long i=0; i < liveObjCount; i++) {
-        if(freed_obj[i]) continue;
+    for (unsigned long i = 0; i < liveObjCount; i++)
+    {
+        if (freed_obj[i])
+            continue;
         rtobj_set_GCFlag(all_active_obj[i], false);
     }
 
     // resets mark flags in the stack machine
     for (unsigned long i = 0; stk_machine_list[i] != NULL; i++)
         rtobj_set_GCFlag(stk_machine_list[i], false);
-
 
     // resets mark flags
     for (int i = 0; i <= getCallStackPointer(); i++)
@@ -282,6 +303,8 @@ void garbageCollect()
         for (int j = 0; elements[j] != NULL; j++)
             rtobj_set_GCFlag(elements[j], false);
 
+        if(callStack[i]->function)
+            callStack[i]->function->GCFlag=false;
         free(elements);
     }
 
@@ -294,7 +317,7 @@ void garbageCollect()
  * This object performs a DFS traversal of the reference graph, and marks all reachable nodes
  */
 static void traverse_reference_graph(RtObject *root)
-{
+{   
     if (rtobj_get_GCFlag(root))
         return;
 

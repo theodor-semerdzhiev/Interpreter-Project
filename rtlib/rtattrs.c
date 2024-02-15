@@ -8,6 +8,7 @@
 #include "rtattrslist.h"
 #include "rtattrsmap.h"
 #include "rtattrsset.h"
+#include "rtattrsstr.h"
 #include "../runtime/rtobjects.h"
 #include "../generics/utilities.h"
 #include "../runtime/rtlists.h"
@@ -85,6 +86,7 @@ void init_AttrRegistry()
     }
 
     init_RtListAttr(attrsRegistry);
+    init_RtStrAttr(attrsRegistry);
     init_RtMapAttr(attrsRegistry);
     init_RtSetAttr(attrsRegistry);
 }

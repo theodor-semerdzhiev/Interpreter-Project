@@ -1,0 +1,21 @@
+let s = [
+    "    hello world",
+    "    hello world   s  s  ",
+    " s   hello worl d     ",
+    "helloworld",
+    "123123123"
+];
+
+for(let i=0; i < len(s); i = i + 1;) {
+    println("Stripped:", s[i]->strip());
+    println("Find: ", s[i]->find("worl "));
+    println("Is Numeric", s[i]->isnumeric());
+    println("Is Alphabet", s[i]->isalph());
+    println("Length: ", len(s[i]));
+    println("Is Upper: ", s[i]->upper()->isupper());
+    println("Is Lower: ", s[i]->islower());
+    println();
+}
+
+
+

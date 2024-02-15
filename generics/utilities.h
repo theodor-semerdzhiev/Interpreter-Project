@@ -29,3 +29,4 @@ typedef bool (*IntFilter)(const int *);
 IntFilter integer_bge_than(int cutoff);
 
 char *concat_strings(char *str1, char *str2);
+char *malloc_substring(const char *str, int start, int end);

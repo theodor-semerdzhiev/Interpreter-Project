@@ -652,7 +652,6 @@ static void perform_binary_operation(
  */
 static void perform_var_mutation()
 {
-
     bool new_val_disposable = disposable();
     RtObject *new_val = StackMachine_pop(env->stk_machine, false);
     bool old_val_disposable = disposable();
@@ -1190,7 +1189,14 @@ static void perform_get_attribute(char *attrs)
         return;
     }
 
-    dispose_disposable_obj(target, target_disposable);
+    if(target_disposable) 
+        assert(!GC_Registry_has(target));
+    else
+        assert(GC_Registry_has(target));
+
+    add_to_GC_registry(target);
+
+    
 
     StackMachine_push(StackMachine, builtin_attr, true);
 }

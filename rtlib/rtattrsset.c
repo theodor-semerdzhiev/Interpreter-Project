@@ -8,8 +8,7 @@ static RtObject *builtin_set_contains(RtObject *target, RtObject **args, int arg
 static RtObject *builtin_set_clear(RtObject *target, RtObject **args, int argcount);
 static RtObject *builtin_set_tolist(RtObject *target, RtObject **args, int argcount);
 
-
-static const AttrBuiltinKey _set_add_key = {HASHSET_TYPE, "add"};
+static const AttrBuiltinKey _str_uppercase_key = {HASHSET_TYPE, "add"};
 static const AttrBuiltin _set_add =
     {HASHSET_TYPE, {.builtin_func = builtin_set_add}, 2, "add", true};
 
@@ -29,10 +28,13 @@ static const AttrBuiltinKey _set_tolist_key = {HASHSET_TYPE, "toList"};
 static const AttrBuiltin _set_tolist =
     {HASHSET_TYPE, {.builtin_func = builtin_set_tolist}, 1, "toList", true};
 
-
+/**
+ * DESCRIPTION:
+ * Inserts built in functions for sets into the registry 
+*/
 void init_RtSetAttr(GenericMap *registry)
 {
-    addToAttrRegistry(registry, _set_add_key, _set_add);
+    addToAttrRegistry(registry, _str_uppercase_key, _set_add);
     addToAttrRegistry(registry, _set_remove_key, _set_remove);
     addToAttrRegistry(registry, _set_contains_key, _set_contains);
     addToAttrRegistry(registry, _set_clear_key, _set_clear);
@@ -41,7 +43,7 @@ void init_RtSetAttr(GenericMap *registry)
 
 /**
  * DESCRIPTION:
- * Inserts an element into a rtset
+ * Inserts an element into a runtime set
  */
 static RtObject *builtin_set_add(RtObject *target, RtObject **args, int argcount)
 {
@@ -99,7 +101,6 @@ static RtObject *builtin_set_clear(RtObject *target, RtObject **args, int argcou
     return target;
 }
 
-
 /**
  * DESCRIPTION:
  * Converts a set into a list
@@ -109,17 +110,12 @@ static RtObject *builtin_set_tolist(RtObject *target, RtObject **args, int argco
     // temporary
     assert(argcount == 0);
     assert(target->type == HASHSET_TYPE);
-
     RtSet *set = target->data.Set;
     RtList *list = init_RtList(set->size);
-    
     RtObject **contents = rtset_getrefs(set);
-    for(size_t i=0; contents[i] != NULL; i++) {
+    for (size_t i = 0; contents[i] != NULL; i++)
         rtlist_append(list, contents[i]);
-    }
-
     free(contents);
-
     RtObject *listobj = init_RtObject(LIST_TYPE);
     listobj->data.List = list;
     return listobj;

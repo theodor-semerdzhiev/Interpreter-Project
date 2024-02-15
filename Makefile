@@ -30,6 +30,7 @@ SRC_FILES = \
   rtlib/rtattrslist.c \
   rtlib/rtattrsmap.c \
   rtlib/rtattrsset.c \
+  rtlib/rtattrsstr.c \
   generics/hashset.c \
   generics/hashmap.c \
   generics/linkedlist.c \

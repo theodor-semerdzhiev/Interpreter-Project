@@ -1,3 +1,4 @@
+
 class HelloWorld() {
     func helloworld(x, y) {
         if(!(typeof(x) == "String" && typeof(y) == "String")) {
@@ -8,15 +9,20 @@ class HelloWorld() {
     }
 }
 
+
 HelloWorld()->helloworld("Hello","World");
 
 let m = map {
     1:2, 
     4:4, 
-    "123132": "gedasd"
+    "123132": map {
+        2:1,
+        5:3,
+        6:4
+    }
 };
 
-println(m);
+println(m["123132"]);
 
 m->clear();
 println(m);
@@ -24,6 +30,7 @@ println(m);
 let s = set {1,2,3,4,5,6,76, "123123123", 23123};
 let l = s->toList;
 println(l());
+println(s->add("sdasdas"->uppercase()));
 
 
 

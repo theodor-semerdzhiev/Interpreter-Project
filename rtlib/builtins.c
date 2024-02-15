@@ -84,7 +84,7 @@ int init_Builtins()
     }
 
     bool successful_init = 
-        InsertBuiltIn(_builtin_println.builtin_name, _builtin_println) &&
+        InsertBuiltIn(_builtin_print.builtin_name, _builtin_print) &&
         InsertBuiltIn(_builtin_println.builtin_name, _builtin_println) &&
         InsertBuiltIn(_builtin_string.builtin_name, _builtin_string) &&
         InsertBuiltIn(_builtin_typeof.builtin_name, _builtin_typeof) &&

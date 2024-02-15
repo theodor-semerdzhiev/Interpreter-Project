@@ -341,3 +341,20 @@ concat_strings(char *str1, char *str2)
 
     return concat_str;
 }
+
+__attribute__((warn_unused_result))
+/** 
+ * DESCRIPTION:
+ * Mallocs a substring from a base string 
+ * */
+char *
+malloc_substring(const char *str, int start, int end)
+{
+    // the substring includes index start but does not include the end index.
+    char *substr = malloc(sizeof(char) * (end - start + 2));
+    for (int i = 0; i <= (end - start); i++)
+        substr[i] = str[start + i];
+
+    substr[end - start+1] = '\0';
+    return substr;
+}

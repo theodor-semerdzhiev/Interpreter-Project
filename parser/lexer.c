@@ -644,20 +644,6 @@ char **tokenize_str_by_seperators(const char *input, const char sep, int *count)
 }
 
 __attribute__((warn_unused_result))
-/* Mallocs a substring from a base string */
-char *
-malloc_substring(char *str, int start, int end)
-{
-    // the substring includes index start but does not include the end index.
-    char *substr = malloc(sizeof(char) * (end - start) + 1);
-    for (int i = 0; i < (end - start); i++)
-        substr[i] = str[start + i];
-
-    substr[end - start] = '\0';
-    return substr;
-}
-
-__attribute__((warn_unused_result))
 /* Creates a deep copy of 2D string array */
 char **
 cpy_2D_string_arr(char **strs, int strs_length)

@@ -96,6 +96,7 @@ static RtObject *builtin_set_clear(RtObject *target, RtObject **args, int argcou
     // temporary
     assert(argcount == 0);
     assert(target->type == HASHSET_TYPE);
+    (void)args;
     RtSet *set = target->data.Set;
     rtset_clear(set, false, false);
     return target;
@@ -110,6 +111,7 @@ static RtObject *builtin_set_tolist(RtObject *target, RtObject **args, int argco
     // temporary
     assert(argcount == 0);
     assert(target->type == HASHSET_TYPE);
+    (void)args;
     RtSet *set = target->data.Set;
     RtList *list = init_RtList(set->size);
     RtObject **contents = rtset_getrefs(set);

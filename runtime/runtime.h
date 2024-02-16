@@ -39,11 +39,20 @@ typedef struct RunTime {
     
     StackMachine *stk_machine;
 
-    unsigned int stack_ptr;
+    long stack_ptr;
 
 } RunTime;
 
 #define addToGCRegistry(obj) if(is_GC_Active()) add_to_GC_registry
+
+// Useful macro in list, set, maps, and function args for adding objects to GC
+// ONLY when needed (should be used with rtobj_rt_preprocess function)
+#define addDisposablePrimitiveToGC(dispose, obj) \
+    if(dispose || (!dispose && rttype_isprimitive(obj->type))) \
+        add_to_GC_registry(obj); \
+
+#define DisposableOrPrimitive(dispose, obj) (dispose || (!dispose && rttype_isprimitive(obj->type)))
+
 
 IdentTable *init_IdentifierTable();
 void Identifier_Table_add_var(IdentTable *table, const char *key, RtObject *obj, AccessModifier access);

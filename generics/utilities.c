@@ -126,11 +126,12 @@ char *append_char(const char *str, char c)
 char *surround_string(const char *str, size_t strlen, char start, char end)
 {
     assert(str);
-    char *newstr = malloc(sizeof(char) * (strlen + 2));
+    char *newstr = malloc(sizeof(char) * (strlen + 3));
     if(!newstr) return NULL;
     newstr[0] = start;
     strcpy(&newstr[1], str);
     newstr[strlen+1]=end;
+    newstr[strlen+2]='\0';
     return newstr;
 }
 

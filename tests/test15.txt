@@ -1,5 +1,9 @@
 
-class HelloWorld() {
+class HelloWorld(n) {
+    private let val = func() {
+        return n*10;
+    }();
+
     func helloworld(x, y) {
         if(!(typeof(x) == "String" && typeof(y) == "String")) {
             println("Arg must be strings, x: " + typeof(x) + "  y: " + typeof(y));
@@ -7,11 +11,15 @@ class HelloWorld() {
         }
         println(x + " " + y);
     }
+
+    func getVal() {
+        return val;
+    }
 }
 
 
-HelloWorld()->helloworld("Hello","World");
-
+HelloWorld(3)->helloworld("Hello","World");
+println(HelloWorld(5)->getVal());
 let m = map {
     1:2, 
     4:4, 
@@ -30,7 +38,7 @@ println(m);
 let s = set {1,2,3,4,5,6,76, "123123123", 23123};
 let l = s->toList;
 println(l());
-println(s->add("sdasdas"->uppercase()));
+println(s->add("sdasdas"->upper()));
 
 
 

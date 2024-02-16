@@ -92,6 +92,24 @@ init_RtObject(RtType type)
     return obj;
 }
 
+/**
+ * DESCRIPTION:
+ * This function is responsible for preprocessing runtime objects
+ * If the object is a primitive type AND is NOT disposable, then its deep copied (this is constant time)
+ * OR
+ * if the object is disposable, no copy needs to be created
+*/
+RtObject *rtobj_rt_preprocess(RtObject *obj, bool disposable) {
+    assert(obj);
+    if(!disposable)
+        assert(GC_Registry_has(obj));
+    if (!disposable && rttype_isprimitive(obj->type))
+        return rtobj_deep_cpy(obj);
+    else
+        return obj;
+}
+
+
 __attribute__((warn_unused_result))
 /**
  * Converts a string into its corresponding string representation

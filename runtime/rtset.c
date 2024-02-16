@@ -215,7 +215,6 @@ RtObject *rtset_insert(RtSet *set, RtObject *val)
         if (rtobj_equal(ptr->obj, val))
         {
             ptr->obj = val;
-            set->size++;
             return val;
         }
 

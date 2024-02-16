@@ -128,6 +128,7 @@ static RtObject *builtin_map_clear(RtObject *obj, RtObject **args, int argcount)
 {
     assert(argcount == 0); // temporary
     assert(obj->type == HASHMAP_TYPE);
+    (void)args;
 
     RtMap *map = obj->data.Map;
     rtmap_clear(map, false, false ,false);

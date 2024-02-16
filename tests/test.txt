@@ -10,10 +10,10 @@ func natural_numbers(n) {
 
 let i = 0;
 let tmp = force(natural_numbers(0));
-while(i < 0) {
+while(i < 20) {
     tmp = force(tmp);
     i = i + 1;
-    return 1;
+    return 0;
 }
 
 let y;

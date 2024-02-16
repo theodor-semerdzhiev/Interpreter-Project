@@ -117,6 +117,7 @@ static RtObject *builtin_str_upper(RtObject *target, RtObject **args, int arg_co
     // temp
     assert(target->type == STRING_TYPE);
     assert(arg_count == 0);
+    (void)args;
     char *str = target->data.String->string;
     unsigned int len = target->data.String->length;
     char *newstr = malloc(sizeof(char)*(len + 1));
@@ -137,6 +138,7 @@ static RtObject *builtin_str_lower(RtObject *target, RtObject **args, int arg_co
     // temp
     assert(target->type == STRING_TYPE);
     assert(arg_count == 0);
+    (void)args;
     char *str = target->data.String->string;
     unsigned int len = target->data.String->length;
     char *newstr = malloc(sizeof(char)*(len + 1));
@@ -156,6 +158,7 @@ static RtObject *builtin_str_strip(RtObject *target, RtObject **args, int arg_co
     // temp
     assert(target->type == STRING_TYPE);
     assert(arg_count == 0);
+    (void)args;
     char *str = target->data.String->string;
     unsigned int len = target->data.String->length;
 
@@ -211,6 +214,7 @@ static RtObject *builtin_str_isalnum(RtObject *target, RtObject **args, int arg_
     // temp
     assert(target->type == STRING_TYPE);
     assert(arg_count == 0);
+    (void)args;
     bool ans = true;
     StrBoolPred(ans, target->data.String->string, target->data.String->length, isalnum);
     RtObject *res = init_RtObject(NUMBER_TYPE);
@@ -226,6 +230,7 @@ static RtObject *builtin_str_isnumeric(RtObject *target, RtObject **args, int ar
     // temp
     assert(target->type == STRING_TYPE);
     assert(arg_count == 0);
+    (void)args;
     bool ans = true;
     StrBoolPred(ans, target->data.String->string, target->data.String->length, isdigit);
     RtObject *res = init_RtObject(NUMBER_TYPE);
@@ -241,6 +246,7 @@ static RtObject *builtin_str_isalph(RtObject *target, RtObject **args, int arg_c
     // temp
     assert(target->type == STRING_TYPE);
     assert(arg_count == 0);
+    (void)args;
     bool ans = true;
     StrBoolPred(ans, target->data.String->string, target->data.String->length, isalpha);
     RtObject *res = init_RtObject(NUMBER_TYPE);
@@ -256,6 +262,7 @@ static RtObject *builtin_str_isspace(RtObject *target, RtObject **args, int arg_
     // temp
     assert(target->type == STRING_TYPE);
     assert(arg_count == 0);
+    (void)args;
     bool ans = true;
     StrBoolPred(ans, target->data.String->string, target->data.String->length, isspace);
     RtObject *res = init_RtObject(NUMBER_TYPE);
@@ -271,6 +278,7 @@ static RtObject *builtin_str_isupper(RtObject *target, RtObject **args, int arg_
     // temp
     assert(target->type == STRING_TYPE);
     assert(arg_count == 0);
+    (void)args;
     bool ans = true;
     StrBoolPred(ans, target->data.String->string, target->data.String->length, isupper);
     RtObject *res = init_RtObject(NUMBER_TYPE);
@@ -286,6 +294,7 @@ static RtObject *builtin_str_islower(RtObject *target, RtObject **args, int arg_
     // temp
     assert(target->type == STRING_TYPE);
     assert(arg_count == 0);
+    (void)args;
     bool ans = true;
     StrBoolPred(ans, target->data.String->string, target->data.String->length, islower);
     RtObject *res = init_RtObject(NUMBER_TYPE);

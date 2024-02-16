@@ -49,6 +49,8 @@ typedef struct RtObject
 
 RtObject *init_RtObject(RtType type);
 
+RtObject *rtobj_rt_preprocess(RtObject *obj, bool disposable);
+
 char *rtobj_toString(const RtObject *obj);
 RtObject *multiply_objs(RtObject *obj1, RtObject *obj2);
 

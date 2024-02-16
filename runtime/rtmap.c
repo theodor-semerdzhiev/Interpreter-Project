@@ -227,7 +227,6 @@ RtObject *rtmap_insert(RtMap *map, RtObject *key, RtObject *val)
         {
             ptr->key = key;
             ptr->value = val;
-            map->size++;
             return key;
         }
 

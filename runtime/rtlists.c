@@ -31,7 +31,7 @@ init_RtList(unsigned long initial_memsize)
     {
         list->objs[i] = NULL;
     }
-    list->GCFlag=false;
+    list->GCFlag = false;
     return list;
 }
 
@@ -116,7 +116,7 @@ RtObject *rtlist_popfirst(RtList *list)
  * NOTE:
  * if index is out of bounds, function will return NULL
  */
-RtObject *rtlist_remove(RtList *list, size_t index)
+RtObject *rtlist_removeindex(RtList *list, size_t index)
 {
     assert(list);
     if (index >= list->length)
@@ -165,8 +165,8 @@ RtObject *rtlist_get(RtList *list, long index)
  * Does NOT free objects inside list
  */
 void rtlist_free(RtList *list, bool free_refs)
-{   
-    for(size_t i=0; i < free_refs && list->length; i++)
+{
+    for (size_t i = 0; i < free_refs && list->length; i++)
         rtobj_free(list->objs[i], false);
 
     free(list->objs);
@@ -234,15 +234,52 @@ bool rtlist_equals(RtList *l1, RtList *l2, bool deep_compare)
     for (size_t i = 0; i < l1->length; i++)
     {
         if (deep_compare && !rtobj_equal(l1->objs[i], l2->objs[i]))
-        {
             return false;
-        }
-        else if (!deep_compare && l1->objs[i] != l2->objs[i])
-        {
+        
+        if (!deep_compare && l1->objs[i] != l2->objs[i])
             return false;
-        }
     }
     return true;
+}
+
+/**
+ * DESCRIPTION:
+ * Useful function for checking if a object is contained within a list
+ *
+ * PARAMS:
+ * list: list
+ * obj: obj
+ */
+bool rtlist_contains(RtList *list, RtObject *obj)
+{
+    assert(list && obj);
+
+    for (size_t i = 0; i < list->length; i++)
+    {
+        if (rtobj_equal(list->objs[i], obj))
+            return true;
+    }
+    return false;
+}
+
+/**
+ * DESCRIPTION:
+ * Removes first occurence of object in list, and returns the matching object.
+ * If not match is found then NULL is returned
+ * PARAMS:
+ * list: list
+ * obj: obj
+ */
+RtObject *rtlist_remove(RtList *list, RtObject *obj)
+{
+    assert(list && obj);
+    for (size_t i = 0; i < list->length; i++) {
+        if (rtobj_equal(list->objs[i], obj)) {
+            rtlist_removeindex(list, i);
+            return list->objs[i];
+        }
+    }
+    return NULL;
 }
 
 __attribute__((warn_unused_result))
@@ -263,14 +300,15 @@ rtlist_toString(RtList *list)
     for (size_t i = 0; i < list->length; i++)
     {
         char *obj_to_str = rtobj_toString(list->objs[i]);
-        
+
         // if its a string
-        if(list->objs[i]->type == STRING_TYPE) {
-            char* tmp = concat_strings("\"", obj_to_str);
+        if (list->objs[i]->type == STRING_TYPE)
+        {
+            char *tmp = concat_strings("\"", obj_to_str);
             free(obj_to_str);
             char *tmp1 = concat_strings(tmp, "\"");
             free(tmp);
-            obj_to_str=tmp1;
+            obj_to_str = tmp1;
         }
 
         if (i + 1 == list->length)

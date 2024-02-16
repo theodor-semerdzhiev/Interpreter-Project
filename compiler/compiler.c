@@ -1101,7 +1101,7 @@ ByteCodeList *compile_conditional_chain(AST_node *node, bool is_global_scope)
     case IF_CONDITIONAL:
     {
         ByteCodeList *compiled_exp = compile_expression(node->ast_data.exp);
-        ByteCodeList *compiled_body = compile_code_body(node->body, true, true);
+        ByteCodeList *compiled_body = compile_code_body(node->body, is_global_scope, true);
 
         jump_if_false = init_ByteCode(OFFSET_JUMP_IF_FALSE_POP);
         jump_if_false->data.OFFSET_JUMP_IF_FALSE_POP.offset =
@@ -1112,7 +1112,7 @@ ByteCodeList *compile_conditional_chain(AST_node *node, bool is_global_scope)
         break;
     }
     case ELSE_CONDITIONAL:
-        compiled_node = compile_code_body(node->body, true, true);
+        compiled_node = compile_code_body(node->body, is_global_scope, true);
         break;
 
     default:
@@ -1476,7 +1476,7 @@ ByteCodeList *compile_code_body(AST_List *body, bool is_global_scope, bool add_d
 
             ByteCode *return_instruction = NULL;
 
-            if (is_global_scope && !body->parent_block)
+            if (is_global_scope)
             {
                 return_instruction = init_ByteCode(EXIT_PROGRAM);
             }

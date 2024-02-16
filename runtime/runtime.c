@@ -369,6 +369,7 @@ RtObject *StackMachine_pop(StackMachine *stk_machine, bool dispose)
 RtObject *StackMachine_push(StackMachine *stk_machine, RtObject *obj, bool dispose)
 {
     assert(stk_machine);
+    assert(obj);
     StkMachineNode *node = init_StkMachineNode(obj, dispose);
     if (!node)
         return NULL;
@@ -475,7 +476,10 @@ CallFrame **getCallStack()
  * Gets the Current StackFrame pointed to by the stack ptr
  */
 
-CallFrame *getCurrentStackFrame() { return callStack[env->stack_ptr]; }
+CallFrame *getCurrentStackFrame() { 
+    return callStack[env->stack_ptr]; 
+    
+    }
 
 /**
  * DESCRIPTION:
@@ -625,6 +629,7 @@ static void dispose_disposable_obj(RtObject *obj, bool disposable)
         assert(GC_Registry_has(obj));
     }
 }
+
 /**
  * Helper function for performing primitive arithmetic operations (+, *, /, -, %, >>, <<)
  */
@@ -799,28 +804,21 @@ CallFrame *perform_function_call(unsigned int arg_count)
     // gets the arguments
     RtObject *arguments[arg_count];
 
-    bool disposable[arg_count];
+    bool arg_disposable[arg_count];
 
     // adds arguments to registry
     for (int i = arg_count - 1; i >= 0; i--)
     {
-        disposable[i] = disposable();
+        arg_disposable[i] = disposable();
         RtObject *arg = StackMachine_pop(env->stk_machine, false);
 
-        if (!disposable[i] && rttype_isprimitive(arg->type))
-        {
-            arguments[i] = rtobj_deep_cpy(arg);
-        }
-        else
-        {
-            arguments[i] = arg;
-        }
+        arguments[i] = rtobj_rt_preprocess(arg, arg_disposable[i]);
 
-        // If its disposable or not disposable but its primitive object
-        // then we must add that object to the GC Registry since its not in it already
-        // or in the latter case, it was just created
-        if (disposable[i] || (!disposable[i] && rttype_isprimitive(arg->type)))
-            add_to_GC_registry(arguments[i]);
+        addDisposablePrimitiveToGC(arg_disposable[i], arguments[i]);
+
+        if(!DisposableOrPrimitive(arg_disposable[i], arg)) {
+            assert(GC_Registry_has(arguments[i]));
+        }
     }
 
     bool func_disposable = disposable();
@@ -869,7 +867,7 @@ CallFrame *perform_function_call(unsigned int arg_count)
     }
 
     case REGULAR:
-        new_frame = perform_regular_func_call(func->data.Func, arguments, disposable, arg_count);
+        new_frame = perform_regular_func_call(func->data.Func, arguments, arg_disposable, arg_count);
         break;
     }
 
@@ -929,8 +927,9 @@ static CallFrame *perform_regular_func_call(RtFunction *Function, RtObject **arg
     for (unsigned int i = 0; i < arg_count; i++)
     {
         RtObject *arg = arguments[i];
-
-        assert(GC_Registry_has(arg));
+        
+        if(!disposable[i])
+            assert(GC_Registry_has(arg));
 
         Identifier_Table_add_var(
             new_frame->lookup,
@@ -988,9 +987,12 @@ static void perform_create_list(unsigned long length)
         RtObject *obj = StackMachine_pop(StackMachine, false);
         assert(obj);
 
+        obj = rtobj_rt_preprocess(obj, disposable);
         // if object is not disposable, then a shallow copy is created
         // since its not disposable, it means its already in the GC registry, so it can be discarded
-        tmp[i] = disposable ? obj : rtobj_shallow_cpy(obj);
+        // tmp[i] = disposable ? obj : rtobj_shallow_cpy(obj);
+        addDisposablePrimitiveToGC(disposable, obj);
+        tmp[i] = obj;
     }
 
     RtList *list = init_RtList(length >= DEFAULT_RTLIST_LEN ? length * 2 : DEFAULT_RTLIST_LEN);
@@ -1031,13 +1033,12 @@ static void perform_create_map(unsigned long size)
         bool keydispose = disposable();
         RtObject *key = StackMachine_pop(StackMachine, false);
 
-        rtmap_insert(
-            map,
-            keydispose ? key : rtobj_shallow_cpy(key),
-            valdispose ? val : rtobj_shallow_cpy(val));
+        val = rtobj_rt_preprocess(val, valdispose);
+        key = rtobj_rt_preprocess(key, valdispose);
+        rtmap_insert(map, key, val);
 
-        add_to_GC_registry(val);
-        add_to_GC_registry(key);
+        addDisposablePrimitiveToGC(valdispose, val);
+        addDisposablePrimitiveToGC(keydispose, key);
     }
     RtObject *mapobj = init_RtObject(HASHMAP_TYPE);
     mapobj->data.Map = map;
@@ -1054,10 +1055,13 @@ static void perform_create_set(int setsize) {
     RtSet *set = init_RtSet(setsize+1);
 
     for(int i = 0; i < setsize; i++) {
+        bool dispose = disposable();
         RtObject *obj = StackMachine_pop(StackMachine, false);
         assert(obj);
+        obj = rtobj_rt_preprocess(obj, dispose);
         rtset_insert(set, obj);
-        add_to_GC_registry(obj);
+
+        addDisposablePrimitiveToGC(dispose, obj);
     }
 
     RtObject *setobj = init_RtObject(HASHSET_TYPE);
@@ -1131,7 +1135,8 @@ void perform_create_var(char *varname, AccessModifier access)
     RtObject *new_val = StackMachine_pop(StackMachine, false);
     CallFrame *frame = getCurrentStackFrame();
 
-    RtObject *cpy;
+    RtObject *cpy; 
+    // = rtobj_rt_preprocess(new_val, disposable);
     if (disposable)
     {
         cpy = new_val;
@@ -1147,8 +1152,8 @@ void perform_create_var(char *varname, AccessModifier access)
 
     Identifier_Table_add_var(frame->lookup, varname, cpy, access);
 
-    // if(!disposable)
     add_to_GC_registry(cpy);
+    // addDisposablePrimitiveToGC(disposable, cpy);
 }
 
 /**
@@ -1195,8 +1200,6 @@ static void perform_get_attribute(char *attrs)
         assert(GC_Registry_has(target));
 
     add_to_GC_registry(target);
-
-    
 
     StackMachine_push(StackMachine, builtin_attr, true);
 }

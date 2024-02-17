@@ -915,6 +915,59 @@ bool eval_obj(const RtObject *obj)
 
 /**
  * DESCRIPTION:
+ * The following is an array along with its init function
+ * That is used to compare runtime types
+ * So we consider undefined < null < numbers < string < list < ...
+ * This useful when sorting lists
+*/
+static short RtObjTypeCompareTbl[NB_OF_TYPES+1];
+void rtobj_init_cmp_tbl() {
+    RtObjTypeCompareTbl[UNDEFINED_TYPE] = 0;
+    RtObjTypeCompareTbl[NULL_TYPE] = 1;
+    RtObjTypeCompareTbl[NUMBER_TYPE] = 2;
+    RtObjTypeCompareTbl[STRING_TYPE] = 3;
+    RtObjTypeCompareTbl[LIST_TYPE] = 4;
+    RtObjTypeCompareTbl[HASHSET_TYPE] = 5;
+    RtObjTypeCompareTbl[HASHMAP_TYPE] = 6;
+    RtObjTypeCompareTbl[CLASS_TYPE] = 7;
+}
+
+/**
+ * DESCRIPTION:
+ * This functions is responsible for determining the ordering of objects
+*/
+int rtobj_compare(const RtObject *obj1, const RtObject *obj2) {
+    assert(obj1);
+    assert(obj2);
+
+    if(obj1 == obj2)    
+        return 0;
+    
+    if(obj1->type != obj2->type) 
+        return RtObjTypeCompareTbl[obj1->type] - RtObjTypeCompareTbl[obj2->type];
+    
+
+    switch(obj1->type) {
+        case UNDEFINED_TYPE:
+        case NULL_TYPE:
+            return 0;
+        case NUMBER_TYPE:
+            return getRtNum(obj1) - getRtNum(obj2);
+        case STRING_TYPE:
+            return strcmp(getRtStr(obj1), getRtStr(obj2));
+        case CLASS_TYPE:
+        case FUNCTION_TYPE:
+        case LIST_TYPE:
+        case HASHMAP_TYPE:
+        case HASHSET_TYPE: 
+            return 0;
+    }
+    return 0;
+}
+
+
+/**
+ * DESCRIPTION:
  * Hashes runtime object
  */
 unsigned int rtobj_hash(const RtObject *obj)

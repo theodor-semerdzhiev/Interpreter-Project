@@ -1,6 +1,7 @@
 #include <assert.h>
 #include "rtattrs.h"
 #include "../generics/hashmap.h"
+#include "../generics/utilities.h"
 
 static RtObject *builtin_list_append(RtObject *list, RtObject **args, int argcount);
 static RtObject *builtin_list_pop(RtObject *target, RtObject **args, int argcount);
@@ -10,6 +11,8 @@ static RtObject *builtin_list_clear(RtObject *target, RtObject **args, int argco
 static RtObject *builtin_list_contains(RtObject *target, RtObject **args, int argcount);
 static RtObject *builtin_list_remove(RtObject *target, RtObject **args, int argcount);
 static RtObject *builtin_list_toset(RtObject *target, RtObject **args, int argcount);
+static RtObject *builtin_list_sort(RtObject *target, RtObject **args, int argcount);
+static RtObject *builtin_list_reverse(RtObject *target, RtObject **args, int argcount);
 
 static const AttrBuiltinKey _list_append_key = {LIST_TYPE, "append"};
 static const AttrBuiltin _list_append = 
@@ -43,6 +46,14 @@ static const AttrBuiltinKey _list_toset_key = {LIST_TYPE, "toSet"};
 static const AttrBuiltin _list_toset = 
 {LIST_TYPE, {.builtin_func = builtin_list_toset}, -1, "toSet", true};
 
+static const AttrBuiltinKey _list_sort_key = {LIST_TYPE, "sort"};
+static const AttrBuiltin _list_sort = 
+{LIST_TYPE, {.builtin_func = builtin_list_sort}, -1, "sort", true};
+
+static const AttrBuiltinKey _list_reverse_key = {LIST_TYPE, "reverse"};
+static const AttrBuiltin _list_reverse = 
+{LIST_TYPE, {.builtin_func = builtin_list_reverse}, -1, "reverse", true};
+
 void init_RtListAttr(GenericMap *registry) {
     addToAttrRegistry(registry, _list_append_key, _list_append);
     addToAttrRegistry(registry, _list_pop_key, _list_pop);
@@ -52,6 +63,8 @@ void init_RtListAttr(GenericMap *registry) {
     addToAttrRegistry(registry, _list_contains_key, _list_contains);
     addToAttrRegistry(registry, _list_remove_key, _list_remove);
     addToAttrRegistry(registry, _list_toset_key, _list_toset);
+    addToAttrRegistry(registry, _list_sort_key, _list_sort);
+    addToAttrRegistry(registry, _list_reverse_key, _list_reverse);
 }
 
 /**
@@ -180,6 +193,86 @@ static RtObject *builtin_list_toset(RtObject *target, RtObject **args, int argco
     RtObject *setobj = init_RtObject(HASHSET_TYPE);
     setobj->data.Set = set;
     return setobj;
+}
+
+/**
+ * DESCRIPTION:
+ * Built in function for reversing a list
+*/
+static RtObject *builtin_list_reverse(RtObject *target, RtObject **args, int argcount) {
+    // temporary
+    assert(argcount == 0);
+    assert(target->type == LIST_TYPE);
+    (void)args;
+    rtlist_reverse(target->data.List);
+    return target;
+}   
+
+static int _rtobj_compare_wrapper(const RtObject **o1, const RtObject **o2);
+static int _rtobj_reverse_compare_wrapper(const RtObject **o1, const RtObject **o2);
+
+/**
+ * Useful macro for sorting lists (in regular or reverse order)
+*/
+#define SortList(rtlistobj, reverse) \
+    qsort(rtlistobj->data.List->objs, \ 
+    rtlistobj->data.List->length, \
+    sizeof(*(rtlistobj->data.List->objs)), \
+    (int (*)(const void *, const void *)) \
+    (reverse? _rtobj_reverse_compare_wrapper :_rtobj_compare_wrapper)); 
+
+/**
+ * DESCRIPTION:
+ * Helper function for sorting in regular order, used by the builtin sort function
+ * This function allows us to also sort other lists recursively
+*/
+static int _rtobj_compare_wrapper(const RtObject **o1, const RtObject **o2) {
+    int res = rtobj_compare(*o1, *o2);
+    if((*o1)->type == LIST_TYPE) 
+        SortList((*o1), false);
+    if((*o2)->type == LIST_TYPE) 
+        SortList((*o2), false);
+    return res;
+}
+
+/**
+ * DESCRIPTION:
+ * Helper function for sorting in reverse, used by the builtin sort function
+ * This function allows us to also sort other lists recursively
+*/
+static int _rtobj_reverse_compare_wrapper(const RtObject **o1, const RtObject **o2) {
+    int res = -rtobj_compare(*o1, *o2);
+    if((*o1)->type == LIST_TYPE) 
+        SortList((*o1), true);
+    if((*o2)->type == LIST_TYPE) 
+        SortList((*o2), true);
+    return res;
+}
+
+/**
+ * DESCRIPTION:
+ * Built in function for sorting a list in place
+ * 
+ * This function can take a single parameter, if the param = "reverse", 
+ * then the list will be sorted in reverse order
+*/
+static RtObject *builtin_list_sort(RtObject *target, RtObject **args, int argcount) {
+    // temporary
+    assert(argcount == 1 || argcount == 0);
+    assert(target->type == LIST_TYPE);
+    (void)args;
+
+    bool reverse = false;
+    if( argcount == 1 && 
+        args[0]->type == STRING_TYPE &&
+        strings_equal(args[0]->data.String->string, "reverse")) {
+        
+        reverse = true;
+    }
+
+    SortList(target, reverse);
+    
+    return target;
 }
 
 

@@ -603,6 +603,7 @@ int prep_runtime_env(ByteCodeList *code)
     RunTime_push_callframe(init_CallFrame(code, NULL));
     init_GarbageCollector();
     init_AttrRegistry();
+    rtobj_init_cmp_tbl();
     return env ? 1 : 0;
 }
 

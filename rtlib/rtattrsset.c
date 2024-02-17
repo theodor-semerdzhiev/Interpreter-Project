@@ -52,6 +52,12 @@ static RtObject *builtin_set_add(RtObject *target, RtObject **args, int argcount
     assert(target->type == HASHSET_TYPE);
     RtSet *set = target->data.Set;
     RtObject *val = args[0];
+
+    // you cannot add set to itself
+    if(target == val || (val->type == HASHSET_TYPE && val->data.Set == set)) {
+        printf("Cannot add a set to itself\n");
+        return target;
+    }
     rtset_insert(set, val);
     return target;
 }

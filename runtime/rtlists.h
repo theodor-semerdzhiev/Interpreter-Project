@@ -25,6 +25,7 @@ RtObject **rtlist_getrefs(const RtList *list);
 RtObject *rtlist_remove(RtList *list, RtObject *obj);
 
 bool rtlist_equals(RtList *l1, RtList *l2, bool deep_compare);
+RtList *rtlist_reverse(RtList *list);
 bool rtlist_contains(RtList *list, RtObject *obj);
 void rtlist_free(RtList *list, bool free_refs);
 char *rtlist_toString(RtList *list);

@@ -18,6 +18,13 @@ for(let i=0; i < len(s); i = i + 1;) {
 }
 
 println(len([1,1,1,1,1,1,1,1,12,3,4,5,6, "hi", "hi"]->toSet()->toList()));
+println(
+    ([
+        4,5,7,8,1,3,8,9,2,0,4,-1,-20, 
+        "23", "heka", "abd", 
+        null, print(), [1,6,7,2,"2332"], 2
+    ]->sort("reverse")->toSet())
+);
 
 
 

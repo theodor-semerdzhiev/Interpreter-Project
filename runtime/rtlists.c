@@ -264,6 +264,20 @@ bool rtlist_contains(RtList *list, RtObject *obj)
 
 /**
  * DESCRIPTION:
+ * Performs a reverse operation on the list
+*/
+RtList *rtlist_reverse(RtList *list) {
+    assert(list);
+    for(size_t i =0; i < (list->length/2); i++) {
+        RtObject *tmp= list->objs[i];
+        list->objs[i] = list->objs[list->length-i -1];
+        list->objs[list->length-i -1] = tmp;
+    }
+    return list;
+}
+
+/**
+ * DESCRIPTION:
  * Removes first occurence of object in list, and returns the matching object.
  * If not match is found then NULL is returned
  * PARAMS:

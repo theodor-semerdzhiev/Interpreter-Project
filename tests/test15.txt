@@ -30,7 +30,7 @@ let m = map {
     }
 };
 
-println(m["123132"]);
+# println(m["123132"]);
 
 m->clear();
 println(m);

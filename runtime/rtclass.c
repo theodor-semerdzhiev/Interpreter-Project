@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <string.h>
 #include "gc.h"
 #include "../generics/utilities.h"
 #include "rtclass.h"
@@ -81,11 +82,14 @@ RtClass *rtclass_cpy(const RtClass *class, bool deepcpy, bool add_to_GC) {
 */
 char *rtclass_toString(const RtClass *cls) {
     assert(cls);
-    char *lookuptable = rtmap_toString(cls->attrs_table);
-    
-    char *str = concat_strings(cls->classname, lookuptable);
-    free(lookuptable);
-    return str;
+    assert(cls->classname);
+    char buffer[100+strlen(cls->classname)];
+    buffer[0] = '\0';
+    snprintf(buffer, 100, "%s.class@%p", cls->classname, cls);
+    char *strcpy = cpy_string(buffer);
+    if (!strcpy)
+        MallocError();
+    return strcpy;
 }
 
 /**

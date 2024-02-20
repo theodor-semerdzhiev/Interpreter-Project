@@ -28,6 +28,7 @@ bool rtlist_equals(RtList *l1, RtList *l2, bool deep_compare);
 RtList *rtlist_reverse(RtList *list);
 bool rtlist_contains(RtList *list, RtObject *obj);
 void rtlist_free(RtList *list, bool free_refs);
-char *rtlist_toString(RtList *list);
+void rtlist_print(const RtList *list);
+char *rtlist_toString(const RtList *list);
 
 #define newDefaultList() init_RtList(DEFAULT_RTLIST_LEN)

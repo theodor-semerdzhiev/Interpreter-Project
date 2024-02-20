@@ -16,3 +16,14 @@ RtNumber *init_RtNumber(long double number) {
     num->GCFlag=false;
     return num;
 }
+
+/**
+ * DESCRIPTION:
+ * Converts rt number to string
+*/
+char *rtnumber_toString(const RtNumber *num) {
+    assert(num);
+    char buffer[124];
+    snprintf(buffer, sizeof(buffer), "%Lf", num->number);
+    return cpy_string(buffer);
+}

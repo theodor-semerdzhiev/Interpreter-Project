@@ -61,3 +61,4 @@ RtFunction *init_rtfunc(RtFuncType type);
 RtFunction *rtfunc_cpy(const RtFunction *func, bool deepcpy);
 RtObject **rtfunc_getrefs(const RtFunction *func);
 const char* rtfunc_type_toString(const RtFunction *func);
+void rtfunc_print(RtFunction *func);

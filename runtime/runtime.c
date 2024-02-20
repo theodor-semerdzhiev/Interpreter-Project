@@ -1062,7 +1062,8 @@ static void perform_create_set(int setsize) {
         obj = rtobj_rt_preprocess(obj, dispose);
         rtset_insert(set, obj);
 
-        addDisposablePrimitiveToGC(dispose, obj);
+        // addDisposablePrimitiveToGC(dispose, obj);
+        add_to_GC_registry(obj);
     }
 
     RtObject *setobj = init_RtObject(HASHSET_TYPE);

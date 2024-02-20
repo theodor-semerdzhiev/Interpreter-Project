@@ -475,9 +475,59 @@ RtSet *rtset_clear(RtSet *set, bool free_obj, bool free_immutable) {
     return set;
 }
 
+/**
+ * DESCRIPTION:
+ * Prints out set runtime object to standard output
+*/
+void rtset_print(const RtSet *set) {
+    assert(set);
+
+    size_t counter = 0;
+    printf("{");
+    for(size_t i=0; i < set->bucket_size; i++) {
+        if(!set->buckets[i])
+            continue;
+        
+        SetNode *node = set->buckets[i];
+        while(node) {
+            char *obj_to_str = rtobj_toString(node->obj);
+
+            if (node->obj->type == STRING_TYPE)
+                printf("\"%s\"", obj_to_str);
+            else
+                printf("%s", obj_to_str);
+
+            free(obj_to_str);
+            counter++;
+            if(counter == set->size) 
+                break;
+            
+            printf(", ");
+            node = node->next;
+        }
+    }
+    printf("}");
+}
 
 __attribute__((warn_unused_result))
 /**
+ * DESCRIPTION:
+ * Converts set to string
+*/
+char* rtset_toString(const RtSet *set) {
+    assert(set);
+    char buffer[100];
+    buffer[0]='\0';
+    snprintf(buffer, 100, "set@%p", set);
+    char *strcpy = cpy_string(buffer);
+    if(!strcpy) MallocError();
+    return strcpy;
+}
+
+
+__attribute__((warn_unused_result))
+/**
+ * ** DEPRECATED **
  * DESCRIPTION:
  * Converts set to human readable format
  *
@@ -485,7 +535,7 @@ __attribute__((warn_unused_result))
  * set: set
  */
 char *
-rtset_toString(const RtSet *set)
+_rtset_toString(const RtSet *set)
 {
     // handles empty string
     if (set->size == 0)

@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <assert.h>
 #include "rtlists.h"
 #include "rtobjects.h"
@@ -296,15 +297,56 @@ RtObject *rtlist_remove(RtList *list, RtObject *obj)
     return NULL;
 }
 
+/**
+ * DESCRIPTION:
+ * Prints out list runtime object to standard output
+*/
+void rtlist_print(const RtList *list) {
+    assert(list);
+
+    printf("[");
+    for (size_t i = 0; i < list->length; i++) {
+        char *obj_to_str = rtobj_toString(list->objs[i]);
+        if (list->objs[i]->type == STRING_TYPE)
+            printf("\"%s\"", obj_to_str);
+        else
+            printf("%s", obj_to_str);
+        
+        free(obj_to_str);
+        if(i + 1 == list->length) 
+            break;
+        
+        printf(", ");
+    }
+    printf("]");
+}
+
+
 __attribute__((warn_unused_result))
 /**
+ * DESCRIPTION:
+ * Converts list to string
+*/
+char* rtlist_toString(const RtList *list) {
+    assert(list);
+    char buffer[100];
+    buffer[0]='\0';
+    snprintf(buffer, 100, "list@%p", list);
+    char *cpy = cpy_string(buffer);
+    if(!cpy) MallocError();
+    return cpy;
+}
+
+__attribute__((warn_unused_result))
+/**
+ * **DEPRECATED**
  * DESCRIPTION:
  * Converts a list object to a human readable string
  *
  *
  */
 char *
-rtlist_toString(RtList *list)
+_rtlist_toString(const RtList *list)
 {
     assert(list);
     char *str = cpy_string("[");

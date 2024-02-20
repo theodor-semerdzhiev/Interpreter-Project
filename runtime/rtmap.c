@@ -460,23 +460,69 @@ void rtmap_free(RtMap *map, bool free_keys, bool free_vals, bool free_immutable)
 
 /**
  * DESCRIPTION:
- * Simple helper for surrounding string by quotation marks
+ * Converts rt map to string
  */
-static char *add_quotation_marks(char *str)
+void rtmap_print(const RtMap *map)
 {
-    char *tmp = concat_strings("\"", str);
-    if (!tmp)
-        MallocError();
-    char *tmp1 = concat_strings(tmp, "\"");
-    if (!tmp1)
-        MallocError();
-    free(str);
-    free(tmp);
-    return tmp1;
+    assert(map);
+    size_t counter = 0;
+    printf("{");
+    for (size_t i = 0; i < map->bucket_size; i++)
+    {
+        if (!map->buckets[i])
+            continue;
+
+        MapNode *ptr = map->buckets[i];
+        while (ptr)
+        {
+            char *val_to_string = rtobj_toString(ptr->value);
+            char *key_to_string = rtobj_toString(ptr->key);
+            if (ptr->key->type == STRING_TYPE)
+                printf("\"%s\": ", key_to_string);
+            else
+                printf("%s: ", key_to_string);
+
+            if (ptr->value->type == STRING_TYPE)
+                printf("\"%s\"", val_to_string);
+            else
+                printf("%s", val_to_string);
+            
+
+            free(val_to_string);
+            free(key_to_string);
+            counter++;
+            if (counter == map->size)
+                break;
+                
+            printf(", ");
+            ptr = ptr->next;
+        }
+    }
+    assert(counter == map->size);
+    printf("}");
 }
 
 __attribute__((warn_unused_result))
 /**
+ * DESCRIPTION:
+ * Converts map to string
+ */
+char *
+rtmap_toString(const RtMap *map)
+{
+    assert(map);
+    char buffer[100];
+    buffer[0] = '\0';
+    snprintf(buffer, 100, "map@%p", map);
+    char *strcpy = cpy_string(buffer);
+    if (!strcpy)
+        MallocError();
+    return strcpy;
+}
+
+__attribute__((warn_unused_result))
+/**
+ * ** DEPRECATED**
  * DESCRIPTION:
  * Converts map to human readable format
  *
@@ -484,7 +530,7 @@ __attribute__((warn_unused_result))
  * map: map
  */
 char *
-rtmap_toString(const RtMap *map)
+_rtmap_toString(const RtMap *map)
 {
     // handles empty string
     if (map->size == 0)
@@ -498,19 +544,21 @@ rtmap_toString(const RtMap *map)
     {
         char *keystr;
         char *valstr;
-        
+
         keystr = rtobj_toString(keyvals[i]);
-        if (keyvals[i]->type == STRING_TYPE) {
+        if (keyvals[i]->type == STRING_TYPE)
+        {
             char *tmp = surround_string(keystr, keyvals[i]->data.String->length, '"', '"');
             free(keystr);
-            keystr=tmp;
+            keystr = tmp;
         }
-        
+
         valstr = rtobj_toString(keyvals[i + 1]);
-        if (keyvals[i + 1]->type == STRING_TYPE) {
+        if (keyvals[i + 1]->type == STRING_TYPE)
+        {
             char *tmp = surround_string(valstr, keyvals[i]->data.String->length, '"', '"');
             free(valstr);
-            valstr=tmp;
+            valstr = tmp;
         }
 
         char *tmp = concat_strings(keystr, " : ");
@@ -572,29 +620,32 @@ bool rtmap_equal(const RtMap *map1, const RtMap *map2)
 /**
  * DESCRIPTION:
  * Function that clears a map of its elements
- * 
+ *
  * PARAMS:
  * map: map
  * free_key: if key objects should be freed
  * free_val: if val objects should be freed
  * free_immutable: wether immutable rt object data should be freed
-*/
-RtMap *rtmap_clear(RtMap *map,  bool free_key, bool free_val, bool free_immutable) {
+ */
+RtMap *rtmap_clear(RtMap *map, bool free_key, bool free_val, bool free_immutable)
+{
     assert(map);
 
-    for(size_t i=0; i < map->bucket_size; i++) {
-        if(!map->buckets[i])
+    for (size_t i = 0; i < map->bucket_size; i++)
+    {
+        if (!map->buckets[i])
             continue;
-        
+
         MapNode *node = map->buckets[i];
-        while(node) {
+        while (node)
+        {
             MapNode *tmp = node->next;
             free_MapNode(node, free_key, free_val, free_immutable);
             map->size--;
             node = tmp;
         }
 
-        map->buckets[i]= NULL;
+        map->buckets[i] = NULL;
     }
 
     assert(map->size == 0);

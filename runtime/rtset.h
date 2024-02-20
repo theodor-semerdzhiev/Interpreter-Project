@@ -20,6 +20,7 @@ RtObject *rtset_get(const RtSet *set, RtObject *obj);
 RtObject *rtset_remove(RtSet *set, RtObject *obj);
 RtObject **rtset_getrefs(const RtSet *set);
 void rtset_free(RtSet *set, bool free_obj, bool free_immutable);
+void rtset_print(const RtSet *set);
 char *rtset_toString(const RtSet *set);
 RtSet *rtset_cpy(const RtSet *set, bool deepcpy);
 bool rtset_equal(const RtSet *set1, const RtSet *set2);

@@ -193,14 +193,22 @@ rtfunc_toString(RtFunction *function)
             Builtin *func = function->func_data.built_in.func;
             size_t buffer_length = 65 + strlen(func->builtin_name) + 2 * sizeof(void *) + 1;
             char buffer[buffer_length];
-            snprintf(buffer, sizeof(buffer), "%s.func@%p", func->builtin_name, func->builtin_func);
+            snprintf(buffer, sizeof(buffer), "%s.builtin@%p", func->builtin_name, func->builtin_func);
             return cpy_string(buffer);
         }
 
         case ATTR_BUILTIN: {
-            // TODO
-            break;
+            AttrBuiltin *func = function->func_data.attr_built_in.func;
+            size_t buffer_length = strlen(func->attrsname) + 100;
+            char buffer[buffer_length];
+            snprintf(buffer, sizeof(buffer), "%s.%s.attrbuiltin@%p", 
+            func->attrsname,
+            rtobj_type_toString(function->func_data.attr_built_in.target->type),
+            func);
+
+            return cpy_string(buffer);
         }
+
         case REGULAR: {
             
             if (function->func_data.user_func.func_name)
@@ -223,6 +231,17 @@ rtfunc_toString(RtFunction *function)
         }
     }
     return NULL;
+}
+
+/**
+ * DESCRIPTION:
+ * Prints out rt function
+*/
+void rtfunc_print(RtFunction *func) {
+    assert(func);
+    char *str = rtfunc_toString(func);
+    printf("%s", str);
+    free(str);
 }
 
 /**

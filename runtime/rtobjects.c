@@ -127,12 +127,7 @@ rtobj_toString(const RtObject *obj)
         return cpy_string("null");
 
     case NUMBER_TYPE:
-    {
-
-        char buffer[65];
-        snprintf(buffer, sizeof(buffer), "%Lf", obj->data.Number->number);
-        return cpy_string(buffer);
-    }
+        return rtnumber_toString(obj->data.Number);
 
     case STRING_TYPE:
         return cpy_string(obj->data.String->string);
@@ -151,6 +146,54 @@ rtobj_toString(const RtObject *obj)
 
     case HASHSET_TYPE:
         return rtset_toString(obj->data.Set);
+    }
+}
+
+/**
+ * DESCRIPTION:
+ * Prints out a runtime object to standard output
+ * 
+ * UNDER CONSTRUCTION
+*/
+void rtobj_print(const RtObject *obj) {
+    switch (obj->type)
+    {
+    case UNDEFINED_TYPE:
+        printf("undefined");
+        return;
+
+    case NULL_TYPE:
+        printf("null");
+        return;
+
+    case NUMBER_TYPE:
+        printf("%Lf", obj->data.Number->number);
+        return;
+
+    case STRING_TYPE:
+        printf("%s", obj->data.String->string);
+        return;
+
+    case FUNCTION_TYPE:
+        rtfunc_print(obj->data.Func);
+        return;
+
+    case CLASS_TYPE:
+        // Prints out the classes lookup table
+        rtmap_print(obj->data.Class->attrs_table);
+        return;
+
+    case LIST_TYPE:
+        rtlist_print(obj->data.List);
+        return;
+
+    case HASHMAP_TYPE:
+        rtmap_print(obj->data.Map);
+        return;
+
+    case HASHSET_TYPE:
+        rtset_print(obj->data.Set);
+        return;
     }
 }
 

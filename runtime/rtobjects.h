@@ -80,6 +80,8 @@ bool eval_obj(const RtObject *obj);
 void rtobj_init_cmp_tbl();
 int rtobj_compare(const RtObject *obj1, const RtObject *obj2);
 
+void rtobj_print(const RtObject *obj);
+
 unsigned int rtobj_hash(const RtObject *obj);
 unsigned int rtobj_hash_data_ptr(const RtObject *obj);
 bool rtobj_shallow_equal(const RtObject *obj1, const RtObject *obj2);

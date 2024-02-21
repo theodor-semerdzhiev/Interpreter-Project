@@ -2,6 +2,7 @@
 #include "../generics/utilities.h"
 #include "rtobjects.h"
 #include "rtset.h"
+#include "gc.h"
 
 /**
  * DESCRIPTION:
@@ -396,9 +397,10 @@ __attribute__((warn_unused_result))
  * PARAMS:
  * set: set to copy
  * deepcpy: wether objects in set should be deep copied
+ * add_to_GC: wether objects contained by set should be added to GC
  */
 RtSet *
-rtset_cpy(const RtSet *set, bool deepcpy)
+rtset_cpy(const RtSet *set, bool deepcpy, bool add_to_GC)
 {
     assert(set);
     RtSet *cpy = init_RtSet(set->bucket_size);
@@ -407,8 +409,13 @@ rtset_cpy(const RtSet *set, bool deepcpy)
 
     RtObject **refs = rtset_getrefs(set);
 
-    for (int i = 0; refs[i] != NULL; i++)
-        rtset_insert(cpy, deepcpy ? rtobj_deep_cpy(refs[i]) : refs[i]);
+    for (int i = 0; refs[i] != NULL; i++) {
+        RtObject *val = deepcpy ? rtobj_deep_cpy(refs[i], add_to_GC) : refs[i];
+        rtset_insert(cpy, val);
+
+        if(add_to_GC)
+            add_to_GC_registry(val);
+    }
 
     free(refs);
     assert(set->size == cpy->size);

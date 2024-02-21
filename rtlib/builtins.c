@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <assert.h>
 #include <stdio.h>
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 #include "../compiler/compiler.h"
@@ -19,9 +20,13 @@
  * - typeof
  * - input
  * - num
+ * - copy
  * - len
  * - cmd
- *
+ * - min
+ * - max
+ * - abs
+ * - copy
  */
 
 #define BuiltinsInitError() exitprogram(FAILED_BUILTINS_INIT)
@@ -34,7 +39,10 @@ static RtObject *builtin_input(RtObject **args, int arg_count);
 static RtObject *builtin_toNumber(RtObject **args, int arg_count);
 static RtObject *builtin_len(RtObject**args, int arg_count);
 static RtObject *builtin_cmd(RtObject **args, int arg_count);
-
+static RtObject *builtin_max(RtObject **args, int argcount);
+static RtObject *builtin_min(RtObject **args, int argcount);
+static RtObject *builtin_abs(RtObject **args, int argcount);
+static RtObject *builtin_copy(RtObject **args, int argcount);
 
 static GenericMap *Builtin_Registry = NULL;
 
@@ -46,6 +54,10 @@ static const Builtin _builtin_input = {"input", builtin_input, 1};
 static const Builtin _builtin_number = {"num", builtin_toNumber, 1};
 static const Builtin _builtin_len = {"len", builtin_len, 1};
 static const Builtin _builtin_cmd = {"cmd", builtin_cmd, 1};
+static const Builtin _builtin_min = {"min", builtin_min, -1};
+static const Builtin _builtin_max = {"max", builtin_max, -1};
+static const Builtin _builtin_abs = {"abs", builtin_abs, -1};
+static const Builtin _builtin_copy = {"copy", builtin_copy, -1};
 
 /**
  * Defines equality for built in functions
@@ -91,7 +103,11 @@ int init_Builtins()
         InsertBuiltIn(_builtin_input.builtin_name, _builtin_input) &&
         InsertBuiltIn(_builtin_number.builtin_name, _builtin_number) &&
         InsertBuiltIn(_builtin_len.builtin_name, _builtin_len) &&
-        InsertBuiltIn(_builtin_cmd.builtin_name, _builtin_cmd);
+        InsertBuiltIn(_builtin_cmd.builtin_name, _builtin_cmd) &&
+        InsertBuiltIn(_builtin_min.builtin_name, _builtin_min) &&
+        InsertBuiltIn(_builtin_max.builtin_name, _builtin_max) &&
+        InsertBuiltIn(_builtin_abs.builtin_name, _builtin_abs) &&
+        InsertBuiltIn(_builtin_copy.builtin_name, _builtin_copy);
 
     
     if(successful_init)
@@ -418,3 +434,71 @@ static RtObject *builtin_cmd(RtObject **args, int arg_count) {
 
     return stdout_;
 }
+
+/**
+ * DESCRIPTION:
+ * Built in function for getting the max value
+ * 
+*/
+static RtObject *builtin_max(RtObject **args, int argcount) {
+    // temporary
+    assert(argcount > 0);
+
+    RtObject *max = args[0];
+    for(int i = 1; i < argcount; i++) {
+        if(rtobj_compare(max, args[i]) < 0) {
+            max = args[i];
+        }
+    }
+
+    return max;
+}
+
+/**
+ * DESCRIPTION:
+ * Built in function for getting the min value of a list
+ * 
+*/
+static RtObject *builtin_min(RtObject **args, int argcount) {
+    // temporary
+    assert(argcount > 0);
+
+    RtObject *max = args[0];
+    for(int i = 1; i < argcount; i++) {
+        if(rtobj_compare(max, args[i]) > 0) {
+            max = args[i];
+        }
+    }
+
+    return max;
+}
+
+/**
+ * DESCRIPTION:
+ * Built in function for computing the absolute value of a number
+ * 
+*/
+static RtObject *builtin_abs(RtObject **args, int argcount) {
+    // temporary
+    assert(argcount == 1);
+    assert(args[0]->type == NUMBER_TYPE);
+    RtNumber *num = init_RtNumber(fabsl(args[0]->data.Number->number));
+    RtObject *obj = init_RtObject(NUMBER_TYPE);
+    obj->data.Number=num;
+    return obj;
+}
+
+/**
+ * DESCRIPTION:
+ * Built in function for creating a deep copy of a runtime object
+*/
+static RtObject *builtin_copy(RtObject **args, int argcount) {
+    // temporary
+    assert(argcount == 1);
+    // objects is deep copied and ALL objects contained by that object are also deep copied
+    // therefore, all of those objects are added to the GC
+    RtObject *obj = rtobj_deep_cpy(args[0], true);
+    return obj;
+}
+
+

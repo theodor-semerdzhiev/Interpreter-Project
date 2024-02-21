@@ -81,6 +81,7 @@ init_RtObject(RtType type)
     }
     obj->type = type;
 
+    // special cases for null type and undefined type
     if(type == NULL_TYPE) {
         obj->data.GCFlag_NULL_TYPE = malloc(sizeof(bool));
         *obj->data.GCFlag_NULL_TYPE = false;
@@ -98,15 +99,29 @@ init_RtObject(RtType type)
  * If the object is a primitive type AND is NOT disposable, then its deep copied (this is constant time)
  * OR
  * if the object is disposable, no copy needs to be created
+ * 
+ * PARAMS:
+ * obj: obj to preprocess
+ * disposable: wether object is disposable or not
+ * add_to_GC: wether obj after preprocessing should be added to the GC
+ * 
+ * NOTE:
+ * If add_to_GC == true
+ * then obj after preprocessing is only added to GC if and only if
+ * its disposable OR its not disposable but a primitive type
 */
-RtObject *rtobj_rt_preprocess(RtObject *obj, bool disposable) {
+RtObject *rtobj_rt_preprocess(RtObject *obj, bool disposable, bool add_to_GC) {
     assert(obj);
     if(!disposable)
         assert(GC_Registry_has(obj));
+
     if (!disposable && rttype_isprimitive(obj->type))
-        return rtobj_deep_cpy(obj);
-    else
-        return obj;
+        return rtobj_deep_cpy(obj, add_to_GC);
+    
+    if(add_to_GC && disposable)
+        add_to_GC_registry(obj);
+
+    return obj;
 }
 
 
@@ -152,8 +167,8 @@ rtobj_toString(const RtObject *obj)
 /**
  * DESCRIPTION:
  * Prints out a runtime object to standard output
- * 
- * UNDER CONSTRUCTION
+ * PARAMS:
+ * obj: obj
 */
 void rtobj_print(const RtObject *obj) {
     switch (obj->type)
@@ -978,7 +993,11 @@ void rtobj_init_cmp_tbl() {
 /**
  * DESCRIPTION:
  * This functions is responsible for determining the ordering of objects
-*/
+ * 
+ * if obj1 > obj2 then output is positive
+ * else if obj1 == obj2 then output is 0
+ * else if obj1 < obj2 then output is negative
+ * */
 int rtobj_compare(const RtObject *obj1, const RtObject *obj2) {
     assert(obj1);
     assert(obj2);
@@ -1208,69 +1227,78 @@ rtobj_shallow_cpy(const RtObject *obj)
 
 __attribute__((warn_unused_result))
 /**
+ * DESCRIPTION:
  * Creates a new deep copy of a Runtime Object,
- * NOTE: For Function Type, a shallow copy is always peformed, since there is only one function instance
+ * 
+ * PARAMS:
+ * obj: obj
+ * add_to_gc, wether the objects CONTAINED by the new rtobject should be put into the GC
  */
 RtObject *
-rtobj_deep_cpy(const RtObject *obj)
+rtobj_deep_cpy(const RtObject *obj, bool add_to_gc)
 {
     RtObject *cpy = init_RtObject(obj->type);
-    if (!cpy)
+    if (!cpy) {
+        MallocError();
         return NULL;
+    }
 
     switch (obj->type)
     {
     case NUMBER_TYPE:
     {
         cpy->data.Number = init_RtNumber(obj->data.Number->number);
-        return cpy;
+        break;
     }
 
     case STRING_TYPE:
     {
         cpy->data.String = init_RtString(obj->data.String->string);
-        return cpy;
+        break;
     }
 
     // init_RtObject should have malloced a new bool*
     case NULL_TYPE:
     case UNDEFINED_TYPE:
     {
-        return cpy;
+        break;
     }
 
     case FUNCTION_TYPE:
     {
+        // rtobject contained by functions dont need to put into the GC
+        // since it can only be closures, and those should already be in the GC
         mutate_func_data(cpy, obj, true);
-        return cpy;
+        break;
     }
 
     case LIST_TYPE:
     {
-        cpy->data.List = rtlist_cpy(obj->data.List, true);
-        return cpy;
+        cpy->data.List = rtlist_cpy(obj->data.List, true, add_to_gc);
+        break;
     }
 
     case HASHMAP_TYPE:
     {
 
-        cpy->data.Map = rtmap_cpy(obj->data.Map, true, true);
-        return cpy;
+        cpy->data.Map = rtmap_cpy(obj->data.Map, true, true, add_to_gc);
+        break;
     }
 
     case HASHSET_TYPE:
     {
-        cpy->data.Set = rtset_cpy(obj->data.Set, true);
-        return NULL;
+        cpy->data.Set = rtset_cpy(obj->data.Set, true, add_to_gc);
+        break;
     }
 
     case CLASS_TYPE:
     {
 
-        cpy->data.Class = rtclass_cpy(obj->data.Class, true, true);
-        return cpy;
+        cpy->data.Class = rtclass_cpy(obj->data.Class, true, add_to_gc);
+        break;
     }
     }
+    return cpy;
 }
 
 /**

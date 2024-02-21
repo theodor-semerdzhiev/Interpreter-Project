@@ -54,18 +54,16 @@ RtClass *rtclass_cpy(const RtClass *class, bool deepcpy, bool add_to_GC) {
     RtObject **list = rtmap_getrefs(class->attrs_table, true, true);
 
     for(unsigned int i = 0; list[i] != NULL;) {
-        RtObject *key = list[i++];
-        RtObject *val = list[i++];
-
-        rtmap_insert(cpy->attrs_table, 
-            deepcpy? rtobj_deep_cpy(key): key,
-            deepcpy? rtobj_deep_cpy(val): val
-        );
+        RtObject *key = deepcpy? rtobj_deep_cpy(list[i], add_to_GC): list[i];
+        RtObject *val = deepcpy? rtobj_deep_cpy(list[i+1], add_to_GC): list[i+1];
+        rtmap_insert(cpy->attrs_table, key, val);
         
         if(add_to_GC) {
             add_to_GC_registry(key);
             add_to_GC_registry(val);
         }
+
+        i += 2;
     }
 
     assert(cpy->attrs_table->size == class->attrs_table->size);

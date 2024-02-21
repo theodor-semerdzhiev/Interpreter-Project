@@ -13,6 +13,8 @@ static RtObject *builtin_list_remove(RtObject *target, RtObject **args, int argc
 static RtObject *builtin_list_toset(RtObject *target, RtObject **args, int argcount);
 static RtObject *builtin_list_sort(RtObject *target, RtObject **args, int argcount);
 static RtObject *builtin_list_reverse(RtObject *target, RtObject **args, int argcount);
+static RtObject *builtin_list_max(RtObject *target, RtObject **args, int argcount);
+static RtObject *builtin_list_min(RtObject *target, RtObject **args, int argcount);
 
 static const AttrBuiltinKey _list_append_key = {LIST_TYPE, "append"};
 static const AttrBuiltin _list_append = 
@@ -54,6 +56,14 @@ static const AttrBuiltinKey _list_reverse_key = {LIST_TYPE, "reverse"};
 static const AttrBuiltin _list_reverse = 
 {LIST_TYPE, {.builtin_func = builtin_list_reverse}, -1, "reverse", true};
 
+static const AttrBuiltinKey _list_min_key = {LIST_TYPE, "min"};
+static const AttrBuiltin _list_min = 
+{LIST_TYPE, {.builtin_func = builtin_list_min}, -1, "min", true};
+
+static const AttrBuiltinKey _list_max_key = {LIST_TYPE, "max"};
+static const AttrBuiltin _list_max = 
+{LIST_TYPE, {.builtin_func = builtin_list_max}, -1, "max", true};
+
 void init_RtListAttr(GenericMap *registry) {
     addToAttrRegistry(registry, _list_append_key, _list_append);
     addToAttrRegistry(registry, _list_pop_key, _list_pop);
@@ -65,6 +75,8 @@ void init_RtListAttr(GenericMap *registry) {
     addToAttrRegistry(registry, _list_toset_key, _list_toset);
     addToAttrRegistry(registry, _list_sort_key, _list_sort);
     addToAttrRegistry(registry, _list_reverse_key, _list_reverse);
+    addToAttrRegistry(registry, _list_max_key, _list_max);
+    addToAttrRegistry(registry, _list_min_key, _list_min);
 }
 
 /**
@@ -215,7 +227,7 @@ static int _rtobj_reverse_compare_wrapper(const RtObject **o1, const RtObject **
  * Useful macro for sorting lists (in regular or reverse order)
 */
 #define SortList(rtlistobj, reverse) \
-    qsort(rtlistobj->data.List->objs, \ 
+    qsort(rtlistobj->data.List->objs, \
     rtlistobj->data.List->length, \
     sizeof(*(rtlistobj->data.List->objs)), \
     (int (*)(const void *, const void *)) \
@@ -274,5 +286,51 @@ static RtObject *builtin_list_sort(RtObject *target, RtObject **args, int argcou
     
     return target;
 }
+
+
+/**
+ * DESCRIPTION:
+ * Built in function for getting the max value of a list
+ * 
+*/
+static RtObject *builtin_list_max(RtObject *target, RtObject **args, int argcount) {
+    // temporary
+    assert(target->type == LIST_TYPE);
+    assert(argcount == 0);
+    (void)args;
+
+    RtList *list = target->data.List;
+    RtObject *max = list->objs[0];
+    for(size_t i = 1; i < list->length; i++) {
+        if(rtobj_compare(max, list->objs[i]) < 0) {
+            max = list->objs[i];
+        }
+    }
+
+    return max;
+}
+
+/**
+ * DESCRIPTION:
+ * Built in function for getting the min value of a list
+ * 
+*/
+static RtObject *builtin_list_min(RtObject *target, RtObject **args, int argcount) {
+    // temporary
+    assert(target->type == LIST_TYPE);
+    assert(argcount == 0);
+    (void)args;
+
+    RtList *list = target->data.List;
+    RtObject *min = list->objs[0];
+    for(size_t i = 1; i < list->length; i++) {
+        if(rtobj_compare(min, list->objs[i]) > 0) {
+            min = list->objs[i];
+        }
+    }
+
+    return min;
+}
+
 
 

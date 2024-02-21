@@ -744,7 +744,7 @@ static void perform_create_function(const RtObject *function)
     assert(function->type == FUNCTION_TYPE);
     assert(!function->data.Func->func_data.user_func.closure_obj);
 
-    RtObject *func = rtobj_deep_cpy(function);
+    RtObject *func = rtobj_deep_cpy(function, false);
     assert(!func->data.Func->func_data.user_func.closure_obj);
 
     unsigned int closure_count = func->data.Func->func_data.user_func.closure_count;
@@ -813,7 +813,7 @@ CallFrame *perform_function_call(unsigned int arg_count)
         arg_disposable[i] = disposable();
         RtObject *arg = StackMachine_pop(env->stk_machine, false);
 
-        arguments[i] = rtobj_rt_preprocess(arg, arg_disposable[i]);
+        arguments[i] = rtobj_rt_preprocess(arg, arg_disposable[i], true);
 
         addDisposablePrimitiveToGC(arg_disposable[i], arguments[i]);
 
@@ -988,7 +988,7 @@ static void perform_create_list(unsigned long length)
         RtObject *obj = StackMachine_pop(StackMachine, false);
         assert(obj);
 
-        obj = rtobj_rt_preprocess(obj, disposable);
+        obj = rtobj_rt_preprocess(obj, disposable, false);
         // if object is not disposable, then a shallow copy is created
         // since its not disposable, it means its already in the GC registry, so it can be discarded
         // tmp[i] = disposable ? obj : rtobj_shallow_cpy(obj);
@@ -1034,8 +1034,8 @@ static void perform_create_map(unsigned long size)
         bool keydispose = disposable();
         RtObject *key = StackMachine_pop(StackMachine, false);
 
-        val = rtobj_rt_preprocess(val, valdispose);
-        key = rtobj_rt_preprocess(key, valdispose);
+        val = rtobj_rt_preprocess(val, valdispose, false);
+        key = rtobj_rt_preprocess(key, valdispose, false);
         rtmap_insert(map, key, val);
 
         addDisposablePrimitiveToGC(valdispose, val);
@@ -1059,7 +1059,7 @@ static void perform_create_set(int setsize) {
         bool dispose = disposable();
         RtObject *obj = StackMachine_pop(StackMachine, false);
         assert(obj);
-        obj = rtobj_rt_preprocess(obj, dispose);
+        obj = rtobj_rt_preprocess(obj, dispose, false);
         rtset_insert(set, obj);
 
         addDisposablePrimitiveToGC(dispose, obj);
@@ -1147,7 +1147,7 @@ void perform_create_var(char *varname, AccessModifier access)
     {
         assert(GC_Registry_has(new_val));
         if (rttype_isprimitive(new_val->type))
-            cpy = rtobj_deep_cpy(new_val);
+            cpy = rtobj_deep_cpy(new_val, false);
         else
             cpy = rtobj_shallow_cpy(new_val);
     }
@@ -1224,7 +1224,8 @@ int run_program()
             {
                 // contants are imbedded within the bytecode
                 // therefore a deep copy is created
-                StackMachine_push(StackMachine, rtobj_deep_cpy(code->data.LOAD_CONST.constant), true);
+                StackMachine_push(StackMachine, 
+                rtobj_deep_cpy(code->data.LOAD_CONST.constant, false), true);
                 break;
             }
 
@@ -1491,13 +1492,6 @@ int run_program()
             {
                 return perform_exit();
             }
-
-                // TODO
-                // .
-                // .
-                // .
-                //
-                //
             }
 
             // trigger_GC();

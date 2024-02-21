@@ -52,7 +52,7 @@ typedef struct RtObject
 
 RtObject *init_RtObject(RtType type);
 
-RtObject *rtobj_rt_preprocess(RtObject *obj, bool disposable);
+RtObject *rtobj_rt_preprocess(RtObject *obj, bool disposable, bool add_to_GC);
 
 char *rtobj_toString(const RtObject *obj);
 RtObject *multiply_objs(RtObject *obj1, RtObject *obj2);
@@ -88,7 +88,7 @@ bool rtobj_shallow_equal(const RtObject *obj1, const RtObject *obj2);
 bool rtobj_equal(const RtObject *obj1, const RtObject *obj2);
 
 RtObject *rtobj_shallow_cpy(const RtObject *obj);
-RtObject *rtobj_deep_cpy(const RtObject *obj);
+RtObject *rtobj_deep_cpy(const RtObject *obj, bool add_to_gc);
 
 RtObject *rtobj_mutate(RtObject *target, const RtObject *new_value, bool new_val_disposable);
 RtObject *rtobj_getindex(RtObject *obj, RtObject *index);

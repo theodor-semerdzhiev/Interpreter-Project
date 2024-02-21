@@ -3,6 +3,7 @@
 #include <string.h>
 #include <assert.h>
 #include "rtlists.h"
+#include "gc.h"
 #include "rtobjects.h"
 #include "../generics/utilities.h"
 
@@ -182,16 +183,23 @@ __attribute__((warn_unused_result))
  * PARAMS:
  * list: list to copy
  * deepcpy: wether the list should be deep copied or shallow copied
+ * add_to_GC: wether objects CONTAINED by the list should be added to GC
  */
 RtList *
-rtlist_cpy(RtList *list, bool deepcpy)
+rtlist_cpy(RtList *list, bool deepcpy, bool add_to_GC)
 {
     RtList *newlist = init_RtList(list->memsize);
     if (newlist)
         return NULL;
+
     for (size_t i = 0; i < list->memsize; i++)
     {
-        newlist->objs[i] = deepcpy ? rtobj_deep_cpy(list->objs[i]) : list->objs[i];
+        newlist->objs[i] = 
+        deepcpy ? 
+        rtobj_deep_cpy(list->objs[i], add_to_GC): list->objs[i];
+
+        if(add_to_GC)
+            add_to_GC_registry(newlist->objs[i]);
     }
 
     return newlist;

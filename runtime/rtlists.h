@@ -20,7 +20,7 @@ RtObject *rtlist_poplast(RtList *list);
 RtObject *rtlist_removeindex(RtList *list, size_t index);
 RtObject *rtlist_popfirst(RtList *list);
 RtObject *rtlist_get(RtList *list, long index);
-RtList *rtlist_cpy(RtList *list, bool deepcpy);
+RtList *rtlist_cpy(RtList *list, bool deepcpy, bool add_to_GC);
 RtObject **rtlist_getrefs(const RtList *list);
 RtObject *rtlist_remove(RtList *list, RtObject *obj);
 

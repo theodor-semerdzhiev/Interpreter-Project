@@ -3,6 +3,7 @@
 #include <assert.h>
 #include "../generics/utilities.h"
 #include "rtmap.h"
+#include "gc.h"
 #include "rtobjects.h"
 #include "../generics/utilities.h"
 
@@ -403,9 +404,10 @@ __attribute__((warn_unused_result))
  * map: map to copy
  * deepcpy_key: wether key object should be deep copied
  * deepcpy_val: wether value object should be deep copied
+ * add_to_GC: wether rt objects contained by map should be added to GC
  */
 RtMap *
-rtmap_cpy(const RtMap *map, bool deepcpy_key, bool deepcpy_val)
+rtmap_cpy(const RtMap *map, bool deepcpy_key, bool deepcpy_val, bool add_to_GC)
 {
     assert(map);
     RtMap *cpy = init_RtMap(map->bucket_size);
@@ -414,13 +416,16 @@ rtmap_cpy(const RtMap *map, bool deepcpy_key, bool deepcpy_val)
 
     RtObject **refs = rtmap_getrefs(map, true, true);
 
-    for (int i = 0; refs[i] != NULL;)
-    {
-        rtmap_insert(
-            cpy,
-            deepcpy_key ? rtobj_deep_cpy(refs[i]) : refs[i],
-            deepcpy_val ? rtobj_deep_cpy(refs[i + 1]) : refs[i + 1]);
+    for (int i = 0; refs[i] != NULL;) {
+        RtObject *key = deepcpy_key? rtobj_deep_cpy(refs[i], add_to_GC): refs[i];
+        RtObject *val = deepcpy_val ? rtobj_deep_cpy(refs[i+1], add_to_GC) : refs[i+1];
+        rtmap_insert(cpy, key, val);
 
+        if(add_to_GC) {
+            add_to_GC_registry(key);
+            add_to_GC_registry(val);
+        }
+        
         i += 2;
     }
     free(refs);
@@ -493,7 +498,7 @@ void rtmap_print(const RtMap *map)
             counter++;
             if (counter == map->size)
                 break;
-                
+
             printf(", ");
             ptr = ptr->next;
         }

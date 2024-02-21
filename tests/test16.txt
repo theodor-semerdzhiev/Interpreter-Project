@@ -26,16 +26,25 @@ println(
     ]->sort())
 );
 
-let l = [];
-for(let i=100000; i > 0; i = i - 1;) {
-    if((i % 2) == 0) {
-        l->append(str(i));
-    } else {
-        l->append(i);
-    }
-}
+let m = map{"one":1, "two":2, "three":3, "four":4, "five":6};
+let l = m->items();
 
-println(l->sort());
+print("[");
+for(let i = 0; i < len(l); i = i + 1;) {
+    print("(", l[i][0], ", ", l[i][1], ")", ", ");
+}
+println("]");
+
+println(l);
+
+println(["abcd", 1, 2, 3, 4, 5, 6, 7, 8, 9]->min());
+
+let m_ = copy(m);
+m["one"] = 23;
+println(m_);
+println(m);
+
+
 
 
 

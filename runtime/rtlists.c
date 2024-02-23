@@ -150,7 +150,7 @@ RtObject *rtlist_removeindex(RtList *list, size_t index)
  * NOTES:
  * This function will return NULL if the index is out of bounds
  */
-RtObject *rtlist_get(RtList *list, long index)
+RtObject *rtlist_get(const RtList *list, long index)
 {
     assert(list);
     if ((size_t)index >= list->length && (size_t)index < 0)
@@ -186,20 +186,56 @@ __attribute__((warn_unused_result))
  * add_to_GC: wether objects CONTAINED by the list should be added to GC
  */
 RtList *
-rtlist_cpy(RtList *list, bool deepcpy, bool add_to_GC)
+rtlist_cpy(const RtList *list, bool deepcpy, bool add_to_GC)
 {
     RtList *newlist = init_RtList(list->memsize);
-    if (newlist)
+    if (!newlist)
         return NULL;
 
-    for (size_t i = 0; i < list->memsize; i++)
+    for (size_t i = 0; i < list->length; i++)
     {
-        newlist->objs[i] = 
-        deepcpy ? 
-        rtobj_deep_cpy(list->objs[i], add_to_GC): list->objs[i];
+        assert(list->objs[i]);
+        RtObject *cpy = deepcpy ? rtobj_deep_cpy(list->objs[i], add_to_GC): list->objs[i];
+        rtlist_append(newlist, cpy);
 
         if(add_to_GC)
-            add_to_GC_registry(newlist->objs[i]);
+            add_to_GC_registry(cpy);
+    }
+
+    return newlist;
+}
+
+/**
+ * DESCRIPTION:
+ * Helper function for multiplying a list, this function creates a new list
+ * 
+ * The rtobj_rt_preprocess function is used. Primitives type are always deep copied
+ * 
+ * PARAMS:
+ * list: list to multiply
+ * number: number to multiply by
+ * add_to_GC: wether objects contained by new list should be added 
+ * 
+ * NOTE:
+ * This function assumes that all elements in the input list are in the GC registry 
+*/
+RtList *rtlist_mult(const RtList *list, unsigned int number, bool add_to_GC) {
+    RtList *newlist = init_RtList(list->length * number);
+    if(!newlist) {
+        MallocError();
+        return NULL;
+    }
+
+    if(number == 0)
+        return newlist;
+    
+    for(unsigned int i = 0; i < number; i++) {
+        for(size_t j = 0 ; j < list->length; j ++) {
+
+            RtObject *obj = rtobj_rt_preprocess(list->objs[j], false, add_to_GC);
+            rtlist_append(newlist, obj);
+
+        }
     }
 
     return newlist;
@@ -235,7 +271,7 @@ RtObject **rtlist_getrefs(const RtList *list)
  * l2: list 2
  * deep_compare: wether they should be compared by reference only or not
  */
-bool rtlist_equals(RtList *l1, RtList *l2, bool deep_compare)
+bool rtlist_equals(const RtList *l1, const RtList *l2, bool deep_compare)
 {
     if (l1->length != l2->length)
         return false;
@@ -259,7 +295,7 @@ bool rtlist_equals(RtList *l1, RtList *l2, bool deep_compare)
  * list: list
  * obj: obj
  */
-bool rtlist_contains(RtList *list, RtObject *obj)
+bool rtlist_contains(const RtList *list, RtObject *obj)
 {
     assert(list && obj);
 

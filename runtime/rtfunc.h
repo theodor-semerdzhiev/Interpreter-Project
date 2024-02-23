@@ -51,7 +51,7 @@ typedef struct RtFunction
     bool GCFlag; // used by GC for garbage collection
 } RtFunction;
 
-RtObject *mutate_func_data(RtObject *target, const RtObject *new_val, bool deepcpy);
+RtObject *mutate_func_data(RtObject *target, const RtObject *new_val, bool deepcpy, bool add_to_GC);
 void free_func_data(RtObject *obj, bool free_immutable);
 void rtfunc_free(RtFunction *func, bool free_immutable);
 char *rtfunc_toString(RtFunction *function);

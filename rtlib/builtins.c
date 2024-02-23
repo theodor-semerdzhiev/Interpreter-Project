@@ -175,6 +175,8 @@ static RtObject *builtin_print(RtObject **args, int arg_count)
     for (int i = 0; i < arg_count; i++)
     {
         rtobj_print(args[i]);
+        if(i != arg_count-1)
+            printf(" ");
     }
 
     return init_RtObject(UNDEFINED_TYPE);
@@ -189,6 +191,8 @@ static RtObject *builtin_println(RtObject **args, int arg_count)
     for (int i = 0; i < arg_count; i++)
     {
         rtobj_print(args[i]);
+        if(i != arg_count-1)
+            printf(" ");
     }
     printf("\n");
 

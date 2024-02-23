@@ -4,7 +4,7 @@
 #include "rtobjects.h"
 #include "gc.h"
 
-#define MAX_STACK_SIZE 5000
+#define MAX_STACK_SIZE 16000
 
 typedef struct IdentifierTable IdentTable;
 

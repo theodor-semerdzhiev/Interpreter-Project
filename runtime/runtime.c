@@ -825,10 +825,10 @@ CallFrame *perform_function_call(unsigned int arg_count)
     bool func_disposable = disposable();
     RtObject *func = StackMachine_pop(env->stk_machine, false);
 
-    // if(func_disposable)
-    //     assert(!GC_Registry_has(func));
-    // else
-    //     assert(GC_Registry_has(func));
+    if(func_disposable)
+        assert(!GC_Registry_has(func));
+    else
+        assert(GC_Registry_has(func));
 
     // called object is not a function
     if (func->type != FUNCTION_TYPE)
@@ -839,7 +839,7 @@ CallFrame *perform_function_call(unsigned int arg_count)
     }
 
     // temporary for now
-    if (env->stack_ptr >= MAX_STACK_SIZE - 1 && func->data.Func->functype != REGULAR)
+    if (env->stack_ptr >= MAX_STACK_SIZE - 1 && func->data.Func->functype == REGULAR)
     {
 
         printf("Stack Overflow Error when calling function '%s' \n",

@@ -25,4 +25,6 @@ char *rtset_toString(const RtSet *set);
 RtSet *rtset_cpy(const RtSet *set, bool deepcpy, bool add_to_GC);
 bool rtset_equal(const RtSet *set1, const RtSet *set2);
 RtSet *rtset_clear(RtSet *set, bool free_obj, bool free_immutable); 
+RtSet *rtset_intersection(const RtSet *set1, const RtSet *set2, bool cpy, bool add_to_GC);
+RtSet *rtset_union(const RtSet *set1, const RtSet *set2, bool cpy, bool add_to_GC);
 

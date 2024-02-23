@@ -27,10 +27,12 @@
  * deepcpy: wether we should do a deep copy
  *
  */
-RtObject *mutate_func_data(RtObject *target, const RtObject *new_val, bool deepcpy)
+RtObject *mutate_func_data(RtObject *target, const RtObject *new_val, bool deepcpy, bool add_to_GC)
 {
     assert(target->type == FUNCTION_TYPE && new_val->type == FUNCTION_TYPE && new_val->data.Func);
     target->data.Func = rtfunc_cpy(new_val->data.Func, deepcpy);
+    if(add_to_GC)
+        add_to_GC_registry(target);
     return target;
 }
 

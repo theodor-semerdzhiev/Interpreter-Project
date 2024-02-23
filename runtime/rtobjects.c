@@ -263,14 +263,16 @@ multiply_obj_by_multiplier(double multiplier, const RtObject *obj)
 
     case LIST_TYPE:
     {
-        // TODO
-        return NULL;
+        RtList *list = rtlist_mult(obj->data.List, multiplier, true);
+        RtObject *result = init_RtObject(LIST_TYPE);
+        result->data.List=list;
+        return result;
     }
 
     default:
     {
         // invalid type
-        printf("Cannot multiply number and %s\n", rtobj_type_toString(obj->type));
+        printf("Cannot multiply number by %s\n", rtobj_type_toString(obj->type));
         return NULL;
     }
     }
@@ -310,6 +312,20 @@ multiply_objs(RtObject *obj1, RtObject *obj2)
     case NULL_TYPE:
     {
         return multiply_obj_by_multiplier(0, obj2);
+    }
+
+    case LIST_TYPE: {
+        switch (obj2->type)
+        {
+        case NUMBER_TYPE:
+        {
+            return multiply_obj_by_multiplier(obj2->data.Number->number, obj1);
+        }
+
+        default:
+            printf("Cannot multiply list and %s\n", rtobj_type_toString(obj2->type));
+            return NULL;
+        }
     }
 
     default:
@@ -1248,12 +1264,16 @@ rtobj_deep_cpy(const RtObject *obj, bool add_to_gc)
     case NUMBER_TYPE:
     {
         cpy->data.Number = init_RtNumber(obj->data.Number->number);
+        if(add_to_gc)
+            add_to_GC_registry(cpy);
         break;
     }
 
     case STRING_TYPE:
     {
         cpy->data.String = init_RtString(obj->data.String->string);
+        if(add_to_gc)
+            add_to_GC_registry(cpy);
         break;
     }
 
@@ -1261,6 +1281,8 @@ rtobj_deep_cpy(const RtObject *obj, bool add_to_gc)
     case NULL_TYPE:
     case UNDEFINED_TYPE:
     {
+        if(add_to_gc)
+            add_to_GC_registry(cpy);
         break;
     }
 
@@ -1268,7 +1290,7 @@ rtobj_deep_cpy(const RtObject *obj, bool add_to_gc)
     {
         // rtobject contained by functions dont need to put into the GC
         // since it can only be closures, and those should already be in the GC
-        mutate_func_data(cpy, obj, true);
+        mutate_func_data(cpy, obj, true, add_to_gc);
         break;
     }
 

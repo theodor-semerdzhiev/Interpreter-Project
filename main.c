@@ -59,7 +59,7 @@ AST_List *parse_file(char *filename)
     // if an error is detected, long jump is performed and if statement is called
     if (error_return != 0)
     {
-        parser_error:;
+    parser_error:;
         assert(parser->error_indicator);
         parser_error_cleanup(parser);
         return NULL;
@@ -71,14 +71,14 @@ AST_List *parse_file(char *filename)
     if (parser->error_indicator)
         goto parser_error;
 
-    // for debugging purposes 
+    // for debugging purposes
     print_ast_list(ast, "  ", 0);
 
     SemanticAnalyzer *sem_analyser = malloc_semantic_analyser(
-                                    filename, 
-                                    parser->lines.lines, 
-                                    parser->lines.line_count, 
-                                    parser->token_list);
+        filename,
+        parser->lines.lines,
+        parser->lines.line_count,
+        parser->token_list);
 
     free_parser(parser);
 
@@ -86,7 +86,7 @@ AST_List *parse_file(char *filename)
 
     if (is_sem_valid)
     {
-        printf("Valid semantics\n");        
+        printf("Valid semantics\n");
     }
     else
     {
@@ -95,7 +95,7 @@ AST_List *parse_file(char *filename)
     }
 
     free_semantic_analyser(sem_analyser);
-    return is_sem_valid? ast: NULL;
+    return is_sem_valid ? ast : NULL;
 }
 
 /* MAIN PROGRAM LOGIC */
@@ -108,31 +108,35 @@ int main(int argc, char *argv[])
     init_Precedence();
 
     AST_List *ast = parse_file(argv[1]);
-    // AST_List *ast = parse_file("./tests/test16.txt");
-    
-    free_keyword_table();
-    
-    if(!ast) {
-        return_code = 1;
-    } else {
+    // AST_List *ast = parse_file("./tests/test17.txt");
 
-        ByteCodeList* list = compile_code_body(ast, true, false);
-        
+    free_keyword_table();
+
+    if (!ast)
+    {
+        return_code = 1;
+    }
+    else
+    {
+
+        ByteCodeList *list = compile_code_body(ast, true, false);
+
         free_ast_list(ast);
 
-        deconstruct_bytecode(list,0);
+        deconstruct_bytecode(list, 0);
 
-        // Preps runtime environment 
-        if(!prep_runtime_env(list)) {
+        // Preps runtime environment
+        if (!prep_runtime_env(list))
+        {
             printf("Error occurred Setting up runtime environment.");
             return 1;
         }
 
         // Runs program
         return_code = run_program();
-        
+
         perform_cleanup();
-        
+
         free_ByteCodeList(list);
     }
 

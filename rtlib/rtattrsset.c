@@ -7,6 +7,9 @@ static RtObject *builtin_set_remove(RtObject *target, RtObject **args, int argco
 static RtObject *builtin_set_contains(RtObject *target, RtObject **args, int argcount);
 static RtObject *builtin_set_clear(RtObject *target, RtObject **args, int argcount);
 static RtObject *builtin_set_tolist(RtObject *target, RtObject **args, int argcount);
+static RtObject *builtin_set_union(RtObject *target, RtObject **args, int argcount);
+static RtObject *builtin_set_intersection(RtObject *target, RtObject **args, int argcount);
+
 
 static const AttrBuiltinKey _str_uppercase_key = {HASHSET_TYPE, "add"};
 static const AttrBuiltin _set_add =
@@ -28,6 +31,14 @@ static const AttrBuiltinKey _set_tolist_key = {HASHSET_TYPE, "toList"};
 static const AttrBuiltin _set_tolist =
     {HASHSET_TYPE, {.builtin_func = builtin_set_tolist}, 1, "toList", true};
 
+static const AttrBuiltinKey _set_union_key = {HASHSET_TYPE, "union"};
+static const AttrBuiltin _set_union =
+    {HASHSET_TYPE, {.builtin_func = builtin_set_union}, 1, "union", true};
+
+static const AttrBuiltinKey _set_intersection_key = {HASHSET_TYPE, "intersection"};
+static const AttrBuiltin _set_intersection =
+    {HASHSET_TYPE, {.builtin_func = builtin_set_intersection}, 1, "intersection", true};
+
 /**
  * DESCRIPTION:
  * Inserts built in functions for sets into the registry 
@@ -39,6 +50,8 @@ void init_RtSetAttr(GenericMap *registry)
     addToAttrRegistry(registry, _set_contains_key, _set_contains);
     addToAttrRegistry(registry, _set_clear_key, _set_clear);
     addToAttrRegistry(registry, _set_tolist_key, _set_tolist);
+    addToAttrRegistry(registry, _set_union_key, _set_union);
+    addToAttrRegistry(registry, _set_intersection_key, _set_intersection);
 }
 
 /**
@@ -127,4 +140,35 @@ static RtObject *builtin_set_tolist(RtObject *target, RtObject **args, int argco
     RtObject *listobj = init_RtObject(LIST_TYPE);
     listobj->data.List = list;
     return listobj;
+}
+
+/**
+ * DESCRIPTION:
+ * Builtin function for performing union set operation 
+*/
+static RtObject *builtin_set_union(RtObject *target, RtObject **args, int argcount) {
+    //temporary
+    assert(argcount == 1);
+    assert(target->type == HASHSET_TYPE);
+    assert(args[0]->type == HASHSET_TYPE);
+    RtSet *new_set = rtset_union(target->data.Set, args[0]->data.Set, true, true);
+    RtObject *obj = init_RtObject(HASHSET_TYPE);
+    obj->data.Set = new_set;
+    return obj;
+}
+
+/**
+ * DESCRIPTION:
+ * Builtin function for performing intersection set operation
+*/
+static RtObject *builtin_set_intersection(RtObject *target, RtObject **args, int argcount) {
+    //temporary
+    assert(argcount == 1);
+    assert(target->type == HASHSET_TYPE);
+    assert(args[0]->type == HASHSET_TYPE);
+    RtSet *new_set = rtset_intersection(target->data.Set, args[0]->data.Set, true, true);
+    RtObject *obj = init_RtObject(HASHSET_TYPE);
+    obj->data.Set = new_set;
+    return obj;
+
 }

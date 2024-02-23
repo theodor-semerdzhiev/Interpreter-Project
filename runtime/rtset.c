@@ -484,6 +484,81 @@ RtSet *rtset_clear(RtSet *set, bool free_obj, bool free_immutable) {
 
 /**
  * DESCRIPTION:
+ * Performs a union set operation on two sets, and returns a new set
+ * 
+ * PARAMS:
+ * set1: set1
+ * set2: set2
+ * cpy: wether the contents of the new set should be shallow copied or passed directly by reference
+ * add_to_GC: wether objs in the new set should be added to the GC registry
+*/
+RtSet *rtset_union(const RtSet *set1, const RtSet *set2, bool cpy, bool add_to_GC) {
+    RtSet *newset = init_RtSet(DEFAULT_SET_BUCKETS);
+    if(!newset) return NULL;
+    RtObject **contents1 = rtset_getrefs(set1);
+    RtObject **contents2 = rtset_getrefs(set2);
+    for(size_t i = 0; contents1[i] != NULL || contents2[i] != NULL; i++) {
+        RtObject *tmp1 = contents1[i];
+        RtObject *tmp2 = contents2[i];
+        
+        if(cpy) {
+            tmp1 = rtobj_rt_preprocess(tmp1, false, add_to_GC);
+            tmp2 = rtobj_rt_preprocess(tmp2, false, add_to_GC);
+        }
+
+        if(tmp1) 
+            rtset_insert(newset, tmp1);
+
+        if(tmp2) 
+            rtset_insert(newset, tmp2);
+    }
+
+    free(contents1);
+    free(contents2);
+    return newset;
+}
+
+/**
+ * DESCRIPTION:
+ * Performs a intersection set operation on two sets, and returns a new set
+ * 
+ * PARAMS:
+ * set1: set1
+ * set2: set2
+ * cpy: wether the contents of the new set should be shallow copied or passed directly by reference
+ * add_to_GC: wether objs in the new set should be added to the GC registry
+ * 
+ * NOTE:
+ * if a shallow copy is performed then object from the first set will be added to the new set
+*/
+RtSet *rtset_intersection(const RtSet *set1, const RtSet *set2, bool cpy, bool add_to_GC) {
+    RtSet *newset = init_RtSet(DEFAULT_SET_BUCKETS);
+    if(!newset) return NULL;
+
+    RtObject **contents1 = rtset_getrefs(set1);
+    RtObject **contents2 = rtset_getrefs(set2);
+
+    for(size_t i = 0; contents1[i] != NULL && contents2[i] != NULL; i++) {
+        RtObject *tmp1 = contents1[i];
+        RtObject *tmp2 = contents2[i];
+        
+        if(rtset_get(set1, tmp2)) {
+            RtObject *obj = tmp1;
+            if(cpy)
+                obj =  rtobj_rt_preprocess(obj, false, add_to_GC);
+
+            rtset_insert(newset, obj);
+        }
+    }
+
+    free(contents1);
+    free(contents2);
+    return newset;
+}
+
+
+/**
+ * DESCRIPTION:
  * Prints out set runtime object to standard output
 */
 void rtset_print(const RtSet *set) {

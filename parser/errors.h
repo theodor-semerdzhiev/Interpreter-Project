@@ -11,6 +11,7 @@ void print_invalid_access_modifer_err(Parser *parser, const char *keyword, const
 void print_unexpected_end_of_file_err(Parser *parser, const char *msg);
 void print_invalid_expression_component(Parser *parser, const char *msg);
 void print_invalid_for_loop_exp(Parser *parser, const char *msg);
+void print_invalid_exception_declaration(Parser *parser, const char *msg);
 
 
 /* Semantic errors */
@@ -33,4 +34,6 @@ void print_invalid_arg_count_err(
     const int arg_count, const int expected_arg_count,
     const int token_ptr, const char *msg);
 void print_invalid_global_return_value(SemanticAnalyzer *sa, const int token_ptr, const char *msg);
+void print_invalid_try_catch(SemanticAnalyzer *sa, const int token_ptr, const char *msg);
+
     

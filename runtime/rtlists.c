@@ -218,6 +218,8 @@ rtlist_cpy(const RtList *list, bool deepcpy, bool add_to_GC)
  * 
  * NOTE:
  * This function assumes that all elements in the input list are in the GC registry 
+ * 
+ * If list contains an other list, then that list is copied
 */
 RtList *rtlist_mult(const RtList *list, unsigned int number, bool add_to_GC) {
     RtList *newlist = init_RtList(list->length * number);
@@ -231,7 +233,6 @@ RtList *rtlist_mult(const RtList *list, unsigned int number, bool add_to_GC) {
     
     for(unsigned int i = 0; i < number; i++) {
         for(size_t j = 0 ; j < list->length; j ++) {
-
             RtObject *obj = rtobj_rt_preprocess(list->objs[j], false, add_to_GC);
             rtlist_append(newlist, obj);
 

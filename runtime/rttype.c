@@ -38,6 +38,8 @@ const char *rtobj_type_toString(RtType type)
         return "Map";
     case HASHSET_TYPE:
         return "Set";
+    case EXCEPTION_TYPE:
+        return "Exception";
     }
 }
 
@@ -81,6 +83,8 @@ void rttype_freedata(RtType type, void *data, bool freerefs) {
     case CLASS_TYPE:
         rtclass_free((RtClass*)data, freerefs, false);
         return;
+    case EXCEPTION_TYPE:
+        rtexception_free(((RtException*)data));
     }
 }
 
@@ -117,6 +121,9 @@ void rttype_set_GCFlag(void* data, RtType type, bool flag) {
         case HASHSET_TYPE:
             ((RtSet*)data)->GCFlag = flag;
             return;
+        case EXCEPTION_TYPE:
+            ((RtException*)data)->GCFlag = flag;
+            return;
 
     }
 
@@ -151,6 +158,8 @@ bool rttype_get_GCFlag(void *data, RtType type) {
         return ((RtClass*)data)->GCFlag;
     case HASHSET_TYPE:
         return ((RtSet*)data)->GCFlag;
+    case EXCEPTION_TYPE:
+        return ((RtException*)data)->GCFlag;
     }
 }
 

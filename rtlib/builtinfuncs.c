@@ -4,6 +4,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#include "builtinexception.h"
 #include "../compiler/compiler.h"
 #include "../generics/utilities.h"
 #include "../generics/hashmap.h"
@@ -37,65 +38,66 @@ static RtObject *builtin_toString(RtObject **args, int arg_count);
 static RtObject *builtin_typeof(RtObject **args, int arg_count);
 static RtObject *builtin_input(RtObject **args, int arg_count);
 static RtObject *builtin_toNumber(RtObject **args, int arg_count);
-static RtObject *builtin_len(RtObject**args, int arg_count);
+static RtObject *builtin_len(RtObject **args, int arg_count);
 static RtObject *builtin_cmd(RtObject **args, int arg_count);
 static RtObject *builtin_max(RtObject **args, int argcount);
 static RtObject *builtin_min(RtObject **args, int argcount);
 static RtObject *builtin_abs(RtObject **args, int argcount);
 static RtObject *builtin_copy(RtObject **args, int argcount);
 
-static GenericMap *Builtin_Registry = NULL;
+static GenericMap *BuiltinFunc_Registry = NULL;
 
-static const Builtin _builtin_print = {"print", builtin_print, -1};
-static const Builtin _builtin_println = {"println", builtin_println, -1};
-static const Builtin _builtin_string = {"str", builtin_toString, -1};
-static const Builtin _builtin_typeof = {"typeof", builtin_typeof, 1};
-static const Builtin _builtin_input = {"input", builtin_input, 1};
-static const Builtin _builtin_number = {"num", builtin_toNumber, 1};
-static const Builtin _builtin_len = {"len", builtin_len, 1};
-static const Builtin _builtin_cmd = {"cmd", builtin_cmd, 1};
-static const Builtin _builtin_min = {"min", builtin_min, -1};
-static const Builtin _builtin_max = {"max", builtin_max, -1};
-static const Builtin _builtin_abs = {"abs", builtin_abs, -1};
-static const Builtin _builtin_copy = {"copy", builtin_copy, -1};
+static const BuiltinFunc _builtin_print = {"print", builtin_print, -1};
+static const BuiltinFunc _builtin_println = {"println", builtin_println, -1};
+static const BuiltinFunc _builtin_string = {"str", builtin_toString, -1};
+static const BuiltinFunc _builtin_typeof = {"typeof", builtin_typeof, 1};
+static const BuiltinFunc _builtin_input = {"input", builtin_input, 1};
+static const BuiltinFunc _builtin_number = {"num", builtin_toNumber, 1};
+static const BuiltinFunc _builtin_len = {"len", builtin_len, 1};
+static const BuiltinFunc _builtin_cmd = {"cmd", builtin_cmd, 1};
+static const BuiltinFunc _builtin_min = {"min", builtin_min, -1};
+static const BuiltinFunc _builtin_max = {"max", builtin_max, -1};
+static const BuiltinFunc _builtin_abs = {"abs", builtin_abs, -1};
+static const BuiltinFunc _builtin_copy = {"copy", builtin_copy, -1};
 
 /**
  * Defines equality for built in functions
  */
-static bool builtins_equal(const Builtin *builtin1, const Builtin *builtin2)
+static bool builtins_equal(const BuiltinFunc *builtin1, const BuiltinFunc *builtin2)
 {
-    return builtin1->arg_count == builtin2->arg_count && builtin1->builtin_func == builtin2->builtin_func;
+    return builtin1->arg_count == builtin2->arg_count &&
+           builtin1->builtin_func == builtin2->builtin_func;
 }
 
-#define InsertBuiltIn(name, builtin_struct) GenericHashMap_insert(Builtin_Registry, name, (void *)&builtin_struct, false)
+#define InsertBuiltIn(name, builtin_struct) GenericHashMap_insert(BuiltinFunc_Registry, name, (void *)&builtin_struct, false)
 
 /**
- * Initializes builtins table
+ * Initializes builtin function table
  * returns 1 -> initialization was successful
  * return 0 -> initialization failed
  *
  * NOTE:
  * If lookup table is already initialized, function returns early
  */
-int init_Builtins()
+int init_BuiltinFuncs()
 {
     /* If builtins are already initialized */
-    if (Builtin_Registry)
+    if (BuiltinFunc_Registry)
         return 1;
 
-    Builtin_Registry = init_GenericMap(
+    BuiltinFunc_Registry = init_GenericMap(
         (unsigned int (*)(const void *))djb2_string_hash,
         (bool (*)(const void *, const void *))strings_equal,
         (void (*)(void *))NULL,
         (void (*)(void *))NULL);
 
-    if (!Builtin_Registry)
+    if (!BuiltinFunc_Registry)
     {
         printf("Failed to initialize Built in functions \n");
         return 0;
     }
 
-    bool successful_init = 
+    bool successful_init =
         InsertBuiltIn(_builtin_print.builtin_name, _builtin_print) &&
         InsertBuiltIn(_builtin_println.builtin_name, _builtin_println) &&
         InsertBuiltIn(_builtin_string.builtin_name, _builtin_string) &&
@@ -107,10 +109,10 @@ int init_Builtins()
         InsertBuiltIn(_builtin_min.builtin_name, _builtin_min) &&
         InsertBuiltIn(_builtin_max.builtin_name, _builtin_max) &&
         InsertBuiltIn(_builtin_abs.builtin_name, _builtin_abs) &&
-        InsertBuiltIn(_builtin_copy.builtin_name, _builtin_copy);
+        InsertBuiltIn(_builtin_copy.builtin_name, _builtin_copy) &&
+        init_BuiltinException(BuiltinFunc_Registry);
 
-    
-    if(successful_init)
+    if (successful_init)
     {
         return 1;
     }
@@ -130,10 +132,10 @@ bool ident_is_builtin(const char *identifier)
 {
     // lazy init
     // initialization fails, program exits
-    if (!init_Builtins())
+    if (!init_BuiltinFuncs())
         BuiltinsInitError();
 
-    return GenericHashMap_contains_key(Builtin_Registry, (void *)identifier);
+    return GenericHashMap_contains_key(BuiltinFunc_Registry, (void *)identifier);
 }
 
 /**
@@ -141,14 +143,14 @@ bool ident_is_builtin(const char *identifier)
  * Returns wether built in object associated with identifier
  * Returns NULL if key value pair does not exist
  */
-RtObject *get_builtin_func(const char *identifier)
+RtObject *get_builtinfunc(const char *identifier)
 {
     // lazy init
     // initialization fails, program exits
-    if (!init_Builtins())
+    if (!init_BuiltinFuncs())
         BuiltinsInitError();
 
-    Builtin *builtin = (Builtin *)GenericHashMap_get(Builtin_Registry, (void *)identifier);
+    BuiltinFunc *builtin = (BuiltinFunc *)GenericHashMap_get(BuiltinFunc_Registry, (void *)identifier);
     if (!builtin)
         return NULL;
 
@@ -163,8 +165,8 @@ RtObject *get_builtin_func(const char *identifier)
  */
 void cleanup_builtin()
 {
-    free_GenericMap(Builtin_Registry, false, false);
-    Builtin_Registry = NULL;
+    free_GenericMap(BuiltinFunc_Registry, false, false);
+    BuiltinFunc_Registry = NULL;
 }
 
 /**
@@ -175,7 +177,7 @@ static RtObject *builtin_print(RtObject **args, int arg_count)
     for (int i = 0; i < arg_count; i++)
     {
         rtobj_print(args[i]);
-        if(i != arg_count-1)
+        if (i != arg_count - 1)
             printf(" ");
     }
 
@@ -191,7 +193,7 @@ static RtObject *builtin_println(RtObject **args, int arg_count)
     for (int i = 0; i < arg_count; i++)
     {
         rtobj_print(args[i]);
-        if(i != arg_count-1)
+        if (i != arg_count - 1)
             printf(" ");
     }
     printf("\n");
@@ -215,13 +217,12 @@ static RtObject *builtin_toString(RtObject **args, int arg_count)
         free(str);
         free(tmp);
         str = new_str;
-
     }
 
     RtObject *string = init_RtObject(STRING_TYPE);
     string->data.String = init_RtString(NULL);
-    string->data.String->string=str;
-    string->data.String->length=strlen(str);
+    string->data.String->string = str;
+    string->data.String->length = strlen(str);
     return string;
 }
 
@@ -248,7 +249,7 @@ static RtObject *builtin_typeof(RtObject **args, int arg_count)
 
     RtObject *string_obj = init_RtObject(STRING_TYPE);
     const char *type = rtobj_type_toString(args[0]->type);
-    string_obj->data.String=init_RtString(type);
+    string_obj->data.String = init_RtString(type);
     return string_obj;
 }
 
@@ -303,7 +304,7 @@ static RtObject *builtin_toNumber(RtObject **args, int arg_count)
     if (args[0]->type == NUMBER_TYPE)
     {
         RtObject *num = init_RtObject(NUMBER_TYPE);
-        num->data.Number= args[0]->data.Number;
+        num->data.Number = args[0]->data.Number;
         return num;
     }
     else if (args[0]->type == STRING_TYPE)
@@ -332,13 +333,15 @@ static RtObject *builtin_toNumber(RtObject **args, int arg_count)
  * DESCRIPTION:
  * Implentation of the len built in function for getting the length of objects
  * This function only expects 1 argument
- * 
+ *
  * PARAMS:
  * args: argument objects
  * arg_count: # of argument
-*/
-static RtObject *builtin_len(RtObject**args, int arg_count) {
-    if(arg_count != 1) {
+ */
+static RtObject *builtin_len(RtObject **args, int arg_count)
+{
+    if (arg_count != 1)
+    {
         printf("len builtin function can only take 1 argument \n");
         return init_RtObject(UNDEFINED_TYPE);
     }
@@ -346,55 +349,62 @@ static RtObject *builtin_len(RtObject**args, int arg_count) {
     assert(arg);
     switch (arg->type)
     {
-    case HASHMAP_TYPE: {
+    case HASHMAP_TYPE:
+    {
         RtObject *length = init_RtObject(NUMBER_TYPE);
-        length->data.Number=init_RtNumber(arg->data.Map->size);
+        length->data.Number = init_RtNumber(arg->data.Map->size);
         return length;
     }
 
-    case LIST_TYPE: {
+    case LIST_TYPE:
+    {
         RtObject *length = init_RtObject(NUMBER_TYPE);
-        length->data.Number=init_RtNumber(arg->data.List->length);
+        length->data.Number = init_RtNumber(arg->data.List->length);
         return length;
     }
 
-    case STRING_TYPE: {
+    case STRING_TYPE:
+    {
         RtObject *length = init_RtObject(NUMBER_TYPE);
-        length->data.Number=init_RtNumber(arg->data.String->length);
+        length->data.Number = init_RtNumber(arg->data.String->length);
         return length;
     }
 
-    case HASHSET_TYPE: {
+    case HASHSET_TYPE:
+    {
         RtObject *length = init_RtObject(NUMBER_TYPE);
         length->data.Number = init_RtNumber(arg->data.Set->size);
         return length;
     }
-        
-    case CLASS_TYPE: {
+
+    case CLASS_TYPE:
+    {
         // UNDER CONSTRUCTION
         // RtObject *length = init_RtObject(NUMBER_TYPE);
         // length->data.Number = init_RtNumber(0);
         printf("Cannot get length of Class type\n");
         return init_RtObject(UNDEFINED_TYPE);
     }
-    
+
     default:
         printf("Cannot get length of object of type %s", rtobj_type_toString(arg->type));
         return init_RtObject(UNDEFINED_TYPE);
     }
-    
 }
 
 /**
  * DESCRIPTION:
  * Built in function for running commands in the command line
-*/
-static RtObject *builtin_cmd(RtObject **args, int arg_count) {
-    if(arg_count != 1) {
+ */
+static RtObject *builtin_cmd(RtObject **args, int arg_count)
+{
+    if (arg_count != 1)
+    {
         printf("Built in function cmd must take exactly one argument\n");
         return init_RtObject(UNDEFINED_TYPE);
     }
-    if(args[0]->type != STRING_TYPE) {
+    if (args[0]->type != STRING_TYPE)
+    {
         printf("Built in function cmd must take a string type argument\n");
         return init_RtObject(UNDEFINED_TYPE);
     }
@@ -402,23 +412,26 @@ static RtObject *builtin_cmd(RtObject **args, int arg_count) {
     char stdoutbuffer[5000];
     FILE *fp = NULL;
     char *command = args[0]->data.String->string;
-    char* output = NULL;
+    char *output = NULL;
     size_t output_size = 0;
     size_t bytes_read;
 
     /* Open the command for reading. */
     fp = popen(command, "r");
-    if (fp == NULL) {
+    if (fp == NULL)
+    {
         printf("Failed to run command '%s'\n", command);
         return init_RtObject(UNDEFINED_TYPE);
     }
 
     // Read the entire command output
-    while ((bytes_read = fread(stdoutbuffer, 1, sizeof(stdoutbuffer), fp)) > 0) {
+    while ((bytes_read = fread(stdoutbuffer, 1, sizeof(stdoutbuffer), fp)) > 0)
+    {
         // Resize output buffer
         output_size += bytes_read;
         output = realloc(output, output_size + 1);
-        if (output == NULL) {
+        if (output == NULL)
+        {
             perror("Memory allocation failed");
             pclose(fp);
             return NULL;
@@ -442,15 +455,18 @@ static RtObject *builtin_cmd(RtObject **args, int arg_count) {
 /**
  * DESCRIPTION:
  * Built in function for getting the max value
- * 
-*/
-static RtObject *builtin_max(RtObject **args, int argcount) {
+ *
+ */
+static RtObject *builtin_max(RtObject **args, int argcount)
+{
     // temporary
     assert(argcount > 0);
 
     RtObject *max = args[0];
-    for(int i = 1; i < argcount; i++) {
-        if(rtobj_compare(max, args[i]) < 0) {
+    for (int i = 1; i < argcount; i++)
+    {
+        if (rtobj_compare(max, args[i]) < 0)
+        {
             max = args[i];
         }
     }
@@ -461,15 +477,18 @@ static RtObject *builtin_max(RtObject **args, int argcount) {
 /**
  * DESCRIPTION:
  * Built in function for getting the min value of a list
- * 
-*/
-static RtObject *builtin_min(RtObject **args, int argcount) {
+ *
+ */
+static RtObject *builtin_min(RtObject **args, int argcount)
+{
     // temporary
     assert(argcount > 0);
 
     RtObject *max = args[0];
-    for(int i = 1; i < argcount; i++) {
-        if(rtobj_compare(max, args[i]) > 0) {
+    for (int i = 1; i < argcount; i++)
+    {
+        if (rtobj_compare(max, args[i]) > 0)
+        {
             max = args[i];
         }
     }
@@ -480,23 +499,25 @@ static RtObject *builtin_min(RtObject **args, int argcount) {
 /**
  * DESCRIPTION:
  * Built in function for computing the absolute value of a number
- * 
-*/
-static RtObject *builtin_abs(RtObject **args, int argcount) {
+ *
+ */
+static RtObject *builtin_abs(RtObject **args, int argcount)
+{
     // temporary
     assert(argcount == 1);
     assert(args[0]->type == NUMBER_TYPE);
     RtNumber *num = init_RtNumber(fabsl(args[0]->data.Number->number));
     RtObject *obj = init_RtObject(NUMBER_TYPE);
-    obj->data.Number=num;
+    obj->data.Number = num;
     return obj;
 }
 
 /**
  * DESCRIPTION:
  * Built in function for creating a deep copy of a runtime object
-*/
-static RtObject *builtin_copy(RtObject **args, int argcount) {
+ */
+static RtObject *builtin_copy(RtObject **args, int argcount)
+{
     // temporary
     assert(argcount == 1);
     // objects is deep copied and ALL objects contained by that object are also deep copied
@@ -504,5 +525,3 @@ static RtObject *builtin_copy(RtObject **args, int argcount) {
     RtObject *obj = rtobj_deep_cpy(args[0], true);
     return obj;
 }
-
-

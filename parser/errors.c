@@ -242,6 +242,7 @@ void print_invalid_access_modifer_err(Parser *parser, const char *keyword, const
     print_ctx_dependent_msg(parser->ctx, RED_TEXT);
 }
 
+
 /* Prints out unexpected end of file error */
 void print_unexpected_end_of_file_err(Parser *parser, const char *msg)
 {
@@ -275,6 +276,15 @@ void print_invalid_expression_component(Parser *parser, const char *msg)
         printf(RED_TEXT "%s\n" RESET_COLOR, msg);
 
     print_ctx_dependent_msg(parser->ctx, RED_TEXT);
+}
+
+/* Prints out error for wrong exception declaration */
+void print_invalid_exception_declaration(Parser *parser, const char *msg) {
+    _print_context(parser->token_list->list, parser->token_ptr, parser->file_name, parser->lines.lines);
+    printf(RED_TEXT "Invalid Exception declaration\n" RESET_COLOR);
+    if (msg)
+        printf(RED_TEXT "%s\n" RESET_COLOR, msg);
+
 }
 
 /* SEMANTIC ERRORS */
@@ -482,6 +492,18 @@ void print_invalid_arg_count_err(
 void print_invalid_global_return_value(SemanticAnalyzer *sa, const int token_ptr, const char *msg)
 {
     _print_context(sa->token_list->list, token_ptr, sa->filename, sa->lines.lines);
+
+    printf(RED_TEXT
+           "%s \n" RESET_COLOR, msg);
+
+}
+
+/* Prints out invalid try catch chain*/
+void print_invalid_try_catch(SemanticAnalyzer *sa, const int token_ptr, const char *msg)
+{
+    _print_context(sa->token_list->list, token_ptr, sa->filename, sa->lines.lines);
+
+    printf("Invalid try catch chain.\n");
 
     printf(RED_TEXT
            "%s \n" RESET_COLOR, msg);

@@ -451,6 +451,7 @@ bool rtset_equal(const RtSet *set1, const RtSet *set2)
     return true;
 }
 
+__attribute__((warn_unused_result))
 /**
  * DESCRIPTION:
  * Function that clears a set of its elements
@@ -482,6 +483,7 @@ RtSet *rtset_clear(RtSet *set, bool free_obj, bool free_immutable) {
     return set;
 }
 
+__attribute__((warn_unused_result))
 /**
  * DESCRIPTION:
  * Performs a union set operation on two sets, and returns a new set
@@ -497,20 +499,22 @@ RtSet *rtset_union(const RtSet *set1, const RtSet *set2, bool cpy, bool add_to_G
     if(!newset) return NULL;
     RtObject **contents1 = rtset_getrefs(set1);
     RtObject **contents2 = rtset_getrefs(set2);
-    for(size_t i = 0; contents1[i] != NULL || contents2[i] != NULL; i++) {
-        RtObject *tmp1 = contents1[i];
-        RtObject *tmp2 = contents2[i];
-        
-        if(cpy) {
-            tmp1 = rtobj_rt_preprocess(tmp1, false, add_to_GC);
-            tmp2 = rtobj_rt_preprocess(tmp2, false, add_to_GC);
-        }
 
-        if(tmp1) 
-            rtset_insert(newset, tmp1);
+    for(size_t i = 0; contents1[i] != NULL; i++) {
+        RtObject *obj = contents1[i];
+        if(cpy)
+            obj = rtobj_rt_preprocess(contents1[i], false, add_to_GC);
 
-        if(tmp2) 
-            rtset_insert(newset, tmp2);
+        rtset_insert(newset, obj);
+    }
+
+    for(size_t i = 0; contents2[i] != NULL; i++) {
+        RtObject *obj = contents2[i];
+
+        if(cpy)
+            obj = rtobj_rt_preprocess(contents2[i], false, add_to_GC);
+
+        rtset_insert(newset, obj);
     }
 
     free(contents1);

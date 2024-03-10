@@ -3,22 +3,13 @@
 func shortestpath(m) {
     let visited = [];
     for(let i =0; i < len(m); i = i + 1;) {
-        let l = [];
-        for(let j=0; j < len(m[i]); j = j + 1;) {
-            l->append(0);
-        }
-        visited->append(l);
+        visited->append([0] * len(m[i]));
     }
-
     let mem = [];
     for(let i =0; i < len(m); i = i + 1;) {
-        let l = [];
-        for(let j=0; j < len(m[i]); j = j + 1;) {
-            l->append(-1);
-        }
-        mem->append(l);
+        mem->append([-1] * len(m[i]));
     }
-
+    
     func sol(col, row) {
         if((col == -1) || (row == -1) || (col == len(m[0])) || (row == len(m))) {
             return 10000000000;
@@ -74,6 +65,8 @@ let w = [
 ];
 
 let w1 = copy(w);
+
+cmd("ls");
 
 
 println(shortestpath(w));

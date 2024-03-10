@@ -1,5 +1,4 @@
 #pragma once
-
 #include <stdio.h>
 #include "../generics/hashset.h"
 #include "../parser/parser.h"
@@ -97,6 +96,29 @@ typedef enum OpCode
     /* Deference a variable name to its value, and sets it to the previous mapping, if one is available */
     DEREF_VAR,
 
+    /* Creates a new exception object and pushes it onto the stack machine */
+    CREATE_EXCEPTION,
+
+    /* Pushes an exception handler onto the exception stack, this is run when entering try block */
+    PUSH_EXCEPTION_HANDLER,
+
+    /* Pops an exception handler from the exception stack, this is run when exiting try block */
+    POP_EXCEPTION_HANDLER,
+
+    /* Pops from stack machine and raises exception during runtime */
+    RAISE_EXCEPTION,
+
+    /* If currently raised exception does not match exception on stack machine, then raised exception is raised */
+    RAISE_EXCEPTION_IF_COMPARE_EXCEPTION_FALSE,
+
+    /* Offsets jump if raised Exception does not match exception on stack machine */
+    OFFSET_JUMP_IF_COMPARE_EXCEPTION_FALSE,
+
+
+    /**
+     * Resets currently raised exception
+    */
+    RESOLVE_RAISED_EXCEPTION,
 
     /* Used for creating objects, takes all elements in the local lookup table and creates an object, then pushes that onto the stack, then pop the call stack */
 
@@ -130,7 +152,7 @@ typedef enum OpCode
     Takes the top element of the stack,
     negates it, popping the stack,
     while adding the new value */
-    LOGICAL_NOT_VARS_OP, // ! stack [n]
+    LOGICAL_NOT_VARS_OP // ! stack [n]
 
 } OpCode;
 
@@ -232,7 +254,22 @@ typedef struct ByteCode
         struct
         {
             RtObject *function;
-        } CREATE_FUNCTION;        
+        } CREATE_FUNCTION;
+
+        struct
+        {
+            char *exception;
+            AccessModifier access;
+        } CREATE_EXCEPTION;
+
+        struct
+        {
+            int start_of_catch_block;
+        } PUSH_EXCEPTION_HANDLER;
+
+        struct {
+            int offset;
+        } OFFSET_JUMP_IF_COMPARE_EXCEPTION_FALSE;
 
     } data;
 
@@ -261,10 +298,12 @@ ByteCodeList *compile_exps_sequence(ExpressionNode **exps, int exps_length);
 ByteCodeList *compile_expression_component(ExpressionComponent *cm);
 ByteCode *compile_func_declaration(AST_node *function);
 ByteCodeList *compile_conditional_chain(AST_node *node, bool is_global_scope);
+ByteCodeList *compile_try_catch_chain(AST_node *node, bool is_global_scope, int rec_lvl);
 ByteCodeList *compiled_while_loop(AST_node *node, bool is_global_scope);
 ByteCodeList *compile_expression(ExpressionNode *root);
 ByteCode *compile_class_body(AST_node *node);
 ByteCodeList *compile_code_body(AST_List *body, bool is_global_scope, bool add_derefs);
+ByteCodeList *compile_raise_exception(AST_node *node);
 
 void free_ByteCodeList(ByteCodeList *list);
 void free_ByteCode(ByteCode *bytecode);

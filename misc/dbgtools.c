@@ -474,8 +474,9 @@ void print_ast_node(AST_node *node, char *buffer, int rec_lvl)
         break;
     }
 
-    case FOR_LOOP: {
-        
+    case FOR_LOOP:
+    {
+
         printf("@ FOR_LOOP: \n");
 
         print_repeated_string(buffer, rec_lvl + 1);
@@ -493,6 +494,37 @@ void print_ast_node(AST_node *node, char *buffer, int rec_lvl)
         print_repeated_string(buffer, rec_lvl + 1);
         printf("@ BODY\n");
         print_ast_list(node->body, buffer, rec_lvl + 1);
+
+        break;
+    }
+
+    case EXCEPTION_DECLARATION:
+    {
+        printf("@ EXCEPTION DELCARATION: %s\n", node->identifier.exception_name);
+        print_repeated_string(buffer, rec_lvl);
+        printf("ACCESS MODIFIER: %s \n", access_modifer_to_string(node->access));
+        break;
+    }
+
+    case TRY_CLAUSE:
+    {
+        printf("@ TRY BLOCK: \n");
+        print_ast_list(node->body, buffer, rec_lvl + 1);
+        break;
+    }
+
+    case CATCH_CLAUSE:
+    {
+        printf("@ CATCH:\n");
+        print_expression_tree(node->ast_data.catch_block.exception, buffer, rec_lvl + 1);
+        print_ast_list(node->body, buffer, rec_lvl + 1);
+        break;
+    }
+
+    case RAISE_EXPRESSION:
+    {
+        printf("@ RAISE_EXCEPTION:\n");
+        print_expression_tree(node->ast_data.catch_block.exception, buffer, rec_lvl + 1);
 
         break;
     }
@@ -565,10 +597,6 @@ void print_ast_node(AST_node *node, char *buffer, int rec_lvl)
         print_expression_component(node->identifier.expression_component, buffer, rec_lvl + 1);
         break;
     }
-
-    default:
-        printf("ast_node as invalid type: %d\n", node->type);
-        return;
     }
     return;
 }

@@ -4,24 +4,27 @@
 
 typedef enum keyword_type
 {
-  NOT_A_KEYWORD, // Define the case where its not a keyword
+    NOT_A_KEYWORD, // Define the case where its not a keyword
 
-  LET_KEYWORD,
-  FUNC_KEYWORD,
-  RETURN_KEYWORD,
-  BREAK_KEYWORD,
-  IF_KEYWORD,
-  ELSE_KEYWORD,
-  WHILE_KEYWORD,
-  FOR_KEYWORD,
-  CONTINUE_KEYWORD,
-  NULL_KEYWORD,
-  GLOBAL_KEYWORD,
-  PRIVATE_KEYWORD,
-  OBJECT_KEYWORD,
-  MAP_KEYWORD,
-  SET_KEYWORD
-  
+    LET_KEYWORD,
+    FUNC_KEYWORD,
+    RETURN_KEYWORD,
+    BREAK_KEYWORD,
+    IF_KEYWORD,
+    ELSE_KEYWORD,
+    WHILE_KEYWORD,
+    FOR_KEYWORD,
+    CONTINUE_KEYWORD,
+    NULL_KEYWORD,
+    GLOBAL_KEYWORD,
+    PRIVATE_KEYWORD,
+    OBJECT_KEYWORD,
+    MAP_KEYWORD,
+    SET_KEYWORD,
+    TRY_KEYWORD,
+    CATCH_KEYWORD,
+    EXCEPTION_KEYWORD,
+    RAISE_KEYWORD
 } KeywordType;
 
 void init_keyword_table();

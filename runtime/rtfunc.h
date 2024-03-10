@@ -5,10 +5,12 @@
 typedef struct ByteCodeList ByteCodeList;
 typedef struct AttrBuiltin AttrBuiltin;
 
-typedef enum RtFuncType {
-    REGULAR,
-    REGULAR_BUILTIN,
-    ATTR_BUILTIN
+typedef enum RtFuncType
+{
+    REGULAR_FUNC,
+    BUILTIN_FUNC,
+    ATTR_BUILTIN_FUNC,
+    EXCEPTION_CONSTRUCTOR_FUNC
 } RtFuncType;
 
 typedef struct RtFunction
@@ -39,13 +41,19 @@ typedef struct RtFunction
         // built in function
         struct
         {
-            Builtin *func; // IMMUTABLE
+            BuiltinFunc *func; // IMMUTABLE
         } built_in;
 
-        struct {
-            AttrBuiltin *func; // IMMUTABLE 
-            RtObject *target; 
+        struct
+        {
+            AttrBuiltin *func; // IMMUTABLE
+            RtObject *target;
         } attr_built_in;
+
+        struct
+        {
+            char *exception_name;
+        } exception_constructor;
     } func_data;
 
     bool GCFlag; // used by GC for garbage collection
@@ -60,5 +68,5 @@ bool rtfunc_equal(const RtFunction *func1, const RtFunction *func2);
 RtFunction *init_rtfunc(RtFuncType type);
 RtFunction *rtfunc_cpy(const RtFunction *func, bool deepcpy);
 RtObject **rtfunc_getrefs(const RtFunction *func);
-const char* rtfunc_type_toString(const RtFunction *func);
+const char *rtfunc_type_toString(const RtFunction *func);
 void rtfunc_print(RtFunction *func);

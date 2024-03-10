@@ -3,7 +3,7 @@
 #include <string.h>
 #include "vartable.h"
 #include "parser.h"
-#include "../rtlib/builtins.h"
+#include "../rtlib/builtinfuncs.h"
 
 /**
  * DESCRIPTION:

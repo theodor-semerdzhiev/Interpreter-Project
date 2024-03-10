@@ -1,0 +1,15 @@
+
+exception z;
+exception Ex;
+println(z);
+
+
+try {
+    z(1,2,3,4,5);
+} catch (z()) {
+    Ex();
+} catch(InvalidNumberOfArgumentsException()) {
+    print("  ");
+} catch() {
+    print("123");
+}

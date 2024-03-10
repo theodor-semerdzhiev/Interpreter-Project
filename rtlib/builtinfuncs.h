@@ -5,7 +5,7 @@ typedef struct RtObject RtObject;
 /**
  * Represents a Builtin Function
  */
-typedef struct Builtin
+typedef struct BuiltinFunc
 {
     // name of built in function
     char *builtin_name;
@@ -13,9 +13,10 @@ typedef struct Builtin
     RtObject *(*builtin_func)(RtObject **, int);
 
     int arg_count; // if its -1, then functions takes any amount of arguments
-} Builtin;
 
-int init_Builtins();
+} BuiltinFunc;
+
+int init_BuiltinFuncs();
 bool ident_is_builtin(const char *identifier);
-RtObject *get_builtin_func(const char *identifier);
+RtObject *get_builtinfunc(const char *identifier);
 void cleanup_builtin();

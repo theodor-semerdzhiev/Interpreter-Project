@@ -91,6 +91,7 @@ __attribute__((warn_unused_result))
 char *
 cpy_string(const char *str)
 {
+    if(!str) return NULL;
     char *cpy = malloc(sizeof(char) * (strlen(str) + 1));
     strcpy(cpy, str);
     return cpy;

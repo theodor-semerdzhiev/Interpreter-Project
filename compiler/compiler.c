@@ -69,7 +69,7 @@ static void _collect_free_vars_func_declaration(int recursion_lvl, AST_node *nod
 static void _collect_free_vars_inline_func_declaration(int recursion_lvl, AST_node *node, GenericSet *free_var_set, GenericSet *bound_var_set);
 static void _collect_free_vars_obj_declaration(int recursion_lvl, AST_node *node, GenericSet *free_var_set, GenericSet *bound_var_set);
 static void _collect_free_vars_from_ast_node(int recursion_lvl, AST_node *node, GenericSet *free_var_set, GenericSet *bound_var_set);
-static void _collect_free_vars_from_body(int recursion_lvl, AST_List *body, bool filter_free_vars ,GenericSet *free_var_set, GenericSet *bound_var_set);
+static void _collect_free_vars_from_body(int recursion_lvl, AST_List *body, bool filter_free_vars, GenericSet *free_var_set, GenericSet *bound_var_set);
 
 /******************************************/
 
@@ -415,7 +415,6 @@ static void _collect_free_vars_while_loop(
     _collect_free_vars_from_body(recursion_lvl + 1, node->body, true, free_var_set, bound_var_set);
 }
 
-
 /* Collects free vars from for loops */
 static void _collect_free_vars_for_loop(
     int recursion_lvl,
@@ -426,7 +425,7 @@ static void _collect_free_vars_for_loop(
     assert(node->type == FOR_LOOP);
 
     _collect_free_vars_from_body(
-        recursion_lvl + 1, 
+        recursion_lvl + 1,
         node->ast_data.for_loop.initialization,
         false,
         free_var_set,
@@ -435,17 +434,17 @@ static void _collect_free_vars_for_loop(
     _collect_free_vars_from_exp(recursion_lvl + 1, node->ast_data.for_loop.loop_conditional, free_var_set, bound_var_set);
 
     _collect_free_vars_from_body(
-        recursion_lvl + 1, 
+        recursion_lvl + 1,
         node->ast_data.for_loop.termination,
         false,
         free_var_set,
         bound_var_set);
 
     _collect_free_vars_from_body(
-        recursion_lvl + 1, 
-        node->body, 
+        recursion_lvl + 1,
+        node->body,
         true,
-        free_var_set, 
+        free_var_set,
         bound_var_set);
 }
 
@@ -549,13 +548,12 @@ static void _collect_free_vars_from_ast_node(
     case WHILE_LOOP:
         _collect_free_vars_while_loop(recursion_lvl, node, free_var_set, bound_var_set);
         break;
-    case FOR_LOOP: 
+    case FOR_LOOP:
         _collect_free_vars_for_loop(recursion_lvl, node, free_var_set, bound_var_set);
         break;
     case FUNCTION_DECLARATION:
         _collect_free_vars_func_declaration(recursion_lvl, node, free_var_set, bound_var_set);
         break;
-
 
     case RETURN_VAL:
         // collects free variables in return expression
@@ -593,17 +591,17 @@ static void _collect_free_vars_from_ast_node(
  * DESCRIPTION:
  * This function is responsible for collecting free variables from a code body
  * It iterates through the entire AST block and collects the free vars from each AST node
- * 
+ *
  * At the end, if filter_bounded_vars is set to true, then we clear all bounded variables
  * that must have been declared in the current scope or lower
- * 
+ *
  * PARAMS:
- * recursion_lvl: Keeps track of the nesting lvl of the code body, needed to keep track of local variables 
+ * recursion_lvl: Keeps track of the nesting lvl of the code body, needed to keep track of local variables
  * body: the code body
  * filter_bounded_vars: wether we should clear bounded variables before returning (this is useful for FOR loops)
  * free_var_set: set of free variables
  * bound_var_set: set of bounded variables
-*/
+ */
 static void _collect_free_vars_from_body(
     int recursion_lvl,
     AST_List *body,
@@ -621,7 +619,7 @@ static void _collect_free_vars_from_body(
         ptr = ptr->next;
     }
 
-    if(filter_bounded_vars)
+    if (filter_bounded_vars)
         /* Removes all bounded variables defined at equal or deeper nesting level */
         GenericSet_filter(bound_var_set, (bool (*)(void *))_filter_bge_nesting_lvl(recursion_lvl), true);
 }
@@ -650,8 +648,8 @@ ByteCode *init_ByteCode(OpCode code)
 /* Adds bytecode instruction to Byte Code list, return the list itself */
 ByteCodeList *add_bytecode(ByteCodeList *pg, ByteCode *instr)
 {
-    if(!pg->code) {
-
+    if (!pg->code)
+    {
     }
     pg->code[pg->pg_length] = instr;
     pg->pg_length++;
@@ -677,9 +675,10 @@ ByteCodeList *init_ByteCodeList()
     ByteCodeList *list = malloc(sizeof(ByteCodeList));
     list->malloc_len = DEFAULT_BYTECODE_LIST_LENGTH;
     list->pg_length = 0;
-    list->code = malloc(sizeof(ByteCode *) * (list->malloc_len+1));
-    for(int i=0; i < list->malloc_len; i++) {
-        list->code[i]=NULL;
+    list->code = malloc(sizeof(ByteCode *) * (list->malloc_len + 1));
+    for (int i = 0; i < list->malloc_len; i++)
+    {
+        list->code[i] = NULL;
     }
     return list;
 }
@@ -1031,7 +1030,7 @@ ByteCode *compile_func_declaration(AST_node *function)
 
     // Initializes function object
     // RtObject *func = init_RtObject(FUNCTION_TYPE);
-    RtFunction *func = init_rtfunc(REGULAR);
+    RtFunction *func = init_rtfunc(REGULAR_FUNC);
     func->func_data.user_func.body = compile_code_body(func_body, false, false);
     func->func_data.user_func.func_name =
         function->type == FUNCTION_DECLARATION ? malloc_string_cpy(NULL, func_name) : NULL;
@@ -1077,10 +1076,13 @@ ByteCode *compile_func_declaration(AST_node *function)
     return instruction;
 }
 
-/* Compiles conditional control flow */
+/**
+ * DESCRIPTION:
+ * This function is responsible for recursilvely compiling if else if else chains
+ */
 ByteCodeList *compile_conditional_chain(AST_node *node, bool is_global_scope)
 {
-
+    assert(node);
     // bases case
     // Reached end of code block or end of conditonal chain
     if (!node || (node->type != IF_CONDITIONAL &&
@@ -1148,8 +1150,135 @@ ByteCodeList *compile_conditional_chain(AST_node *node, bool is_global_scope)
     return compiled_node;
 }
 
+/**
+ * DESCRIPTION:
+ * This function is responsible for compiling try catch chains
+ *
+ * PARAMS:
+ * node: Current AST node
+ * is_global_scope: wether try catch chain is in the global scope
+ * rec_lvl: keeps track of recursion level
+ *
+ * NOTE:
+ * When first calling this function, rec_lvl should be set to 0
+ */
+ByteCodeList *compile_try_catch_chain(AST_node *node, bool is_global_scope, int rec_lvl)
+{
+    assert(rec_lvl >= 0);
 
-ByteCodeList *resolve_loop_continuation_termination(ByteCodeList *loop_code) {
+    // base case
+    // Reached end of code block and/or try catch chain
+    if (!node ||
+        (node->type != TRY_CLAUSE && node->type != CATCH_CLAUSE) ||
+        (node->type == TRY_CLAUSE && rec_lvl > 0))
+    {
+        return NULL;
+    }
+
+    // handles case where code block is empty
+    // therefore rendering then entire try catch chain dead code
+    // returns empty byte code list
+    if (node->type == TRY_CLAUSE && rec_lvl == 0 && (!node->body || node->body->length == 0))
+    {
+        return init_ByteCodeList();
+    }
+
+    ByteCodeList *list = init_ByteCodeList();
+
+    // initial case (try block)
+    if (node->type == TRY_CLAUSE && rec_lvl == 0)
+    {
+
+        ByteCodeList *try_body = compile_code_body(node->body, is_global_scope, true);
+        ByteCodeList *catch_chain = compile_try_catch_chain(node->next, is_global_scope, rec_lvl + 1);
+
+        // adds exception handler pop
+        try_body = add_bytecode(try_body, init_ByteCode(POP_EXCEPTION_HANDLER));
+
+        // adds offset jump at the end of the try body
+        ByteCode *jump = init_ByteCode(OFFSET_JUMP);
+        jump->data.OFFSET_JUMP.offset = catch_chain->pg_length + 1;
+        try_body = add_bytecode(try_body, jump);
+
+        // adds exception handler push
+        ByteCode *exception_handler = init_ByteCode(PUSH_EXCEPTION_HANDLER);
+        exception_handler->data.PUSH_EXCEPTION_HANDLER.start_of_catch_block = try_body->pg_length + 1;
+        list = add_bytecode(list, exception_handler);
+
+        list = concat_bytecode_lists(list, concat_bytecode_lists(try_body, catch_chain));
+
+        // catch case
+    }
+    else
+    {
+
+        ByteCodeList *catch_block = compile_code_body(node->body, is_global_scope, true);
+
+        if (!node->ast_data.catch_block.exception)
+        {
+            list = add_bytecode(list, init_ByteCode(RESOLVE_RAISED_EXCEPTION));
+            list = concat_bytecode_lists(list, catch_block);
+            return list;
+        }
+
+        ByteCodeList *rest_of_chain = compile_try_catch_chain(node->next, is_global_scope, rec_lvl + 1);
+        ByteCodeList *compiled_exp = compile_expression(node->ast_data.catch_block.exception);
+
+        // case where we reached the end of the catch chain
+        if (!rest_of_chain)
+        {
+            compiled_exp = add_bytecode(compiled_exp, init_ByteCode(RAISE_EXCEPTION_IF_COMPARE_EXCEPTION_FALSE));
+
+            compiled_exp = add_bytecode(compiled_exp, init_ByteCode(RESOLVE_RAISED_EXCEPTION));
+            catch_block = concat_bytecode_lists(compiled_exp, catch_block);
+
+            list = concat_bytecode_lists(list, catch_block);
+        }
+        else
+        {
+            // if the rest of the catch chain is not empty
+            // then it must be skipped with a OFFSET JUMP
+            if (rest_of_chain->pg_length > 0)
+            {
+                ByteCode *jump = init_ByteCode(OFFSET_JUMP);
+                jump->data.OFFSET_JUMP.offset = rest_of_chain->pg_length + 1;
+                catch_block = add_bytecode(catch_block, jump);
+            }
+
+            ByteCode *conditional_jump = init_ByteCode(OFFSET_JUMP_IF_COMPARE_EXCEPTION_FALSE);
+            conditional_jump->data.OFFSET_JUMP_IF_COMPARE_EXCEPTION_FALSE.offset = catch_block->pg_length + 1;
+            compiled_exp = add_bytecode(compiled_exp, conditional_jump);
+
+            compiled_exp = add_bytecode(compiled_exp, init_ByteCode(RESOLVE_RAISED_EXCEPTION));
+            catch_block = concat_bytecode_lists(compiled_exp, catch_block);
+
+            list = concat_bytecode_lists(list, concat_bytecode_lists(catch_block, rest_of_chain));
+        }
+    }
+
+    return list;
+}
+
+/**
+ * DESCRIPTION:
+ * Handles logic for compiling exception
+ */
+ByteCodeList *compile_raise_exception(AST_node *node)
+{
+    assert(node);
+    assert(node->type == RAISE_EXPRESSION);
+    ByteCodeList *compiled_exp = compile_expression(node->ast_data.raise.exp);
+    compiled_exp = add_bytecode(compiled_exp, init_ByteCode(RAISE_EXCEPTION));
+    return compiled_exp;
+}
+
+/**
+ * DESCRIPTION:
+ * Used in the for/while loop compilation logic to resolved control flow jumps
+ */
+ByteCodeList *resolve_loop_continuation_termination(ByteCodeList *loop_code)
+{
+    assert(loop_code);
     // resolves jump offsets for loop
     for (int i = 0; i < loop_code->pg_length; i++)
     {
@@ -1201,44 +1330,45 @@ ByteCodeList *compiled_while_loop(AST_node *node, bool is_global_scope)
 /**
  * DESCRIPTION:
  * Logic for compiling for loop
- * 
+ *
  * PARAMS:
  * node: for loop ast node
  * is_global_scope: wether for loop is contained within the global scope
-*/
-ByteCodeList *compile_for_loop(AST_node *node, bool is_global_scope) {
+ */
+ByteCodeList *compile_for_loop(AST_node *node, bool is_global_scope)
+{
     assert(node);
 
     AST_List *init = node->ast_data.for_loop.initialization;
     ExpressionNode *conditional = node->ast_data.for_loop.loop_conditional;
     AST_List *terminator = node->ast_data.for_loop.termination;
 
-    ByteCodeList *initializer = 
-    compile_code_body(init, false, false);
+    ByteCodeList *initializer =
+        compile_code_body(init, false, false);
 
-    ByteCodeList *cond = 
-    compile_expression(conditional);
+    ByteCodeList *cond =
+        compile_expression(conditional);
 
-    ByteCodeList *termination_code = 
-    compile_code_body(terminator, false, false);
+    ByteCodeList *termination_code =
+        compile_code_body(terminator, false, false);
 
-    ByteCodeList *compiled_body = 
-    compile_code_body(node->body, is_global_scope, true);
+    ByteCodeList *compiled_body =
+        compile_code_body(node->body, is_global_scope, true);
 
     compiled_body = concat_bytecode_lists(compiled_body, termination_code);
 
     ByteCode *jump = NULL;
 
-    if(cond) {
+    if (cond)
+    {
         jump = init_ByteCode(OFFSET_JUMP_IF_FALSE_POP);
         // +2 because we must jump over the offset jump at the end
         jump->data.OFFSET_JUMP_IF_FALSE_POP.offset = compiled_body->pg_length + 2;
     }
 
     ByteCodeList *loop_code = concat_bytecode_lists(
-        jump? add_bytecode(cond, jump): cond, // we only add conditional if its non empty
-        compiled_body
-    );
+        jump ? add_bytecode(cond, jump) : cond, // we only add conditional if its non empty
+        compiled_body);
 
     loop_code = resolve_loop_continuation_termination(loop_code);
 
@@ -1250,13 +1380,14 @@ ByteCodeList *compile_for_loop(AST_node *node, bool is_global_scope) {
     loop_code = concat_bytecode_lists(initializer, loop_code);
 
     // adds deref if initializer code creates a variable
-    if(init && init->length == 1 && init->head->type == VAR_DECLARATION) {
+    if (init && init->length == 1 && init->head->type == VAR_DECLARATION)
+    {
         ByteCode *deref = init_ByteCode(DEREF_VAR);
         char *varname = node->ast_data.for_loop.initialization->head->identifier.declared_var;
         deref->data.DEREF_VAR.var = cpy_string(varname);
         loop_code = add_bytecode(loop_code, deref);
     }
-    
+
     return loop_code;
 }
 
@@ -1270,7 +1401,7 @@ ByteCode *compile_class_body(AST_node *node)
     ExpressionNode **args = node->ast_data.obj_args.object_prototype_args;
     int arg_count = node->ast_data.obj_args.args_num;
 
-    RtFunction *constructor = init_rtfunc(REGULAR);
+    RtFunction *constructor = init_rtfunc(REGULAR_FUNC);
     constructor->func_data.user_func.body = compile_code_body(node->body, false, false);
     constructor->func_data.user_func.func_name = cpy_string(node->identifier.obj_name);
 
@@ -1399,20 +1530,23 @@ ByteCodeList *compile_code_body(AST_List *body, bool is_global_scope, bool add_d
         case VAR_DECLARATION:
         {
             ByteCodeList *compiled_rhs = compile_expression(node->ast_data.exp);
-            if(compiled_rhs) {
+            if (compiled_rhs)
+            {
                 list = concat_bytecode_lists(list, compiled_rhs);
-            } else {
+            }
+            else
+            {
                 ByteCode *code = init_ByteCode(LOAD_CONST);
                 code->data.LOAD_CONST.constant = init_RtObject(UNDEFINED_TYPE);
-                if(!list)
+                if (!list)
                     list = init_ByteCodeList();
-                    
+
                 add_bytecode(list, code);
             }
 
             char *varname = node->identifier.declared_var;
             ByteCode *instruction = init_ByteCode(CREATE_VAR);
-            instruction->data.CREATE_VAR.new_var_name = malloc_string_cpy(NULL, varname);
+            instruction->data.CREATE_VAR.new_var_name = cpy_string(varname);
             assert(node->access != DOES_NOT_APPLY);
             instruction->data.CREATE_VAR.access = node->access;
 
@@ -1529,7 +1663,7 @@ ByteCodeList *compile_code_body(AST_List *body, bool is_global_scope, bool add_d
             break;
         }
 
-        case FOR_LOOP: 
+        case FOR_LOOP:
         {
             list = concat_bytecode_lists(list, compile_for_loop(node, is_global_scope));
             break;
@@ -1565,7 +1699,39 @@ ByteCodeList *compile_code_body(AST_List *body, bool is_global_scope, bool add_d
             break;
         }
 
-        // these cases should never happen
+        case EXCEPTION_DECLARATION:
+        {
+            ByteCode *code = init_ByteCode(CREATE_EXCEPTION);
+            code->data.CREATE_EXCEPTION.exception = cpy_string(node->identifier.exception_name);
+            code->data.CREATE_EXCEPTION.access = node->access;
+            if (!list)
+                list = init_ByteCodeList();
+            add_bytecode(list, code);
+            break;
+        }
+
+        // TODO
+        case TRY_CLAUSE:
+        {
+            list = concat_bytecode_lists(list, compile_try_catch_chain(node, is_global_scope, 0));
+
+            node = node->next;
+            // skips already compiled try catch chain
+            while (node && node->type != CATCH_CLAUSE)
+            {
+                node = node->next;
+            }
+            break;
+        }
+
+        case RAISE_EXPRESSION:
+        {
+            list = concat_bytecode_lists(list, compile_raise_exception(node));
+            break;
+        }
+
+        // these cases should never happen (they should be already handled)
+        case CATCH_CLAUSE:
         case ELSE_CONDITIONAL:
         case ELSE_IF_CONDITIONAL:
             break;
@@ -1640,6 +1806,11 @@ void free_ByteCode(ByteCode *bytecode)
         rtobj_free(bytecode->data.CREATE_FUNCTION.function, true);
         break;
     }
+    case CREATE_EXCEPTION:
+    {
+        free(bytecode->data.CREATE_EXCEPTION.exception);
+        break;
+    }
 
     case POP_STACK:
     case FUNCTION_RETURN_UNDEFINED:
@@ -1674,9 +1845,14 @@ void free_ByteCode(ByteCode *bytecode)
     case LOGICAL_AND_VARS_OP:
     case LOGICAL_OR_VARS_OP:
     case LOGICAL_NOT_VARS_OP:
-        break;
-
-    default:
+    case EXP_VARS_OP:
+    case PUSH_EXCEPTION_HANDLER:
+    case POP_EXCEPTION_HANDLER:
+    case RAISE_EXCEPTION:
+    case RAISE_EXCEPTION_IF_COMPARE_EXCEPTION_FALSE:
+    case OFFSET_JUMP_IF_COMPARE_EXCEPTION_FALSE:
+    case RESOLVE_RAISED_EXCEPTION:
+    case CREATE_OBJECT_RETURN:
         break;
     }
 
@@ -1768,10 +1944,51 @@ void deconstruct_bytecode(ByteCodeList *bytecode, int offset)
             break;
         }
 
+        case CREATE_EXCEPTION:
+        {
+            printf("CREATE_EXCEPTION %s\n", instrc->data.CREATE_EXCEPTION.exception);
+            break;
+        }
+
+        case POP_EXCEPTION_HANDLER:
+        {
+            printf("POP_EXCEPTION_HANDLER\n");
+            break;
+        }
+
+        case PUSH_EXCEPTION_HANDLER:
+        {
+            printf("PUSH_EXCEPTION_HANDLER %d offset\n",
+                   instrc->data.PUSH_EXCEPTION_HANDLER.start_of_catch_block);
+            break;
+        }
+        case RAISE_EXCEPTION:
+        {
+            printf("RAISE_EXCEPTION\n");
+            break;
+        }
+        case RAISE_EXCEPTION_IF_COMPARE_EXCEPTION_FALSE:
+        {
+            printf("RAISE_EXCEPTION_IF_COMPARE_EXCEPTION_FALSE\n");
+            break;
+        }
+        case OFFSET_JUMP_IF_COMPARE_EXCEPTION_FALSE:
+        {
+            printf("OFFSET_JUMP_IF_COMPARE_EXCEPTION_FALSE: %d \n",
+            instrc->data.OFFSET_JUMP_IF_COMPARE_EXCEPTION_FALSE.offset);
+            break;
+        }
+
+        case RESOLVE_RAISED_EXCEPTION:
+        {
+            printf("RESOLVED_RAISED_EXCEPTION \n");
+            break;
+        }
+
+
         case CREATE_OBJECT_RETURN:
         {
             printf("CREATE_OBJECT_RETURN\n");
-            // TODO
             break;
         }
         case ABSOLUTE_JUMP:

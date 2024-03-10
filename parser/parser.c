@@ -51,7 +51,6 @@ void init_Precedence()
     Precedence[LESSER_THAN] = 5;
     Precedence[LESSER_EQUAL] = 5;
     Precedence[EQUAL_TO] = 5;
-
 }
 
 /** DESCRIPTION:
@@ -469,10 +468,11 @@ KeyValue **parser_key_value_pair_exps(
     KeyValue **pairs = malloc(sizeof(KeyValue) * DEFAULT_ARG_LIST_LENGTH);
     int pair_list_max_length = DEFAULT_ARG_LIST_LENGTH;
     int pair_count = 0;
-    
+
     // handles special case where an empty body is declared
     enum token_type type = parser->token_list->list[parser->token_ptr]->type;
-    if(type == end_of_exp) {
+    if (type == end_of_exp)
+    {
         pairs[pair_count] = NULL;
         parser->token_ptr++;
         return pairs;
@@ -657,8 +657,8 @@ ExpressionComponent *parse_expression_component(
         else
         {
             char *c;
-            component->meta_data.numeric_const = 
-            (long double)strtold(list[parser->token_ptr]->ident, &c);
+            component->meta_data.numeric_const =
+                (long double)strtold(list[parser->token_ptr]->ident, &c);
         }
         parser->token_ptr++;
     }
@@ -1129,7 +1129,7 @@ static ExpressionNode *construct_expression_tree(GenericLList *inputList, Generi
 AST_node *malloc_ast_node(Parser *parser)
 {
     AST_node *node = malloc(sizeof(AST_node));
-    if(!node) 
+    if (!node)
         MallocError();
     node->body = NULL;
     node->prev = NULL;
@@ -1197,7 +1197,7 @@ void free_ast_node(AST_node *node)
         return;
     }
 
-    case FOR_LOOP: 
+    case FOR_LOOP:
     {
         free_ast_list(node->ast_data.for_loop.initialization);
         free_ast_list(node->ast_data.for_loop.termination);
@@ -1252,6 +1252,34 @@ void free_ast_node(AST_node *node)
         return;
     }
 
+    case EXCEPTION_DECLARATION:
+    {
+        free(node->identifier.exception_name);
+        free(node);
+        return;
+    }
+
+    case TRY_CLAUSE:
+    {
+        free_ast_list(node->body);
+        free(node);
+        return;
+    }
+
+    case CATCH_CLAUSE:
+    {
+        free_expression_tree(node->ast_data.catch_block.exception);
+        free_ast_list(node->body);
+        free(node);
+        return;
+    }
+
+    case RAISE_EXPRESSION: {
+        free_expression_tree(node->ast_data.exp);
+        free(node);
+        return;
+    }
+
     case EXPRESSION_COMPONENT:
     {
         free_expression_component(node->identifier.expression_component);
@@ -1262,9 +1290,6 @@ void free_ast_node(AST_node *node)
     case LOOP_TERMINATOR:
     case LOOP_CONTINUATION:
         free(node);
-        return;
-
-    default:
         return;
     }
 }
@@ -1434,7 +1459,8 @@ AST_node *parse_while_loop(Parser *parser, int rec_lvl)
 
 #define ReachedEndOfFor() list[parser->token_ptr]->type == CLOSING_PARENTHESIS
 
-AST_node *parse_for_loop(Parser *parser, int rec_lvl) {
+AST_node *parse_for_loop(Parser *parser, int rec_lvl)
+{
     assert(parser);
     Token **list = parser->token_list->list;
     assert(get_keyword_type(list[parser->token_ptr]->ident) == FOR_KEYWORD);
@@ -1452,9 +1478,9 @@ AST_node *parse_for_loop(Parser *parser, int rec_lvl) {
     // Handles case where for loop as empty body, i.e for () {...}
     if (list[parser->token_ptr + 2]->type == CLOSING_PARENTHESIS)
     {
-        print_invalid_for_loop_exp(parser, 
-        "To make an infinite loop, do: \n"
-        "for(;;;) { ... } \n");
+        print_invalid_for_loop_exp(parser,
+                                   "To make an infinite loop, do: \n"
+                                   "for(;;;) { ... } \n");
         stop_parsing(parser);
         return NULL;
     }
@@ -1465,23 +1491,23 @@ AST_node *parse_for_loop(Parser *parser, int rec_lvl) {
     parser->token_ptr += 2;
 
     node->ast_data.for_loop.initialization = NULL;
-    node->ast_data.for_loop.loop_conditional= NULL;
+    node->ast_data.for_loop.loop_conditional = NULL;
     node->ast_data.for_loop.termination = NULL;
 
     const enum token_type end_of_block1[] = {SEMI_COLON};
     const enum token_type end_of_block2[] = {CLOSING_PARENTHESIS};
 
     // parses first part of for loop (what runs before running the loop)
-    node->ast_data.for_loop.initialization = 
-    parse_code_block(parser, NULL, rec_lvl+1, true, end_of_block1, 1);
+    node->ast_data.for_loop.initialization =
+        parse_code_block(parser, NULL, rec_lvl + 1, true, end_of_block1, 1);
 
-    // parses loop conditional 
-    node->ast_data.for_loop.loop_conditional = 
-    parse_expression(parser, end_of_block1, 1);
+    // parses loop conditional
+    node->ast_data.for_loop.loop_conditional =
+        parse_expression(parser, end_of_block1, 1);
 
     // parses loop terminator (what runs at the end of every iteration)
-    node->ast_data.for_loop.termination = 
-    parse_code_block(parser, NULL, rec_lvl+1, false , end_of_block2, 1);
+    node->ast_data.for_loop.termination =
+        parse_code_block(parser, NULL, rec_lvl + 1, false, end_of_block2, 1);
 
     // checks for open curly brackets
     if (list[parser->token_ptr]->type != OPEN_CURLY_BRACKETS)
@@ -1492,7 +1518,7 @@ AST_node *parse_for_loop(Parser *parser, int rec_lvl) {
         return NULL;
     }
 
-    ParseForBody:;
+ParseForBody:;
 
     parser->token_ptr++;
 
@@ -1927,6 +1953,157 @@ AST_node *parse_variable_assignment_exp_func_component(Parser *parser, int rec_l
     return node;
 }
 
+/**
+ * DESCRIPTION:
+ * Parses exception declaration
+ */
+AST_node *parse_exception_declaration(Parser *parser)
+{
+    assert(parser);
+    Token **list = parser->token_list->list;
+
+    AccessModifier access_modifier = parse_access_modifer(parser, EXCEPTION_KEYWORD);
+
+    assert(get_keyword_type(list[parser->token_ptr]->ident) == EXCEPTION_KEYWORD);
+
+    if (list[parser->token_ptr + 1]->type == IDENTIFIER && list[parser->token_ptr + 2]->type == SEMI_COLON)
+    {
+        char *exename = list[parser->token_ptr + 1]->ident;
+        AST_node *node = malloc_ast_node(parser);
+        node->line_num = list[parser->token_ptr]->line_num;
+        node->token_num = list[parser->token_ptr]->line_pos;
+        node->type = EXCEPTION_DECLARATION;
+        node->identifier.exception_name = malloc_string_cpy(parser, exename);
+        node->access = access_modifier;
+        parser->token_ptr += 3;
+        return node;
+    }
+    else if (list[++parser->token_ptr]->type != IDENTIFIER)
+    {
+        print_invalid_exception_declaration(parser,
+                                            "Exception declaration must have a valid identifier. "
+                                            "Proper syntax: exception [IDENTIFIER];");
+    }
+    else if (list[parser->token_ptr + 1]->type != SEMI_COLON)
+    {
+        print_invalid_exception_declaration(parser,
+                                            "Expected semicolon after Exception Declaration. "
+                                            "Proper syntax: exception [IDENTIFIER];");
+    }
+    stop_parsing(parser);
+
+    return NULL;
+}
+
+/**
+ * DESCRIPTION:
+ * Parses try block
+ */
+AST_node *parse_try_block(Parser *parser, int rec_lvl)
+{
+    assert(parser);
+    Token **list = parser->token_list->list;
+    assert(get_keyword_type(list[parser->token_ptr]->ident) == TRY_KEYWORD);
+
+    if (list[parser->token_ptr + 1]->type != OPEN_CURLY_BRACKETS)
+    {
+        print_expected_token_err(parser, "'{'", false,
+                                 "Proper Syntax: try { ... } catch(ex) { ... }");
+        stop_parsing(parser);
+    }
+
+    AST_node *try_block = malloc_ast_node(parser);
+    try_block->type = TRY_CLAUSE;
+    try_block->line_num = list[parser->token_ptr]->line_num;
+    try_block->token_num = list[parser->token_ptr]->line_pos;
+
+    parser->token_ptr += 2;
+
+    enum token_type end_of_block[] = {CLOSING_CURLY_BRACKETS};
+    try_block->body = parse_code_block(parser, try_block, rec_lvl + 1, false, end_of_block, 1);
+
+    return try_block;
+}
+
+/**
+ * DESCRIPTION:
+ * Parses catch block
+ */
+AST_node *parse_catch_block(Parser *parser, int rec_lvl)
+{
+    assert(parser);
+    Token **list = parser->token_list->list;
+    assert(get_keyword_type(list[parser->token_ptr]->ident) == CATCH_KEYWORD);
+
+    AST_node *catch_block = malloc_ast_node(parser);
+    catch_block->line_num = list[parser->token_ptr]->line_num;
+    catch_block->token_num = list[parser->token_ptr]->line_pos;
+    catch_block->type = CATCH_CLAUSE;
+
+    // handles specific exception handler
+    if (list[parser->token_ptr + 1]->type == OPEN_PARENTHESIS)
+    {
+        parser->token_ptr += 2;
+        enum token_type end_of_exp[] = {CLOSING_PARENTHESIS};
+        catch_block->ast_data.catch_block.exception = parse_expression(parser, end_of_exp, 1);
+        ;
+
+        if (list[parser->token_ptr]->type != OPEN_CURLY_BRACKETS)
+        {
+            parser->token_ptr += 4;
+            print_expected_token_err(parser, "'{'", false,
+                                     "Proper syntax: try {...} catch(exception) { ... }");
+            stop_parsing(parser);
+        }
+        parser->token_ptr++;
+
+        // handles catch all exception handler (no exception specified)
+    }
+    else if (list[parser->token_ptr + 1]->type == OPEN_CURLY_BRACKETS)
+    {
+        catch_block->ast_data.catch_block.exception = NULL;
+        parser->token_ptr += 2;
+
+        // invalid syntax
+    }
+    else
+    {
+        parser->token_ptr++;
+        print_expected_token_err(parser, "'(' or '{'", false,
+                                 "Proper syntax:\n"
+                                 "try {...} catch(exception) { ... } \n"
+                                 "try {...} catch { ... }");
+        stop_parsing(parser);
+    }
+
+    // parses catch block
+    enum token_type end_of_block[] = {CLOSING_CURLY_BRACKETS};
+    catch_block->body = parse_code_block(parser, catch_block, rec_lvl + 1, false, end_of_block, 1);
+
+    return catch_block;
+}
+
+/**
+ * DESCRIPTION:
+ * Parses raise exception
+*/
+AST_node *parse_raise_exception(Parser *parser) {
+    assert(parser);
+    Token **list = parser->token_list->list;
+    assert(get_keyword_type(list[parser->token_ptr]->ident) == RAISE_KEYWORD);
+
+    AST_node *raise = malloc_ast_node(parser);
+    raise->line_num = list[parser->token_ptr]->line_num;
+    raise->token_num = list[parser->token_ptr]->line_pos;
+    raise->type = RAISE_EXPRESSION;
+
+    parser->token_ptr++;
+    enum token_type endOfExp[] = { SEMI_COLON };
+    raise->ast_data.exp = parse_expression(parser, endOfExp, 1);
+    
+    return raise;
+}
+
 /* Recursively parses code block and returns a ast_node (abstract syntax tree node)*/
 /* Function will always terminate with the parser->token_ptr pointing on the end exp token + 1*/
 AST_List *parse_code_block(
@@ -1967,9 +2144,11 @@ AST_List *parse_code_block(
 
         // if we encounter a semi colon, the it can be considered like a empty AST_node
         // which we can skip
-        if(list[parser->token_ptr]->type == SEMI_COLON) {
+        if (list[parser->token_ptr]->type == SEMI_COLON)
+        {
             parser->token_ptr++;
-            if(parse_single_node) break;
+            if (parse_single_node)
+                break;
             continue;
         }
 
@@ -1979,7 +2158,7 @@ AST_List *parse_code_block(
         // variable declaration
         case LET_KEYWORD:
         {
-            let_keyword:; // label
+        let_keyword:; // label
 
             AST_node *node = parse_variable_declaration(parser, rec_lvl);
             push_to_ast_list(ast_list, node);
@@ -2043,6 +2222,36 @@ AST_List *parse_code_block(
             break;
         }
 
+        case EXCEPTION_KEYWORD:
+        {
+            exception_keyword:;
+
+            AST_node *node = parse_exception_declaration(parser);
+            push_to_ast_list(ast_list, node);
+            break;
+        }
+
+        case TRY_KEYWORD:
+        {
+            // TODO
+            AST_node *node = parse_try_block(parser, rec_lvl);
+            push_to_ast_list(ast_list, node);
+            break;
+        }
+
+        case CATCH_KEYWORD:
+        {
+            AST_node *node = parse_catch_block(parser, rec_lvl);
+            push_to_ast_list(ast_list, node);
+            break;
+        }
+
+        case RAISE_KEYWORD: {
+            AST_node *node = parse_raise_exception(parser);
+            push_to_ast_list(ast_list, node);
+            break;
+        }
+
         // function declaration
         case FUNC_KEYWORD:
         {
@@ -2056,7 +2265,7 @@ AST_List *parse_code_block(
         // TODO
         case OBJECT_KEYWORD:
         {
-            object_keyword:;
+        object_keyword:;
 
             AST_node *node = parse_object_declaration(parser, rec_lvl);
             push_to_ast_list(ast_list, node);
@@ -2077,6 +2286,8 @@ AST_List *parse_code_block(
                     goto let_keyword;
                 case OBJECT_KEYWORD:
                     goto object_keyword;
+                case EXCEPTION_KEYWORD:
+                    goto exception_keyword;
                 default:
                     break;
                 }
@@ -2143,18 +2354,17 @@ AST_List *parse_code_block(
 
             break;
         }
-
         }
 
-        if(parse_single_node)
+        if (parse_single_node)
             break;
     }
 
     ast_list->parent_block = parent_block;
 
-    // we only skip over the end of expression token if we dont parse a single AST_node 
-    if(!parse_single_node)
+    // we only skip over the end of expression token if we dont parse a single AST_node
+    if (!parse_single_node)
         parser->token_ptr++;
-    
+
     return ast_list;
 }

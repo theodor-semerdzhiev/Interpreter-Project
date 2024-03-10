@@ -4,6 +4,7 @@
 #include <string.h>
 #include "rtobjects.h"
 #include "runtime.h"
+#include "identtable.h"
 #include "../generics/hashset.h"
 #include "../generics/utilities.h"
 #include "gc.h"

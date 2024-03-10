@@ -174,16 +174,21 @@ enum ast_node_type
     ELSE_IF_CONDITIONAL,
     WHILE_LOOP,
     FOR_LOOP,
-    FUNCTION_DECLARATION,
     RETURN_VAL,
     LOOP_TERMINATOR,
     LOOP_CONTINUATION,
+    TRY_CLAUSE,
+    CATCH_CLAUSE,
 
     EXPRESSION_COMPONENT,
 
     INLINE_FUNCTION_DECLARATION,
+    FUNCTION_DECLARATION,
+    CLASS_DECLARATION,
 
-    CLASS_DECLARATION
+    EXCEPTION_DECLARATION,
+
+    RAISE_EXPRESSION
 };
 
 typedef enum access_modifer
@@ -195,7 +200,6 @@ typedef enum access_modifer
     DOES_NOT_APPLY // for ast nodes that do not have access modifiers
 } AccessModifier;
 
-
 /* Top level data structure for ast*/
 typedef struct AST_List
 {
@@ -205,7 +209,6 @@ typedef struct AST_List
     size_t length;
     AST_node *parent_block;
 } AST_List;
-
 
 /* Represents the high level representation of the abstract syntax tree */
 typedef struct AST_node
@@ -218,6 +221,7 @@ typedef struct AST_node
         - VAR_DECLARATION
         - FUNCTION_DECLARATION
         - OBJECT_DECLARATION
+        - EXECEPTION_DECLARATION
     */
     AccessModifier access;
 
@@ -237,6 +241,9 @@ typedef struct AST_node
 
         // use for object declaration
         char *obj_name;
+
+        // use for excepion declaration
+        char *exception_name;
 
         // used for variable assignment, function calls or just standalone expression components
         ExpressionComponent *expression_component;
@@ -264,10 +271,21 @@ typedef struct AST_node
 
         struct
         {
-            AST_List *initialization; 
+            AST_List *initialization;
             ExpressionNode *loop_conditional;
             AST_List *termination;
         } for_loop;
+
+        struct
+        {
+            ExpressionNode *exception;
+        } catch_block;
+
+        struct
+        {
+            ExpressionNode *exp;
+        } raise;
+        
 
     } ast_data;
 
@@ -337,6 +355,10 @@ AST_node *parse_func_declaration(Parser *parser, int rec_lvl);
 AST_node *parse_inline_func(Parser *parser, int rec_lvl);
 AST_node *parse_object_declaration(Parser *parser, int rec_lvl);
 AST_node *parse_variable_assignment_exp_func_component(Parser *parser, int rec_lvl);
+AST_node *parse_exception_declaration(Parser *parser);
+AST_node *parse_try_block(Parser *parser, int rec_lvl);
+AST_node *parse_catch_block(Parser *parser, int rec_lvl);
+AST_node *parse_raise_exception(Parser *parser);
 
 AST_List *parse_code_block(
     Parser *parser,

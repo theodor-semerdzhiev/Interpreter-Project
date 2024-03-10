@@ -48,7 +48,7 @@ RtObject *rtattr_getattr(RtObject *obj, const char *attrname)
 
     if (val->is_func)
     {
-        RtFunction *attr = init_rtfunc(ATTR_BUILTIN);
+        RtFunction *attr = init_rtfunc(ATTR_BUILTIN_FUNC);
         if (!attr)
             MallocError();
         attr->func_data.attr_built_in.func = val;
@@ -98,4 +98,3 @@ void cleanup_AttrsRegistry()
     free_GenericMap(attrsRegistry, false, false);
     attrsRegistry = NULL;
 }
-

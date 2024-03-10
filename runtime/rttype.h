@@ -12,10 +12,11 @@ typedef enum RtType
     FUNCTION_TYPE,
     LIST_TYPE,
     HASHMAP_TYPE,
-    HASHSET_TYPE
+    HASHSET_TYPE,
+    EXCEPTION_TYPE
 } RtType;
 
-#define NB_OF_TYPES 9
+#define NB_OF_TYPES 10
 
 bool rttype_isprimitive(RtType type);
 const char *rtobj_type_toString(RtType type);

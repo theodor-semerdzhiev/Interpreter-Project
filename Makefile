@@ -17,6 +17,9 @@ SRC_FILES = \
   compiler/exprsimplifier.c \
   runtime/rtobjects.c \
   runtime/runtime.c \
+  runtime/rtexchandler.c \
+  runtime/identtable.c \
+  runtime/stkmachine.c \
   runtime/gc.c \
   runtime/rtfunc.c \
   runtime/rtlists.c \
@@ -26,7 +29,9 @@ SRC_FILES = \
   runtime/rtstring.c \
   runtime/rttype.c \
   runtime/rtnumber.c \
-  rtlib/builtins.c \
+  runtime/rtexception.c \
+  rtlib/builtinfuncs.c \
+  rtlib/builtinexception.c \
   rtlib/rtattrs.c \
   rtlib/rtattrslist.c \
   rtlib/rtattrsmap.c \

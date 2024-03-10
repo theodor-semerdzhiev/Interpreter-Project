@@ -5,11 +5,13 @@
 #include <string.h>
 #include "../generics/utilities.h"
 #include "../compiler/compiler.h"
-#include "../rtlib/builtins.h"
+#include "../rtlib/builtinfuncs.h"
 #include "runtime.h"
+#include "identtable.h"
 #include "rtlists.h"
 #include "rttype.h"
 #include "gc.h"
+#include "rtexchandler.h"
 
 /**
  * DESCRIPTION:
@@ -20,423 +22,10 @@
  *
  */
 
-static RunTime *env;
-
-/**
- * DESCRIPTION:
- * Below is the implementation for the variable lookup table
- */
-typedef struct Identifier Identifier;
-typedef struct Identifier
-{
-    char *key;
-    RtObject *obj;
-    Identifier *next;
-    AccessModifier access;
-} Identifier;
-
-typedef struct IdentifierTable
-{
-    Identifier **buckets;
-    int bucket_count;
-    int size;
-} IdentTable;
-
-#define DEFAULT_IDENT_TABLE_BUCKET_SIZE 64
-
-/**
- * Creates a new Identifer node for Identifier Table
- */
-static Identifier *init_Identifier(const char *varname, RtObject *obj, AccessModifier access)
-{
-    Identifier *node = malloc(sizeof(Identifier));
-    if (!node)
-        return NULL;
-    node->obj = obj;
-    node->key = malloc_string_cpy(NULL, varname);
-    node->access = access;
-    node->next = NULL;
-    return node;
-}
-
-/**
- * Frees identifier node
- * free_rtobj: wether Runtime Object should also be freed
- *
- * NOTE:
- * if free_rtobj is set to false, the runtime object itself will be freed only
- */
-static void free_Identifier(Identifier *node, bool free_rtobj)
-{
-    if (!node)
-        return;
-    free(node->key);
-    if (free_rtobj)
-    {
-        remove_from_GC_registry(node->obj, true);
-    }
-
-    free(node);
-}
-
-/**
- * Creates a new Identifier Table
- *
- */
-IdentTable *init_IdentifierTable()
-{
-    IdentTable *table = malloc(sizeof(IdentTable));
-    if (!table)
-        return NULL;
-    table->bucket_count = DEFAULT_IDENT_TABLE_BUCKET_SIZE;
-    table->buckets = calloc(table->bucket_count, sizeof(Identifier *));
-    if (!table->buckets)
-    {
-        free(table);
-        return NULL;
-    }
-    table->size = 0;
-    return table;
-}
-
-/**
- * Maps variable name to Runtime Object
- */
-void Identifier_Table_add_var(IdentTable *table, const char *key, RtObject *obj, AccessModifier access)
-{
-    assert(table);
-    unsigned int index = djb2_string_hash(key) % table->bucket_count;
-    if (!table->buckets[index])
-    {
-        table->buckets[index] = init_Identifier(key, obj, access);
-    }
-    else
-    {
-        Identifier *node = init_Identifier(key, obj, access);
-        node->next = table->buckets[index];
-        table->buckets[index] = node;
-    }
-    table->size++;
-}
-
-/**
- * Removes variable from table, and returns the mapped RunTime object
- * If variable is not present, then function return NULL
- */
-RtObject *Identifier_Table_remove_var(IdentTable *table, const char *key)
-{
-    assert(table);
-    unsigned int index = djb2_string_hash(key) % table->bucket_count;
-
-    Identifier *node = table->buckets[index];
-    Identifier *prev = NULL;
-    while (node)
-    {
-        if (strings_equal(node->key, key))
-        {
-            RtObject *obj = node->obj;
-            if (!prev)
-            {
-                table->buckets[index] = node->next;
-                free_Identifier(node, false);
-                table->size--;
-                return obj;
-            }
-            else
-            {
-                prev->next = node->next;
-                free_Identifier(node, false);
-                table->size--;
-                return obj;
-            }
-        }
-
-        prev = node;
-        node = node->next;
-    }
-
-    return NULL;
-}
-
-/**
- * Fetches the object associated with the key, returns NULL if key does not exist
- */
-RtObject *IdentifierTable_get(IdentTable *table, const char *key)
-{
-    unsigned int index = djb2_string_hash(key) % table->bucket_count;
-    if (!table->buckets[index])
-        return NULL;
-
-    Identifier *node = table->buckets[index];
-    while (node)
-    {
-        if (strings_equal(node->key, key))
-            return node->obj;
-        node = node->next;
-    }
-    return NULL;
-}
-
-/**
- * Checks if Identifier table contains key mapping
- */
-bool IdentifierTable_contains(IdentTable *table, const char *key)
-{
-    unsigned int index = djb2_string_hash(key) % table->bucket_count;
-    if (!table->buckets[index])
-        return false;
-
-    Identifier *node = table->buckets[index];
-    while (node)
-    {
-        if (strings_equal(node->key, key))
-            return true;
-        node = node->next;
-    }
-    return false;
-}
-
-/**
- * DESCRIPTION:
- * Takes all elements of the table and puts them in a list (NULL terminated)
- *
- * NOTE:
- * Function returns NULL if malloc fails
- */
-RtObject **IdentifierTable_to_list(IdentTable *table)
-{
-    RtObject **list = malloc(sizeof(RtObject *) * (table->size + 1));
-    if (!list)
-        return NULL;
-
-    unsigned int count = 0;
-    for (int i = 0; i < table->bucket_count; i++)
-    {
-        if (!table->buckets[i])
-            continue;
-
-        Identifier *ptr = table->buckets[i];
-        while (ptr)
-        {
-            list[count++] = ptr->obj;
-            ptr = ptr->next;
-        }
-    }
-    list[table->size] = NULL;
-    return list;
-}
-
-/**
- * DESCRIPTION:
- * Takes all Identifier nodes in the table puts them in a NULL terminated list
- */
-Identifier **IdentifierTable_to_IdentList(IdentTable *table)
-{
-    assert(table);
-    Identifier **list = malloc(sizeof(RtObject *) * (table->size + 1));
-    if (!list)
-        return NULL;
-
-    unsigned int count = 0;
-    for (int i = 0; i < table->bucket_count; i++)
-    {
-        if (!table->buckets[i])
-            continue;
-
-        Identifier *ptr = table->buckets[i];
-        while (ptr)
-        {
-            list[count++] = ptr;
-            ptr = ptr->next;
-        }
-    }
-
-    list[table->size] = NULL;
-    return list;
-}
-
-/**
- * Counts the number of Identifier Mappings contained within map
- */
-int IdentifierTable_aggregate(IdentTable *table, const char *key)
-{
-    unsigned int index = djb2_string_hash(key) % table->bucket_count;
-    if (!table->buckets[index])
-        return 0;
-
-    Identifier *node = table->buckets[index];
-    int count = 0;
-    while (node)
-    {
-        if (strings_equal(node->key, key))
-            count++;
-        node = node->next;
-    }
-    return count;
-}
-
-/**
- * Frees Identifier Table
- */
-void free_IdentifierTable(IdentTable *table, bool free_rtobj)
-{
-    if (!table)
-        return;
-
-    for (int i = 0; i < table->bucket_count; i++)
-    {
-        Identifier *ptr = table->buckets[i];
-        while (ptr)
-        {
-            Identifier *next = ptr->next;
-            free_Identifier(ptr, free_rtobj);
-            ptr = next;
-        }
-    }
-    free(table->buckets);
-    free(table);
-}
-
-/**
- * Below is the implementation of the stack machine used by the VM
- */
-
-/**
- * Mallocs a stack machine node and arg allows you to set a default value for the stack machine
- */
-static StkMachineNode *init_StkMachineNode(RtObject *obj, bool dispose)
-{
-    StkMachineNode *node = malloc(sizeof(StkMachineNode));
-    if (!node)
-        return NULL;
-    node->next = NULL;
-    node->obj = obj;
-    node->dispose = dispose;
-    return node;
-}
-
-/**
- * Logic for freeing Stack Machine Node, and object if its disposable,
- * and if dispose argument is set to true
- */
-static void free_StackMachineNode(StkMachineNode *node, bool dispose)
-{
-    if (node->dispose && dispose)
-        rtobj_free(node->obj, false);
-
-    free(node);
-}
-
-/**
- * Mallocs a stack machine
- */
-StackMachine *init_StackMachine()
-{
-    StackMachine *stk_machine = malloc(sizeof(StackMachine));
-    if (!stk_machine)
-        return NULL;
-    stk_machine->head = NULL;
-    stk_machine->size = 0;
-    return stk_machine;
-}
-
-/**
- * Pops element from stack machine and returns Runtime Object
- * dispose: wether element should be freed, if its disposable
- * In which case it will return NULL
- */
-RtObject *StackMachine_pop(StackMachine *stk_machine, bool dispose)
-{
-    assert(stk_machine);
-    StkMachineNode *popped = stk_machine->head;
-    RtObject *obj = popped->obj;
-    stk_machine->head = popped->next;
-    if (dispose)
-    {
-        free_StackMachineNode(popped, true);
-    }
-    else
-    {
-        free_StackMachineNode(popped, false);
-    }
-    stk_machine->size--;
-    return dispose ? NULL : obj;
-}
-
-/**
- * Pushes RtObject to StackMachine
- */
-RtObject *StackMachine_push(StackMachine *stk_machine, RtObject *obj, bool dispose)
-{
-    assert(stk_machine);
-    assert(obj);
-    StkMachineNode *node = init_StkMachineNode(obj, dispose);
-    if (!node)
-        return NULL;
-    node->next = stk_machine->head;
-    stk_machine->head = node;
-    stk_machine->size++;
-
-    return obj;
-}
-
-/**
- * DESCRIPTION:
- * Takes elements in the stack machine and creates a NULL terminated array
- */
-RtObject **StackMachine_to_list(StackMachine *stk_machine)
-{
-    RtObject **arr = malloc(sizeof(RtObject *) * (stk_machine->size + 1));
-    if (!arr)
-        return NULL;
-    unsigned int index = 0;
-    StkMachineNode *node = stk_machine->head;
-    while (node)
-    {
-        arr[index++] = node->obj;
-        node = node->next;
-    }
-    arr[stk_machine->size] = NULL;
-    return arr;
-}
-
-/**
- * DESCRIPTION:
- * Frees Stack Machine
- *
- * PARAMS:
- * stk_machine: stack machine
- * free_rtobj: wether objects still on the stack sould be freed
- */
-void free_StackMachine(StackMachine *stk_machine, bool free_rtobj)
-{
-    if (!stk_machine)
-        return;
-    while (stk_machine->head)
-    {
-        StkMachineNode *tmp = stk_machine->head;
-        stk_machine->head = tmp->next;
-
-        if (free_rtobj)
-            rtobj_free(tmp->obj, false);
-
-        free(tmp);
-    }
-
-    free(stk_machine);
-}
-
-/**
- * Below is the main logic loop for running a program
- */
-
 /**
  * Important static declarations
  *
  */
-
-/* This struct will store the runtime environment */
-static RunTime *env = NULL;
 
 /* Stores call stack */
 static CallFrame *callStack[MAX_STACK_SIZE] = {NULL};
@@ -444,14 +33,20 @@ static CallFrame *callStack[MAX_STACK_SIZE] = {NULL};
 /* Flag for storing current status of runtime environment */
 static bool Runtime_active = false;
 
-StackMachine *getCurrentStkMachineInstance() { return env->stk_machine; }
+/* Stack machine */
+static StackMachine *stk_machine;
 
-#define disposable() env->stk_machine->head->dispose
-#define StackMachine env->stk_machine
+/* Stack Call Frame pointer */
+static long stack_ptr = -1;
+
+StackMachine *getCurrentStkMachineInstance() { return stk_machine; }
+
+#define disposable() stk_machine->head->dispose
+#define StackMachine stk_machine
 
 /* Returns Top Object on the stack */
-#define TopStkMachineObject() env->stk_machine->head->obj
-#define CurrentStackFrame() callStack[env->stack_ptr]
+#define TopStkMachineObject() stk_machine->head->obj
+#define CurrentStackFrame() callStack[stack_ptr]
 
 /**
  * Returns wether Runtime environment is currently running
@@ -463,8 +58,7 @@ bool isRuntimeActive()
 
 int getCallStackPointer()
 {
-    assert(env);
-    return env->stack_ptr;
+    return stack_ptr;
 }
 
 CallFrame **getCallStack()
@@ -476,10 +70,64 @@ CallFrame **getCallStack()
  * Gets the Current StackFrame pointed to by the stack ptr
  */
 
-CallFrame *getCurrentStackFrame() { 
-    return callStack[env->stack_ptr]; 
-    
+CallFrame *getCurrentStackFrame()
+{
+    return callStack[stack_ptr];
+}
+
+/**
+ * DESCRITPION:
+ * Sets up runtime, by intializing static closures
+ */
+int init_RunTime()
+{
+    stack_ptr = -1;
+    Runtime_active = true;
+
+    // creates stack machine
+    stk_machine = init_StackMachine();
+    if (!stk_machine)
+    {
+        printf("Failed to initialize Runtime Stack Machine\n");
+        return 0;
     }
+
+    return 1;
+}
+
+/**
+ * DESCRIPTION:
+ * This Function setups runtime environment
+ * It initializes the stack machine
+ * Adds top level Call frame
+ * The runtime struct
+ * Std lib functions
+ */
+int prep_runtime_env(ByteCodeList *code)
+{
+    int returncode = init_RunTime();
+    RunTime_push_callframe(init_CallFrame(code, NULL));
+    init_GarbageCollector();
+    init_AttrRegistry();
+    rtobj_init_cmp_tbl();
+    return returncode ? 1 : 0;
+}
+
+/**
+ * DESCRIPTION:
+ * This function performs runtime cleanup
+ * After Program execution
+ * */
+void perform_cleanup()
+{
+    stack_ptr = -1;
+    free_StackMachine(stk_machine, true);
+    stk_machine = NULL;
+    cleanup_builtin();
+    cleanup_GarbageCollector();
+    cleanup_AttrsRegistry();
+    Runtime_active = false;
+}
 
 /**
  * DESCRIPTION:
@@ -499,7 +147,7 @@ RtObject *lookup_variable(const char *var)
     if (obj)
         return obj;
 
-    RtObject *built_in = get_builtin_func(var);
+    RtObject *built_in = get_builtinfunc(var);
 
     return built_in;
 }
@@ -516,6 +164,7 @@ CallFrame *init_CallFrame(ByteCodeList *program, RtFunction *function)
     cllframe->pg = program;
     cllframe->lookup = init_IdentifierTable();
     cllframe->function = function;
+    cllframe->exception_jump = malloc(sizeof(jmp_buf));
     return cllframe;
 }
 
@@ -532,42 +181,8 @@ CallFrame *init_CallFrame(ByteCodeList *program, RtFunction *function)
 void free_CallFrame(CallFrame *call, bool free_rtobj_data)
 {
     free_IdentifierTable(call->lookup, free_rtobj_data);
-
+    free(call->exception_jump);
     free(call);
-}
-
-/**
- * Sets up runtime
- */
-RunTime *init_RunTime()
-{
-    RunTime *runtime = malloc(sizeof(RunTime));
-    if (!runtime)
-    {
-        printf("Failed to allocate memory for Runtime Environment\n");
-        return NULL;
-    }
-    runtime->stack_ptr = -1;
-    Runtime_active = true;
-
-    // creates stack machine
-    runtime->stk_machine = init_StackMachine();
-    if (!runtime->stk_machine)
-    {
-        free(runtime);
-        printf("Failed to initialize Runtime Stack Machine\n");
-        return NULL;
-    }
-
-    return runtime;
-}
-
-/* Frees Runtime */
-void free_RunTime(RunTime *rt)
-{
-    // objects are gonna be freed by the GC
-    free_StackMachine(rt->stk_machine, true);
-    free(rt);
 }
 
 /**
@@ -575,7 +190,7 @@ void free_RunTime(RunTime *rt)
  * */
 void RunTime_push_callframe(CallFrame *frame)
 {
-    callStack[++env->stack_ptr] = frame;
+    callStack[++stack_ptr] = frame;
 }
 
 /**
@@ -583,28 +198,10 @@ void RunTime_push_callframe(CallFrame *frame)
  */
 CallFrame *RunTime_pop_callframe()
 {
-    assert(env);
-    CallFrame *frame = callStack[env->stack_ptr];
-    callStack[env->stack_ptr] = NULL;
-    env->stack_ptr--;
+    CallFrame *frame = callStack[stack_ptr];
+    callStack[stack_ptr] = NULL;
+    stack_ptr--;
     return frame;
-}
-
-/**
- * This Function setups runtime environment
- * It initializes the stack machine
- * Adds top level Call frame
- * The runtime struct
- * Std lib functions
- */
-int prep_runtime_env(ByteCodeList *code)
-{
-    env = init_RunTime();
-    RunTime_push_callframe(init_CallFrame(code, NULL));
-    init_GarbageCollector();
-    init_AttrRegistry();
-    rtobj_init_cmp_tbl();
-    return env ? 1 : 0;
 }
 
 /**
@@ -617,7 +214,7 @@ int prep_runtime_env(ByteCodeList *code)
  * obj: runtime object
  * disposable: wether object should be disposed or not
  */
-static void dispose_disposable_obj(RtObject *obj, bool disposable)
+void dispose_disposable_obj(RtObject *obj, bool disposable)
 {
     // frees Objects if they are disposable
     if (disposable)
@@ -659,9 +256,9 @@ static void perform_binary_operation(
 static void perform_var_mutation()
 {
     bool new_val_disposable = disposable();
-    RtObject *new_val = StackMachine_pop(env->stk_machine, false);
+    RtObject *new_val = StackMachine_pop(stk_machine, false);
     bool old_val_disposable = disposable();
-    RtObject *old_val = StackMachine_pop(env->stk_machine, false);
+    RtObject *old_val = StackMachine_pop(stk_machine, false);
 
     assert(new_val && old_val);
 
@@ -723,7 +320,7 @@ static void perform_conditional_jump(int offset, bool condition, bool pop_stk)
     bool dispose = disposable();
     RtObject *obj;
     if (pop_stk)
-        obj = StackMachine_pop(env->stk_machine, false);
+        obj = StackMachine_pop(stk_machine, false);
     else
         obj = TopStkMachineObject();
 
@@ -779,7 +376,7 @@ static void perform_create_function(const RtObject *function)
 static int perform_exit()
 {
     bool dispose = disposable();
-    RtObject *obj = StackMachine_pop(env->stk_machine, false);
+    RtObject *obj = StackMachine_pop(stk_machine, false);
     if (obj->type != NUMBER_TYPE)
     {
         printf("Program cannot return %s\n", rtobj_type_toString(obj->type));
@@ -797,8 +394,9 @@ static int perform_exit()
  * This function will return null if function call was built in
  */
 
-static void perform_builtin_call(Builtin *builtin, RtObject **args, int arg_count);
+static void perform_builtin_call(BuiltinFunc *builtin, RtObject **args, int arg_count);
 static CallFrame *perform_regular_func_call(RtFunction *function, RtObject **arguments, bool disposable[], unsigned int arg_count);
+static void perform_exception_call(char *exception_name, RtObject **args, unsigned int arg_count);
 
 CallFrame *perform_function_call(unsigned int arg_count)
 {
@@ -811,21 +409,22 @@ CallFrame *perform_function_call(unsigned int arg_count)
     for (int i = arg_count - 1; i >= 0; i--)
     {
         arg_disposable[i] = disposable();
-        RtObject *arg = StackMachine_pop(env->stk_machine, false);
+        RtObject *arg = StackMachine_pop(stk_machine, false);
 
         arguments[i] = rtobj_rt_preprocess(arg, arg_disposable[i], true);
 
         addDisposablePrimitiveToGC(arg_disposable[i], arguments[i]);
 
-        if(!DisposableOrPrimitive(arg_disposable[i], arg)) {
+        if (!DisposableOrPrimitive(arg_disposable[i], arg))
+        {
             assert(GC_Registry_has(arguments[i]));
         }
     }
 
     bool func_disposable = disposable();
-    RtObject *func = StackMachine_pop(env->stk_machine, false);
+    RtObject *func = StackMachine_pop(stk_machine, false);
 
-    if(func_disposable)
+    if (func_disposable)
         assert(!GC_Registry_has(func));
     else
         assert(GC_Registry_has(func));
@@ -833,13 +432,13 @@ CallFrame *perform_function_call(unsigned int arg_count)
     // called object is not a function
     if (func->type != FUNCTION_TYPE)
     {
-        printf("Object is not callable\n");
+        printf("Object of type %s is not callable\n", rtobj_type_toString(func->type));
         return NULL;
         // argument count does not match
     }
 
     // temporary for now
-    if (env->stack_ptr >= MAX_STACK_SIZE - 1 && func->data.Func->functype == REGULAR)
+    if (stack_ptr >= MAX_STACK_SIZE - 1 && func->data.Func->functype == REGULAR_FUNC)
     {
 
         printf("Stack Overflow Error when calling function '%s' \n",
@@ -852,11 +451,17 @@ CallFrame *perform_function_call(unsigned int arg_count)
 
     switch (func->data.Func->functype)
     {
-    case REGULAR_BUILTIN:
+    case EXCEPTION_CONSTRUCTOR_FUNC:
+    {
+        char *funcname = func->data.Func->func_data.exception_constructor.exception_name;
+        perform_exception_call(funcname, arguments, arg_count);
+        break;
+    }
+    case BUILTIN_FUNC:
         perform_builtin_call(func->data.Func->func_data.built_in.func, arguments, arg_count);
         break;
 
-    case ATTR_BUILTIN:
+    case ATTR_BUILTIN_FUNC:
     {
         AttrBuiltin *attrfunc = func->data.Func->func_data.attr_built_in.func;
         RtObject *target = func->data.Func->func_data.attr_built_in.target;
@@ -867,7 +472,7 @@ CallFrame *perform_function_call(unsigned int arg_count)
         break;
     }
 
-    case REGULAR:
+    case REGULAR_FUNC:
         new_frame = perform_regular_func_call(func->data.Func, arguments, arg_disposable, arg_count);
         break;
     }
@@ -881,7 +486,7 @@ CallFrame *perform_function_call(unsigned int arg_count)
  * Helper for performing built in function call
  * Adds new Callframe to call stack
  */
-static void perform_builtin_call(Builtin *builtin, RtObject **args, int arg_count)
+static void perform_builtin_call(BuiltinFunc *builtin, RtObject **args, int arg_count)
 {
     assert(builtin);
 
@@ -910,7 +515,7 @@ static CallFrame *perform_regular_func_call(RtFunction *Function, RtObject **arg
 {
     assert(Function);
     // checks argument counts match
-    if (Function->functype == REGULAR &&
+    if (Function->functype == REGULAR_FUNC &&
         Function->func_data.user_func.arg_count != arg_count)
     {
         printf("Function '%s' expected %d arguments, but got %d\n",
@@ -928,8 +533,8 @@ static CallFrame *perform_regular_func_call(RtFunction *Function, RtObject **arg
     for (unsigned int i = 0; i < arg_count; i++)
     {
         RtObject *arg = arguments[i];
-        
-        if(!disposable[i])
+
+        if (!disposable[i])
             assert(GC_Registry_has(arg));
 
         Identifier_Table_add_var(
@@ -968,6 +573,36 @@ static CallFrame *perform_regular_func_call(RtFunction *Function, RtObject **arg
     }
     RunTime_push_callframe(new_frame);
     return new_frame;
+}
+
+/**
+ * DESCRIPTION:
+ * Performs exception call
+ */
+static void perform_exception_call(char *exception_name, RtObject **args, unsigned int arg_count)
+{
+    assert(exception_name);
+
+    if (arg_count > 1)
+    {
+        char buffer[110 + strlen(exception_name)];
+        snprintf(
+            buffer,
+            sizeof(buffer),
+            "%s: Exception Constructor can only take 1 or 0 arguments, but was given %d",
+            exception_name,
+            arg_count
+        );
+        raiseException(InvalidNumberOfArgumentsException(buffer));
+    }
+
+    RtObject *exception_obj = init_RtObject(EXCEPTION_TYPE);
+    exception_obj->data.Exception =
+        init_RtException(
+            exception_name,
+            arg_count >= 1 ? rtobj_toString(args[0]) : NULL);
+
+    StackMachine_push(stk_machine, exception_obj, true);
 }
 
 /**
@@ -1050,12 +685,14 @@ static void perform_create_map(unsigned long size)
 /**
  * DESCRIPTION:
  * Creates a runtime set by popping some amount of objects from the stack machine
-*/
-static void perform_create_set(int setsize) {
+ */
+static void perform_create_set(int setsize)
+{
 
-    RtSet *set = init_RtSet(setsize+1);
+    RtSet *set = init_RtSet(setsize + 1);
 
-    for(int i = 0; i < setsize; i++) {
+    for (int i = 0; i < setsize; i++)
+    {
         bool dispose = disposable();
         RtObject *obj = StackMachine_pop(StackMachine, false);
         assert(obj);
@@ -1067,7 +704,7 @@ static void perform_create_set(int setsize) {
     }
 
     RtObject *setobj = init_RtObject(HASHSET_TYPE);
-    setobj->data.Set=set;
+    setobj->data.Set = set;
 
     StackMachine_push(StackMachine, setobj, true);
 }
@@ -1131,13 +768,13 @@ static void perform_return_class()
 /**
  * Performs a logic for creating variables
  */
-void perform_create_var(char *varname, AccessModifier access)
+static void perform_create_var(char *varname, AccessModifier access)
 {
     bool disposable = disposable();
     RtObject *new_val = StackMachine_pop(StackMachine, false);
     CallFrame *frame = getCurrentStackFrame();
 
-    RtObject *cpy; 
+    RtObject *cpy;
     // = rtobj_rt_preprocess(new_val, disposable);
     if (disposable)
     {
@@ -1156,6 +793,22 @@ void perform_create_var(char *varname, AccessModifier access)
 
     add_to_GC_registry(cpy);
     // addDisposablePrimitiveToGC(disposable, cpy);
+}
+
+/**
+ * DESCRIPTION:
+ * Logic for creating a variable
+ */
+static void perform_create_exception(const char *exception_name, AccessModifier access)
+{
+    CallFrame *frame = getCurrentStackFrame();
+    RtObject *obj = init_RtObject(FUNCTION_TYPE);
+    obj->data.Func = init_rtfunc(EXCEPTION_CONSTRUCTOR_FUNC);
+    obj->data.Func->func_data.exception_constructor.exception_name = cpy_string(exception_name);
+
+    Identifier_Table_add_var(frame->lookup, exception_name, obj, access);
+
+    add_to_GC_registry(obj);
 }
 
 /**
@@ -1196,7 +849,7 @@ static void perform_get_attribute(char *attrs)
         return;
     }
 
-    if(target_disposable) 
+    if (target_disposable)
         assert(!GC_Registry_has(target));
     else
         assert(GC_Registry_has(target));
@@ -1206,13 +859,74 @@ static void perform_get_attribute(char *attrs)
     StackMachine_push(StackMachine, builtin_attr, true);
 }
 
+/**
+ * DESCRIPTION:
+ * Handles logic for byte code instruction RAISE_EXCEPTION_IF_COMPARE_EXCEPTION_FALSE
+*/
+static void perform_raise_exception_if_compare_exception_false() {
+    bool disposable = disposable();
+    RtObject *obj = StackMachine_pop(stk_machine, false);
+    if(obj->type != EXCEPTION_TYPE) {
+        // TODO raise exception
+        dispose_disposable_obj(obj, disposable);
+        return;
+    }
+    if(!rtexception_compare(raisedException, obj->data.Exception)) 
+        raiseException(raisedException);
+    
+    dispose_disposable_obj(obj, disposable);
+}
+
+/**
+ * DESCRIPTION:
+ * Performs logic for OFFSET_JUMP_IF_COMPARE_EXCEPTION_FALSE
+*/
+static void perform_offset_jump_if_compare_exception_false(int offset) {
+    bool disposable = disposable();
+    RtObject *obj = StackMachine_pop(stk_machine, false);
+    if(obj->type != EXCEPTION_TYPE) {
+        // TODO should raise exception
+        dispose_disposable_obj(obj, disposable);
+        return;
+    }
+
+    if(!rtexception_compare(raisedException, obj->data.Exception)) {
+        getCurrentStackFrame()->pg_counter += offset;
+    }
+
+    dispose_disposable_obj(obj, disposable);
+}
+
+/**
+ * DESCRIPTION:
+ * Raises exception
+*/
+static void perform_raise_exception() {
+    bool disposable = disposable();
+    RtObject *obj = StackMachine_pop(stk_machine, false);
+    if(obj->type != EXCEPTION_TYPE) {
+        // todo raise exception
+        dispose_disposable_obj(obj, disposable);
+        return;
+    }
+
+    add_to_GC_registry(obj);
+    handle_runtime_exception(obj->data.Exception);
+}
+
 int run_program()
 {
-    assert(env);
     while (true)
     {
-        CallFrame *frame = callStack[env->stack_ptr];
+        CallFrame *frame = callStack[stack_ptr];
         ByteCodeList *bytecode = frame->pg;
+
+        int new_pg_counter = setjmp((int *)frame->exception_jump);
+        if (new_pg_counter != 0)
+        {
+            frame->pg_counter = new_pg_counter;
+        }
+
         while (true)
         {
             ByteCode *code = bytecode->code[frame->pg_counter];
@@ -1224,8 +938,8 @@ int run_program()
             {
                 // contants are imbedded within the bytecode
                 // therefore a deep copy is created
-                StackMachine_push(StackMachine, 
-                rtobj_deep_cpy(code->data.LOAD_CONST.constant, false), true);
+                StackMachine_push(StackMachine,
+                                  rtobj_deep_cpy(code->data.LOAD_CONST.constant, false), true);
                 break;
             }
 
@@ -1476,7 +1190,7 @@ int run_program()
                 break;
             }
 
-            case CREATE_SET: 
+            case CREATE_SET:
             {
                 perform_create_set(code->data.CREATE_SET.set_size);
                 break;
@@ -1487,7 +1201,53 @@ int run_program()
                 perform_get_index();
                 break;
             }
+            case PUSH_EXCEPTION_HANDLER:
+            {
+                push_exception_handler(
+                    stack_ptr,
+                    frame->pg_counter + code->data.PUSH_EXCEPTION_HANDLER.start_of_catch_block,
+                    stk_machine->size);
+                break;
+            }
 
+            case POP_EXCEPTION_HANDLER:
+            {
+                free_exception_handler(pop_exception_handler());
+                break;
+            }
+
+            case CREATE_EXCEPTION:
+            {
+                perform_create_exception(
+                    code->data.CREATE_EXCEPTION.exception,
+                    code->data.CREATE_EXCEPTION.access);
+                break;
+            }
+
+            case RAISE_EXCEPTION_IF_COMPARE_EXCEPTION_FALSE:
+            {
+                perform_raise_exception_if_compare_exception_false();
+                break;
+            }
+
+            case OFFSET_JUMP_IF_COMPARE_EXCEPTION_FALSE:
+            {
+                perform_offset_jump_if_compare_exception_false(
+                    code->data.OFFSET_JUMP_IF_COMPARE_EXCEPTION_FALSE.offset);
+                break;
+            }
+
+            case RAISE_EXCEPTION:
+            {
+                perform_raise_exception();
+                break;
+            }
+
+            case RESOLVE_RAISED_EXCEPTION:
+            {
+                raisedException = NULL;
+                break;
+            }
             case EXIT_PROGRAM:
             {
                 return perform_exit();
@@ -1503,23 +1263,4 @@ int run_program()
         }
     }
     return 0;
-}
-
-/**
- * DESCRIPTION:
- * This function performs runtime cleanup
- * After Program execution
- * */
-void perform_cleanup()
-{
-    if (env)
-    {
-        free_RunTime(env);
-        env = NULL;
-    }
-
-    cleanup_builtin();
-    cleanup_GarbageCollector();
-    cleanup_AttrsRegistry();
-    Runtime_active = false;
 }

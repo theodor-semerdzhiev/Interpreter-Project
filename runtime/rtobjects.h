@@ -1,7 +1,8 @@
 #pragma once
 #include <stdbool.h>
 #include "rttype.h"
-#include "../rtlib/builtins.h"
+#include "../rtlib/builtinfuncs.h"
+#include "rtexception.h"
 #include "rtlists.h"
 #include "rtfunc.h"
 #include "rtmap.h"
@@ -44,11 +45,10 @@ typedef struct RtObject
         RtClass *Class;
 
         RtSet *Set;
+
+        RtException *Exception;
     } data;
 } RtObject;
-
-#define getRtNum(obj) obj->data.Number->number
-#define getRtStr(obj) obj->data.String->string
 
 RtObject *init_RtObject(RtType type);
 

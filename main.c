@@ -107,8 +107,8 @@ int main(int argc, char *argv[])
     init_keyword_table();
     init_Precedence();
 
-    AST_List *ast = parse_file(argv[1]);
-    // AST_List *ast = parse_file("./tests/test17.txt");
+    // AST_List *ast = parse_file(argv[1]);
+    AST_List *ast = parse_file("./tests/test19.txt");
 
     free_keyword_table();
 
@@ -118,7 +118,6 @@ int main(int argc, char *argv[])
     }
     else
     {
-
         ByteCodeList *list = compile_code_body(ast, true, false);
 
         free_ast_list(ast);

@@ -100,6 +100,10 @@ void init_keyword_table()
     insert_keyword_to_table("class", OBJECT_KEYWORD); 
     insert_keyword_to_table("set", SET_KEYWORD); 
     insert_keyword_to_table("map", MAP_KEYWORD); 
+    insert_keyword_to_table("try", TRY_KEYWORD); 
+    insert_keyword_to_table("catch", CATCH_KEYWORD); 
+    insert_keyword_to_table("exception", EXCEPTION_KEYWORD); 
+    insert_keyword_to_table("raise", RAISE_KEYWORD); 
 }
 
 

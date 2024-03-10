@@ -1,12 +1,13 @@
 #pragma once
+#include <setjmp.h>
 #include "../compiler/compiler.h"
 #include "../generics/hashmap.h"
 #include "rtobjects.h"
+#include "stkmachine.h"
+#include "identtable.h"
 #include "gc.h"
 
 #define MAX_STACK_SIZE 16000
-
-typedef struct IdentifierTable IdentTable;
 
 typedef struct CallFrame {
     
@@ -18,30 +19,10 @@ typedef struct CallFrame {
     // if its global scope then it will be NULL
     RtFunction *function;
 
+    jmp_buf *exception_jump;  
+
 } CallFrame;
 
-typedef struct StkMachineNode StkMachineNode;
-
-typedef struct StkMachineNode
-{
-    RtObject *obj;
-    StkMachineNode *next;
-    size_t dispose; // wether object should be freed when popped
-} StkMachineNode;
-
-typedef struct StackMachine
-{
-    StkMachineNode *head;
-    unsigned int size;
-} StackMachine;
-
-typedef struct RunTime {
-    
-    StackMachine *stk_machine;
-
-    long stack_ptr;
-
-} RunTime;
 
 #define addToGCRegistry(obj) if(is_GC_Active()) add_to_GC_registry
 
@@ -54,16 +35,6 @@ typedef struct RunTime {
 #define DisposableOrPrimitive(dispose, obj) (dispose || (!dispose && rttype_isprimitive(obj->type)))
 
 
-IdentTable *init_IdentifierTable();
-void Identifier_Table_add_var(IdentTable *table, const char *key, RtObject *obj, AccessModifier access);
-RtObject *Identifier_Table_remove_var(IdentTable *table, const char *key);
-RtObject *IdentifierTable_get(IdentTable *table, const char *key);
-bool IdentifierTable_contains(IdentTable *table, const char *key);
-int IdentifierTable_aggregate(IdentTable *table, const char* key);
-RtObject **IdentifierTable_to_list(IdentTable *table);
-Identifier **IdentifierTable_to_IdentList(IdentTable *table);
-void free_IdentifierTable(IdentTable *table, bool free_rtobj);
-
 StackMachine *init_StackMachine();
 RtObject *StackMachine_pop(StackMachine *stk_machine, bool dispose);
 RtObject *StackMachine_push(StackMachine *stk_machine, RtObject *obj, bool dispose);
@@ -75,13 +46,15 @@ void free_CallFrame(CallFrame *call, bool free_rtobj);
 
 StackMachine *getCurrentStkMachineInstance();
 int getCallStackPointer();
+CallFrame *getCurrentStackFrame();
 CallFrame **getCallStack();
 
-RunTime *init_RunTime();
+int init_RunTime();
 RtObject *lookup_variable(const char *var);
-void free_RunTime(RunTime *rt);
 void RunTime_push_callframe(CallFrame *frame);
 CallFrame *RunTime_pop_callframe();
+
+void dispose_disposable_obj(RtObject *obj, bool disposable);
 
 int prep_runtime_env(ByteCodeList *code);
 CallFrame *perform_function_call(unsigned int arg_count);

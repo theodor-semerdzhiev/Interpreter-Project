@@ -31,7 +31,8 @@ static bool is_access_modifier_valid(SemanticAnalyzer *sem_analyzer, AST_node *n
     assert(node->access != DOES_NOT_APPLY);
     assert(node->type == VAR_DECLARATION ||
            node->type == FUNCTION_DECLARATION ||
-           node->type == CLASS_DECLARATION);
+           node->type == CLASS_DECLARATION ||
+           node->type == EXCEPTION_DECLARATION);
 
     // global variables must be defined in the global scope with top level nesting
     if (node->access == GLOBAL_ACCESS &&
@@ -260,9 +261,10 @@ bool expression_component_has_correct_semantics(SemanticAnalyzer *sem_analyzer, 
                 return false;
             }
 
-            for(int i=0; i < node->meta_data.list_const.list_length; i++) {
-                if(!exp_has_correct_semantics(
-                    sem_analyzer, node->meta_data.list_const.list_elements[i]))
+            for (int i = 0; i < node->meta_data.list_const.list_length; i++)
+            {
+                if (!exp_has_correct_semantics(
+                        sem_analyzer, node->meta_data.list_const.list_elements[i]))
                     return false;
             }
 
@@ -814,38 +816,40 @@ bool AST_list_has_consistent_semantics(SemanticAnalyzer *sem_analyzer, AST_List 
             break;
         }
 
-        case FOR_LOOP: {
+        case FOR_LOOP:
+        {
             AST_List *init = node->ast_data.for_loop.initialization;
             ExpressionNode *conditional = node->ast_data.for_loop.loop_conditional;
             AST_List *termination = node->ast_data.for_loop.termination;
 
-            if(init && init->length > 1) {
+            if (init && init->length > 1)
+            {
                 print_for_loop_ast_node_err(sem_analyzer, init->tail->token_num, NULL);
                 return false;
             }
 
-            if(termination && termination->length > 1) {
+            if (termination && termination->length > 1)
+            {
                 print_for_loop_ast_node_err(sem_analyzer, termination->tail->token_num, NULL);
                 return false;
             }
 
-
-            if(init && init->head->type == VAR_DECLARATION) {
+            if (init && init->head->type == VAR_DECLARATION)
+            {
                 add_var_to_vartable(
                     sem_analyzer->symtable,
                     init->head->identifier.declared_var,
                     sem_analyzer->filename,
                     sem_analyzer->nesting_lvl,
-                    SYMBOL_TYPE_VARIABLE
-                );
+                    SYMBOL_TYPE_VARIABLE);
             }
 
             sem_analyzer->nesting_lvl++;
 
-            if(!exp_has_correct_semantics(sem_analyzer, conditional)) 
+            if (!exp_has_correct_semantics(sem_analyzer, conditional))
                 return false;
 
-            if(!AST_list_has_consistent_semantics(sem_analyzer, termination)) 
+            if (!AST_list_has_consistent_semantics(sem_analyzer, termination))
                 return false;
 
             bool current_loop_cond = sem_analyzer->is_in_loop;
@@ -858,15 +862,15 @@ bool AST_list_has_consistent_semantics(SemanticAnalyzer *sem_analyzer, AST_List 
             sem_analyzer->is_in_loop = current_loop_cond;
             sem_analyzer->nesting_lvl--;
 
-            if(init && init->head->type == VAR_DECLARATION) {
+            if (init && init->head->type == VAR_DECLARATION)
+            {
                 remove_var_from_vartable(
                     sem_analyzer->symtable,
                     init->head->identifier.declared_var,
-                    sem_analyzer->nesting_lvl
-                );
+                    sem_analyzer->nesting_lvl);
             }
 
-            if(!tmp) 
+            if (!tmp)
                 return false;
 
             break;
@@ -1104,6 +1108,68 @@ bool AST_list_has_consistent_semantics(SemanticAnalyzer *sem_analyzer, AST_List 
                 // function will print out an error
                 return false;
             }
+            break;
+        }
+
+        case EXCEPTION_DECLARATION:
+        {
+            // access modifier semantics
+            if (!is_access_modifier_valid(sem_analyzer, node))
+            {
+                // function prints out error
+                return false;
+            }
+
+            // saves symbol
+            add_var_to_vartable(
+                sem_analyzer->symtable,
+                node->identifier.exception_name,
+                sem_analyzer->filename,
+                sem_analyzer->nesting_lvl,
+                SYMBOL_TYPE_EXCEPTION);
+
+            break;
+        }
+
+        case TRY_CLAUSE:
+        {
+            if (!node->next || (node->next && node->next->type != CATCH_CLAUSE))
+            {
+                // print error
+                print_invalid_try_catch(sem_analyzer, node->token_num,
+                                        "try block must followed by a catch block");
+                return false;
+            }
+
+            if (!AST_list_has_consistent_semantics(sem_analyzer, node->body))
+            {
+                return false;
+            }
+
+            break;
+        }
+
+        case CATCH_CLAUSE:
+        {
+            ExpressionNode *exp = node->ast_data.catch_block.exception;
+            if (!exp_has_correct_semantics(sem_analyzer, exp))
+                // error will be printed out by function
+                return false;
+
+            if (!AST_list_has_consistent_semantics(sem_analyzer, node->body))
+                // error will be printed out
+                return false;
+
+            break;
+        }
+
+        case RAISE_EXPRESSION: 
+        {
+            ExpressionNode *exp = node->ast_data.raise.exp;
+            if (!exp_has_correct_semantics(sem_analyzer, exp))
+                // error will be printed out by function
+                return false;
+            
             break;
         }
         }

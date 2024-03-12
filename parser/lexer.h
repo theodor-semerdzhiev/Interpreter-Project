@@ -95,6 +95,7 @@ typedef struct lexer
 } Lexer;
 
 /* Main lexing logic */
+TokenList *tokenize_file(char *file_contents);
 Lexer *malloc_lexer();
 void free_lexer(Lexer *lexer);
 TokenList *tokenize_str(Lexer *lexer, char *file_contents);

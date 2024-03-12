@@ -47,18 +47,18 @@ static RtObject *builtin_copy(RtObject **args, int argcount);
 
 static GenericMap *BuiltinFunc_Registry = NULL;
 
-static const BuiltinFunc _builtin_print = {"print", builtin_print, -1};
-static const BuiltinFunc _builtin_println = {"println", builtin_println, -1};
-static const BuiltinFunc _builtin_string = {"str", builtin_toString, -1};
+static const BuiltinFunc _builtin_print = {"print", builtin_print, INT_FAST64_MAX};
+static const BuiltinFunc _builtin_println = {"println", builtin_println, INT_FAST64_MAX};
+static const BuiltinFunc _builtin_string = {"str", builtin_toString, INT_FAST64_MAX};
 static const BuiltinFunc _builtin_typeof = {"typeof", builtin_typeof, 1};
 static const BuiltinFunc _builtin_input = {"input", builtin_input, 1};
 static const BuiltinFunc _builtin_number = {"num", builtin_toNumber, 1};
 static const BuiltinFunc _builtin_len = {"len", builtin_len, 1};
 static const BuiltinFunc _builtin_cmd = {"cmd", builtin_cmd, 1};
-static const BuiltinFunc _builtin_min = {"min", builtin_min, -1};
-static const BuiltinFunc _builtin_max = {"max", builtin_max, -1};
-static const BuiltinFunc _builtin_abs = {"abs", builtin_abs, -1};
-static const BuiltinFunc _builtin_copy = {"copy", builtin_copy, -1};
+static const BuiltinFunc _builtin_min = {"min", builtin_min, INT64_MAX};
+static const BuiltinFunc _builtin_max = {"max", builtin_max, INT_FAST64_MAX};
+static const BuiltinFunc _builtin_abs = {"abs", builtin_abs, INT_FAST64_MAX};
+static const BuiltinFunc _builtin_copy = {"copy", builtin_copy, INT_FAST64_MAX};
 
 /**
  * Defines equality for built in functions
@@ -69,7 +69,8 @@ static bool builtins_equal(const BuiltinFunc *builtin1, const BuiltinFunc *built
            builtin1->builtin_func == builtin2->builtin_func;
 }
 
-#define InsertBuiltIn(name, builtin_struct) GenericHashMap_insert(BuiltinFunc_Registry, name, (void *)&builtin_struct, false)
+#define InsertBuiltIn(registry, builtin_struct) \
+GenericHashMap_insert(registry, builtin_struct.builtin_name, (void *)&builtin_struct, false)
 
 /**
  * Initializes builtin function table
@@ -98,18 +99,18 @@ int init_BuiltinFuncs()
     }
 
     bool successful_init =
-        InsertBuiltIn(_builtin_print.builtin_name, _builtin_print) &&
-        InsertBuiltIn(_builtin_println.builtin_name, _builtin_println) &&
-        InsertBuiltIn(_builtin_string.builtin_name, _builtin_string) &&
-        InsertBuiltIn(_builtin_typeof.builtin_name, _builtin_typeof) &&
-        InsertBuiltIn(_builtin_input.builtin_name, _builtin_input) &&
-        InsertBuiltIn(_builtin_number.builtin_name, _builtin_number) &&
-        InsertBuiltIn(_builtin_len.builtin_name, _builtin_len) &&
-        InsertBuiltIn(_builtin_cmd.builtin_name, _builtin_cmd) &&
-        InsertBuiltIn(_builtin_min.builtin_name, _builtin_min) &&
-        InsertBuiltIn(_builtin_max.builtin_name, _builtin_max) &&
-        InsertBuiltIn(_builtin_abs.builtin_name, _builtin_abs) &&
-        InsertBuiltIn(_builtin_copy.builtin_name, _builtin_copy) &&
+        InsertBuiltIn(BuiltinFunc_Registry, _builtin_print) &&
+        InsertBuiltIn(BuiltinFunc_Registry, _builtin_println) &&
+        InsertBuiltIn(BuiltinFunc_Registry, _builtin_string) &&
+        InsertBuiltIn(BuiltinFunc_Registry, _builtin_typeof) &&
+        InsertBuiltIn(BuiltinFunc_Registry, _builtin_input) &&
+        InsertBuiltIn(BuiltinFunc_Registry, _builtin_number) &&
+        InsertBuiltIn(BuiltinFunc_Registry, _builtin_len) &&
+        InsertBuiltIn(BuiltinFunc_Registry, _builtin_cmd) &&
+        InsertBuiltIn(BuiltinFunc_Registry, _builtin_min) &&
+        InsertBuiltIn(BuiltinFunc_Registry, _builtin_max) &&
+        InsertBuiltIn(BuiltinFunc_Registry, _builtin_abs) &&
+        InsertBuiltIn(BuiltinFunc_Registry, _builtin_copy) &&
         init_BuiltinException(BuiltinFunc_Registry);
 
     if (successful_init)
@@ -236,12 +237,7 @@ static RtObject *builtin_toString(RtObject **args, int arg_count)
  */
 static RtObject *builtin_typeof(RtObject **args, int arg_count)
 {
-    if (arg_count == 0)
-    {
-        printf("Built in function typeof expects more than 0 arg\n");
-        return init_RtObject(UNDEFINED_TYPE);
-    }
-    if (arg_count > 1)
+    if (arg_count != 1)
     {
         printf("typeof builtin function can only take 1 argument\n");
         return init_RtObject(UNDEFINED_TYPE);
@@ -263,7 +259,7 @@ static RtObject *builtin_typeof(RtObject **args, int arg_count)
  */
 static RtObject *builtin_input(RtObject **args, int arg_count)
 {
-    if (arg_count > 1)
+    if (arg_count != 1)
     {
         printf("input builtin function can only take 1 argument\n");
         return init_RtObject(UNDEFINED_TYPE);
@@ -403,6 +399,7 @@ static RtObject *builtin_cmd(RtObject **args, int arg_count)
         printf("Built in function cmd must take exactly one argument\n");
         return init_RtObject(UNDEFINED_TYPE);
     }
+
     if (args[0]->type != STRING_TYPE)
     {
         printf("Built in function cmd must take a string type argument\n");
@@ -459,8 +456,10 @@ static RtObject *builtin_cmd(RtObject **args, int arg_count)
  */
 static RtObject *builtin_max(RtObject **args, int argcount)
 {
-    // temporary
-    assert(argcount > 0);
+    if(argcount == 0) {
+        assert(false);
+
+    }
 
     RtObject *max = args[0];
     for (int i = 1; i < argcount; i++)

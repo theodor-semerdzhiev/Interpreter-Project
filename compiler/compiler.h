@@ -114,10 +114,9 @@ typedef enum OpCode
     /* Offsets jump if raised Exception does not match exception on stack machine */
     OFFSET_JUMP_IF_COMPARE_EXCEPTION_FALSE,
 
-
     /**
      * Resets currently raised exception
-    */
+     */
     RESOLVE_RAISED_EXCEPTION,
 
     /* Used for creating objects, takes all elements in the local lookup table and creates an object, then pushes that onto the stack, then pop the call stack */
@@ -249,6 +248,7 @@ typedef struct ByteCode
         struct
         {
             int arg_count;
+            int line_number;
         } FUNCTION_CALL;
 
         struct
@@ -267,7 +267,8 @@ typedef struct ByteCode
             int start_of_catch_block;
         } PUSH_EXCEPTION_HANDLER;
 
-        struct {
+        struct
+        {
             int offset;
         } OFFSET_JUMP_IF_COMPARE_EXCEPTION_FALSE;
 
@@ -284,26 +285,38 @@ typedef struct ByteCodeList
     int malloc_len;
 } ByteCodeList;
 
+/**
+ * DESCRIPTION:
+ * This struct is passed to every compilation function
+ * It keeps track of all meta data about the AST List, in one place
+ */
+typedef struct Compiler
+{
+    char *filename;
+} Compiler;
+
+#define compiler_free(compiler) free(compiler->filename); free(compiler);
+
 /* Free Variable Algorithm */
 GenericSet *collect_free_vars(AST_List *body);
 GenericSet *collect_free_vars_ast_node(AST_node *node);
 
+Compiler *init_Compiler(const char *filename);
 ByteCodeList *init_ByteCodeList();
 ByteCode *init_ByteCode(OpCode code);
 
-ExpressionNode *simplify_expression(ExpressionNode *root);
-
 ByteCodeList *concat_bytecode_lists(ByteCodeList *lhs, ByteCodeList *rhs);
-ByteCodeList *compile_exps_sequence(ExpressionNode **exps, int exps_length);
-ByteCodeList *compile_expression_component(ExpressionComponent *cm);
-ByteCode *compile_func_declaration(AST_node *function);
-ByteCodeList *compile_conditional_chain(AST_node *node, bool is_global_scope);
-ByteCodeList *compile_try_catch_chain(AST_node *node, bool is_global_scope, int rec_lvl);
-ByteCodeList *compiled_while_loop(AST_node *node, bool is_global_scope);
-ByteCodeList *compile_expression(ExpressionNode *root);
-ByteCode *compile_class_body(AST_node *node);
-ByteCodeList *compile_code_body(AST_List *body, bool is_global_scope, bool add_derefs);
-ByteCodeList *compile_raise_exception(AST_node *node);
+
+ByteCodeList *compile_exps_sequence(Compiler *compiler, ExpressionNode **exps, int exps_length);
+ByteCodeList *compile_expression_component(Compiler *compiler, ExpressionComponent *cm);
+ByteCode *compile_func_declaration(Compiler *compiler, AST_node *function);
+ByteCodeList *compile_conditional_chain(Compiler *compiler, AST_node *node, bool is_global_scope);
+ByteCodeList *compile_try_catch_chain(Compiler *compiler, AST_node *node, bool is_global_scope, int rec_lvl);
+ByteCodeList *compiled_while_loop(Compiler *compiler, AST_node *node, bool is_global_scope);
+ByteCodeList *compile_expression(Compiler *compiler, ExpressionNode *root);
+ByteCode *compile_class_body(Compiler *compiler, AST_node *node);
+ByteCodeList *compile_code_body(Compiler *compiler, AST_List *body, bool is_global_scope, bool add_derefs);
+ByteCodeList *compile_raise_exception(Compiler *compiler, AST_node *node);
 
 void free_ByteCodeList(ByteCodeList *list);
 void free_ByteCode(ByteCode *bytecode);

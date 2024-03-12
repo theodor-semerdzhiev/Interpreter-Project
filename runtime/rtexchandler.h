@@ -26,5 +26,6 @@ extern RtException *raisedException;
 RtExceptionHandler *push_exception_handler(size_t stack_ptr, size_t start_of_try_catch, size_t stk_machine_ptr);
 RtExceptionHandler *pop_exception_handler();
 void handle_runtime_exception(RtException *exception);
+void print_unhandledexception(RtException *exception);
 
 #define raiseException(exception) handle_runtime_exception(exception);

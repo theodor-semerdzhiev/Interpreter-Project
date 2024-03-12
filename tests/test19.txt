@@ -3,13 +3,26 @@ exception z;
 exception Ex;
 println(z);
 
-
-try {
-    z(1,2,3,4,5);
-} catch (z()) {
-    Ex();
-} catch(InvalidNumberOfArgumentsException()) {
-    print("  ");
-} catch() {
-    print("123");
+func test2() {
+    println("Hello World");
 }
+
+func test1(x) {
+    try {
+        test2(123123, 122321, x);
+        raise z();
+    } catch (z()) {
+        print("z");
+    }
+}
+
+func a() {
+    func b() {
+        func c() {
+            test1();
+        }
+        c();
+    }
+    b();
+}
+a();

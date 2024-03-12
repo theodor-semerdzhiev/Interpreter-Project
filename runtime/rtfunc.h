@@ -27,15 +27,17 @@ typedef struct RtFunction
 
             // function arguments
             char **args;
-            unsigned int arg_count;
+            size_t arg_count;
 
             // each closures maps to the closure object
             char **closures;
             RtObject **closure_obj;
 
-            unsigned int closure_count;
+            size_t closure_count;
 
             char *func_name;
+
+            char* file_location; // name of the file where this function is declared
         } user_func;
 
         // built in function
@@ -44,12 +46,14 @@ typedef struct RtFunction
             BuiltinFunc *func; // IMMUTABLE
         } built_in;
 
+        // built in attribute function
         struct
         {
             AttrBuiltin *func; // IMMUTABLE
             RtObject *target;
         } attr_built_in;
 
+        // Created during runtime 
         struct
         {
             char *exception_name;
@@ -69,4 +73,5 @@ RtFunction *init_rtfunc(RtFuncType type);
 RtFunction *rtfunc_cpy(const RtFunction *func, bool deepcpy);
 RtObject **rtfunc_getrefs(const RtFunction *func);
 const char *rtfunc_type_toString(const RtFunction *func);
+const char *rtfunc_get_funcname(const RtFunction *func);
 void rtfunc_print(RtFunction *func);

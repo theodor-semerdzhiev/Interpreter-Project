@@ -5,20 +5,11 @@
 #include "parser/keywords.h"
 #include "misc/dbgtools.h"
 #include "parser/semanalysis.h"
+#include "parser/lexer.h"
 #include "compiler/compiler.h"
 #include "generics/hashset.h"
 #include "runtime/runtime.h"
 
-/* Abstracts lexing for a given file */
-TokenList *tokenize_file(char *file_contents)
-{
-
-    Lexer *lexer = malloc_lexer();
-    TokenList *tokens = tokenize_str(lexer, file_contents);
-    free_lexer(lexer);
-
-    return tokens;
-}
 
 /* performs cleanup operations in case of parsing error */
 static void parser_error_cleanup(Parser *parser)
@@ -101,14 +92,18 @@ AST_List *parse_file(char *filename)
 /* MAIN PROGRAM LOGIC */
 
 int return_code = 0;
+char* mainfile = NULL;
+jmp_buf global_program_interrupt;
 
 int main(int argc, char *argv[])
 {
     init_keyword_table();
     init_Precedence();
 
-    // AST_List *ast = parse_file(argv[1]);
-    AST_List *ast = parse_file("./tests/test19.txt");
+    // mainfile = argv[1];
+    mainfile = "./tests/test19.txt";
+
+    AST_List *ast = parse_file(mainfile);
 
     free_keyword_table();
 
@@ -117,24 +112,35 @@ int main(int argc, char *argv[])
         return_code = 1;
     }
     else
-    {
-        ByteCodeList *list = compile_code_body(ast, true, false);
+    {   
+        assert(mainfile);
+        Compiler *compiler = init_Compiler(mainfile);
+
+        ByteCodeList *list = compile_code_body(compiler, ast, true, false);
+
+        compiler_free(compiler);
 
         free_ast_list(ast);
 
         deconstruct_bytecode(list, 0);
 
         // Preps runtime environment
-        if (!prep_runtime_env(list))
+        if (!prep_runtime_env(list, mainfile))
         {
             printf("Error occurred Setting up runtime environment.");
             return 1;
         }
 
-        // Runs program
-        return_code = run_program();
+        int error_return = setjmp((int *)&global_program_interrupt);
+
+            // Runs program
+        if(error_return == 0)
+            return_code = run_program();
+        else  
+            return_code = error_return;
 
         perform_cleanup();
+        
 
         free_ByteCodeList(list);
     }

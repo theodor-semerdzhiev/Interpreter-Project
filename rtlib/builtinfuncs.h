@@ -1,5 +1,5 @@
 #pragma once
-
+#include <stddef.h>
 typedef struct RtObject RtObject;
 
 /**
@@ -12,7 +12,7 @@ typedef struct BuiltinFunc
 
     RtObject *(*builtin_func)(RtObject **, int);
 
-    int arg_count; // if its -1, then functions takes any amount of arguments
+    size_t arg_count; // if its -1, then functions takes any amount of arguments
 
 } BuiltinFunc;
 

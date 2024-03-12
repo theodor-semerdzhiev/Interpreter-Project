@@ -352,6 +352,20 @@ static void clear_buffer(Lexer *lexer, TokenList *list)
     lexer->prev_pos = lexer->cur_pos;
 }
 
+/**
+ * DESCRIPTION:
+ * Takes a string representing some file contents
+ * And its tokenized
+*/
+TokenList *tokenize_file(char *file_contents)
+{
+
+    Lexer *lexer = malloc_lexer();
+    TokenList *tokens = tokenize_str(lexer, file_contents);
+    free_lexer(lexer);
+    return tokens;
+}
+
 __attribute__((warn_unused_result))
 /* Creates new token list thats a copy */
 TokenList *

@@ -96,6 +96,7 @@ void rtfunc_free(RtFunction *func, bool free_immutable)
         free(func->func_data.user_func.args);
         free(func->func_data.user_func.closure_obj);
         free(func->func_data.user_func.func_name);
+        free(func->func_data.user_func.file_location);
         free_ByteCodeList(func->func_data.user_func.body);
     }
     else
@@ -170,6 +171,7 @@ rtfunc_cpy(const RtFunction *func, bool deepcpy)
         cpy->func_data.user_func.closure_count = func->func_data.user_func.closure_count;
         cpy->func_data.user_func.closures = func->func_data.user_func.closures;
         cpy->func_data.user_func.func_name = func->func_data.user_func.func_name;
+        cpy->func_data.user_func.file_location = func->func_data.user_func.file_location;
 
         // value of this can vary during runtime
         // special case
@@ -252,7 +254,7 @@ rtfunc_toString(RtFunction *function)
         {
             size_t buffer_length = 80 + 2 * sizeof(void *) + 1;
             char buffer[buffer_length];
-            snprintf(buffer, sizeof(buffer), "func@%p", function->func_data.user_func.body);
+            snprintf(buffer, sizeof(buffer), "(unknown).func@%p", function->func_data.user_func.body);
 
             return cpy_string(buffer);
         }
@@ -380,5 +382,31 @@ const char *rtfunc_type_toString(const RtFunction *func)
         return "Regular";
     case EXCEPTION_CONSTRUCTOR_FUNC:
         return "Exception Constructor";
+    }
+}
+
+/**
+ * DESCRIPTION:
+ * Gets the name of the function, function returns the direct reference, it does not create a copy
+*/
+const char *rtfunc_get_funcname(const RtFunction *func) {
+    switch (func->functype)
+    {
+    case REGULAR_FUNC: {
+        return 
+        func->func_data.user_func.func_name? 
+        func->func_data.user_func.func_name:
+        "(unknown)";
+    }
+    case EXCEPTION_CONSTRUCTOR_FUNC: {
+        return func->func_data.exception_constructor.exception_name;
+    }
+    case BUILTIN_FUNC: {
+        return func->func_data.built_in.func->builtin_name;
+    }
+    case ATTR_BUILTIN_FUNC: {
+        return func->func_data.attr_built_in.func->attrsname;
+    }
+    
     }
 }

@@ -10,7 +10,7 @@
  * When the exception is resolved, memory is freed, and the closure is reset to NULL
  * 
  * NOTE:
- * This variable should NEVER be contained within the GC, its always standalone
+ * This variable should NEVER be contained within the GC, its always independant
 */
 RtException *raisedException = NULL;
 
@@ -21,6 +21,15 @@ static RtExceptionHandler *tail = NULL;
 
 #define initExceptionHandler() malloc(sizeof(RtExceptionHandler));
 
+/**
+ * DESCRIPTION:
+ * Useful helper for setting raised Exception and making sure certain conditions are met
+*/
+void _set_raised_exception(RtException *exc) {
+    assert(exc);
+    assert(!raisedException);
+    raisedException = exc;
+}
 
 /**
  * DESCRIPTION:
@@ -97,13 +106,14 @@ void handle_runtime_exception(RtException *exception)
 {
     assert(exception);
 
-    raisedException = exception;
-
-    if (tail == NULL && head == NULL) {
+    // if there is not exception handler, or there is already an other raised Exception
+    if ((tail == NULL && head == NULL) || raisedException) {
         print_unhandledexception(exception);
         longjmp(global_program_interrupt, 1);
         return;
     }
+
+    raisedException = exception;
 
     RtExceptionHandler *handler = pop_exception_handler();
     assert(handler);
@@ -134,44 +144,51 @@ void handle_runtime_exception(RtException *exception)
  * DESCRIPION:
  * Functions prints out unhandled exception error
 */
-#define TAB1 "  "
-#define TAB2 "      "
 #define TAB3 "          "
+#define StackPtr getCallStackPointer()
+
+#define RED_TEXT "\x1b[31m"
+#define RESET_COLOR "\x1b[0m"
 
 void print_unhandledexception(RtException *exception) {
     assert(exception);
-    printf("Unhandled exception '%s' occured: \n", exception->ex_name);
-    printf("Message: %s\n", exception->msg);
-    printf("Call Stack:\n");
 
-    CallFrame *frame;
-    // pops until we reach the Call Frame with the catch block
-    while(getCallStackPointer() > 0)
-    {
-        frame = RunTime_pop_callframe();
-        char *functostring = rtfunc_toString(frame->function);
-
-        assert(frame);
-        assert(frame->function);
-        assert(functostring);
-
-        printf("%s:%s():%zu" TAB3 "Function Signature: %s\n", 
-            frame->code_file_location, 
-            rtfunc_get_funcname(frame->function),
-            frame->line_number,
-            functostring);
-
-        free_CallFrame(frame, false);
-        free(functostring);
+    // Error message will depend on the currently raised exception
+    if(raisedException) {
+        printf(RED_TEXT "Unhandled exception '%s' occured while trying to resolve exception %s \n", exception->ex_name, raisedException->ex_name);
+    } else {
+        printf(RED_TEXT "Unhandled exception '%s' occured: \n", exception->ex_name);
     }
 
-    assert(getCallStackPointer() == 0);
-    frame = RunTime_pop_callframe();
-    assert(frame);
-    assert(!frame->function);
-    printf("%s\n", frame->code_file_location);
-    
-    free_CallFrame(frame, false);
+    printf("Message: %s\n" "Call Stack:\n", exception->msg);
 
+    CallFrame *frame;
+    size_t cur_linenb;
+    // pops until we reach the Call Frame with the catch block
+    while(StackPtr >= 0)
+    {
+        if(StackPtr > 0) {
+            frame = RunTime_pop_callframe();
+            assert(frame && frame->function);
+            size_t cur_linenb = frame->pg->code[frame->pg_counter]->line_nb;
+            char *functostring = rtfunc_toString(frame->function);
+
+            printf("%s:%s:%zu" TAB3 "Function Signature: %s\n", 
+                frame->code_file_location, 
+                rtfunc_get_funcname(frame->function),
+                cur_linenb,
+                functostring);
+
+            free(functostring);
+        } else {
+            frame = RunTime_pop_callframe();
+            assert(!frame->function);
+            size_t cur_linenb = frame->pg->code[frame->pg_counter]->line_nb;
+            printf("%s:%zu\n", frame->code_file_location, cur_linenb);
+        }
+
+        free_CallFrame(frame, false);
+    }
+    printf(RESET_COLOR);
 }
 

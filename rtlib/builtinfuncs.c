@@ -30,6 +30,13 @@
  * - copy
  */
 
+/**
+ * CONVENTION:
+ * If an exception occurs during the execution of a built in function
+ * 1- raisedException variable is set to the relevant exception
+ * 2- Function MUST return NULL
+*/
+
 #define BuiltinsInitError() exitprogram(FAILED_BUILTINS_INIT)
 
 static RtObject *builtin_print(RtObject **args, int arg_count);

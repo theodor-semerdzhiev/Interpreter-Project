@@ -8,8 +8,9 @@ typedef struct AttrBuiltin
 
     union
     {
-        RtObject *(*builtin_func)(RtObject *, RtObject **, int);
-        RtObject *(*get_attr)(RtObject *);
+        RtObject *(*builtin_func)(RtObject *, RtObject **, int); // built in function
+
+        RtObject *(*get_attr)(RtObject *); // function that returns an attribute
     } func;
 
     int argcount;

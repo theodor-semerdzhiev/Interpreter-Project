@@ -158,6 +158,8 @@ typedef struct ExpressionNode
 
     int token_num; // Associated position in the Token List
 
+    int line_nb;
+
     ExpressionComponent *component; // contains a the 'value' of the node
 
     ExpressionNode *RHS;
@@ -225,7 +227,7 @@ typedef struct AST_node
     */
     AccessModifier access;
 
-    int line_num;
+    int line_nb;
 
     int token_num; // Associated position in the Token List
 
@@ -285,7 +287,6 @@ typedef struct AST_node
         {
             ExpressionNode *exp;
         } raise;
-        
 
     } ast_data;
 

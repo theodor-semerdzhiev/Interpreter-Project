@@ -159,7 +159,7 @@ typedef enum OpCode
 typedef struct ByteCode
 {
     OpCode op_code;
-    int line_nb; // line number associated with instruction, if not applicable, it will be set to -1
+    size_t line_nb; // line number associated with instruction, if not applicable, it will be set to -1
 
     union
     {
@@ -248,7 +248,6 @@ typedef struct ByteCode
         struct
         {
             int arg_count;
-            int line_number;
         } FUNCTION_CALL;
 
         struct
@@ -303,7 +302,7 @@ GenericSet *collect_free_vars_ast_node(AST_node *node);
 
 Compiler *init_Compiler(const char *filename);
 ByteCodeList *init_ByteCodeList();
-ByteCode *init_ByteCode(OpCode code);
+ByteCode *init_ByteCode(OpCode code, size_t line_nb);
 
 ByteCodeList *concat_bytecode_lists(ByteCodeList *lhs, ByteCodeList *rhs);
 

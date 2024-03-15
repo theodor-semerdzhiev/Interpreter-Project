@@ -16,10 +16,6 @@
 /**
  * DESCRIPTION:
  * This File contains the implementation of the runtime environment.
- * Includes:
- * - Main code loop
- * - Computation Stack
- *
  */
 
 /**
@@ -106,7 +102,7 @@ int init_RunTime()
 int prep_runtime_env(ByteCodeList *code, const char *mainfile)
 {
     int returncode = init_RunTime();
-    RunTime_push_callframe(init_CallFrame(code, NULL, 0, mainfile));
+    RunTime_push_callframe(init_CallFrame(code, NULL, mainfile));
     init_GarbageCollector();
     init_AttrRegistry();
     rtobj_init_cmp_tbl();
@@ -165,11 +161,9 @@ RtObject *lookup_variable(const char *var)
 CallFrame *init_CallFrame(
     ByteCodeList *program,
     RtFunction *function,
-    size_t line_number,
     const char *filename)
 {
     assert(program);
-    assert(line_number >= 0);
 
     CallFrame *cllframe = malloc(sizeof(CallFrame));
     // Maps strings to RtObjects
@@ -178,7 +172,6 @@ CallFrame *init_CallFrame(
     cllframe->lookup = init_IdentifierTable();
     cllframe->function = function;
     cllframe->exception_jump = malloc(sizeof(jmp_buf));
-    cllframe->line_number = line_number;
     cllframe->code_file_location = cpy_string(filename);
     return cllframe;
 }
@@ -410,11 +403,9 @@ static int perform_exit()
  * This function will return null if function call was built in
  */
 
-static void perform_builtin_call(BuiltinFunc *builtin, RtObject **args, size_t arg_count);
-static CallFrame *perform_regular_func_call(RtFunction *function, RtObject **arguments, bool disposable[], size_t arg_count, size_t line_number);
-static void perform_exception_call(const char *exception_name, RtObject **args, size_t arg_count);
+static CallFrame *perform_regular_func_call(RtObject *funcobj, bool funcobj_disposable, RtObject **arguments, bool disposable[], size_t arg_count);
 
-CallFrame *perform_function_call(size_t arg_count, size_t line_number)
+CallFrame *perform_function_call(size_t arg_count)
 {
     // gets the arguments
     RtObject *arguments[arg_count];
@@ -448,19 +439,21 @@ CallFrame *perform_function_call(size_t arg_count, size_t line_number)
     // called object is not a function
     if (func->type != FUNCTION_TYPE)
     {
-        printf("Object of type %s is not callable\n", rtobj_type_toString(func->type));
-        return NULL;
-        // argument count does not match
+        const char *type = rtobj_type_toString(func->type);
+        char buffer[strlen(type) + 50];
+        snprintf(buffer, sizeof(buffer), "Object of type %s is not a callable", type);
+        dispose_disposable_obj(func, func_disposable);
+        raiseException(ObjectNotCallableException(buffer));
     }
 
-    // temporary for now
+    // handles stack overflow error
     if (stack_ptr >= MAX_STACK_SIZE - 1 && func->data.Func->functype == REGULAR_FUNC)
     {
-
-        printf("Stack Overflow Error when calling function '%s' \n",
-               func->data.Func->func_data.user_func.func_name);
-        exit(2);
-        return NULL;
+        const char *funcname = func->data.Func->func_data.user_func.func_name;
+        char buffer[strlen(funcname) + 50];
+        snprintf(buffer, sizeof(buffer), "Stack Overflow Error when calling function '%s'", funcname);
+        dispose_disposable_obj(func, func_disposable);
+        raiseException(StackOverflowException(buffer));
     }
 
     CallFrame *new_frame = NULL;
@@ -470,27 +463,64 @@ CallFrame *perform_function_call(size_t arg_count, size_t line_number)
     case EXCEPTION_CONSTRUCTOR_FUNC:
     {
         const char *funcname = func->data.Func->func_data.exception_constructor.exception_name;
-        perform_exception_call(funcname, arguments, arg_count);
+        if (arg_count > 1)
+        {
+            char buffer[110 + strlen(funcname)];
+            snprintf(buffer,sizeof(buffer),
+                "%s: Exception Constructor can only take 1 or 0 arguments, but was given %zu",
+                funcname, arg_count);
+
+            dispose_disposable_obj(func, func_disposable);
+            raiseException(InvalidNumberOfArgumentsException(buffer));
+        }
+
+        RtObject *exception_obj = init_RtObject(EXCEPTION_TYPE);
+        exception_obj->data.Exception = init_RtException(funcname, NULL);
+        exception_obj->data.Exception->msg = 
+        arg_count == 1 ? rtobj_toString(arguments[0]) : cpy_string("");
+
+        StackMachine_push(stk_machine, exception_obj, true);
         break;
     }
-    case BUILTIN_FUNC:
-        perform_builtin_call(func->data.Func->func_data.built_in.func, arguments, arg_count);
+    case BUILTIN_FUNC: {
+
+        assert(func->data.Func->func_data.built_in.func);
+
+        BuiltinFunc *builtin = func->data.Func->func_data.built_in.func;
+        RtObject *obj = builtin->builtin_func((RtObject **)arguments, arg_count);
+
+        // if an exception occured during execution of built in function
+        if(raisedException) {
+            assert(!obj);
+            dispose_disposable_obj(func, func_disposable);
+            raiseException(raisedException);
+        }
+
+        // pushes result of function onto stack machine
+        StackMachine_push(StackMachine, obj, true);
         break;
+    }
 
     case ATTR_BUILTIN_FUNC:
     {
         AttrBuiltin *attrfunc = func->data.Func->func_data.attr_built_in.func;
         RtObject *target = func->data.Func->func_data.attr_built_in.target;
+        RtObject *obj = attrfunc->func.builtin_func(target, arguments, arg_count);
 
-        RtObject *new_obj = attrfunc->func.builtin_func(target, arguments, arg_count);
-        StackMachine_push(StackMachine, new_obj, new_obj != target);
+        // exception occurred during execution of built in attribute function
+        if(raisedException) {
+            assert(!obj);
+            dispose_disposable_obj(func, func_disposable);
+            raiseException(raisedException);
+        }
 
+        StackMachine_push(StackMachine, obj, obj != target);
         break;
     }
 
     case REGULAR_FUNC:
         new_frame =
-            perform_regular_func_call(func->data.Func, arguments, arg_disposable, arg_count, line_number);
+            perform_regular_func_call(func, func_disposable, arguments, arg_disposable, arg_count);
         break;
     }
 
@@ -498,56 +528,34 @@ CallFrame *perform_function_call(size_t arg_count, size_t line_number)
     return new_frame;
 }
 
+
 /**
  * DESCRIPTION:
- * Helper for performing built in function call
- * Adds new Callframe to call stack
- */
-static void perform_builtin_call(BuiltinFunc *builtin, RtObject **args, size_t arg_count)
-{
-    assert(builtin);
-
-    // // checks argument counts match
-    // if (
-    //     builtin->arg_count != INT64_MAX &&
-    //     builtin->arg_count != arg_count &&
-    //     // if func takes a finite number of args, if its set to -1, then it could take any number of args
-    //     builtin->arg_count >= 0)
-    // {
-
-    //     printf("Built in function '%s' expects %zu arguments, but got %zu\n",
-    //            builtin->builtin_name,
-    //            builtin->arg_count,
-    //            arg_count);
-    //     return;
-    // }
-
-    // pushes result of function onto stack machine
-    StackMachine_push(StackMachine, builtin->builtin_func((RtObject **)args, arg_count), true);
-}
-
-/**
- * Helper for performing logic for handling function calls
+ * Helper for performing logic for handling regular function calls
  */
 static CallFrame *perform_regular_func_call(
-    RtFunction *Function,
+    RtObject *funcobj,
+    bool funcobj_disposable,
     RtObject **arguments,
     bool disposable[],
-    size_t arg_count,
-    size_t line_number)
+    size_t arg_count)
 {
-    assert(Function);
+    assert(funcobj);
+    assert(funcobj->type == FUNCTION_TYPE);
+    assert(funcobj->data.Func->functype == REGULAR_FUNC);
 
-    ByteCodeList *func_code = Function->func_data.user_func.body;
-    char *funcname = Function->func_data.user_func.func_name;
-    char *func_file_location = Function->func_data.user_func.file_location;
+    RtFunction *func = funcobj->data.Func;
+
+    ByteCodeList *func_code = func->func_data.user_func.body;
+    char *funcname = func->func_data.user_func.func_name;
+    char *func_file_location = func->func_data.user_func.file_location;
 
     // checks argument counts match
-    if (Function->functype == REGULAR_FUNC &&
-        Function->func_data.user_func.arg_count != INT64_MAX &&
-        Function->func_data.user_func.arg_count != arg_count)
+    if (func->functype == REGULAR_FUNC &&
+        func->func_data.user_func.arg_count != INT64_MAX &&
+        func->func_data.user_func.arg_count != arg_count)
     {
-        size_t expected_arg_count = Function->func_data.user_func.arg_count;
+        size_t expected_arg_count = func->func_data.user_func.arg_count;
 
         char buffer[110 + strlen(funcname)];
         snprintf(
@@ -558,11 +566,13 @@ static CallFrame *perform_regular_func_call(
             expected_arg_count,
             arg_count);
 
+        dispose_disposable_obj(funcobj, funcobj_disposable);
+
         raiseException(InvalidNumberOfArgumentsException(buffer));
     }
 
     CallFrame *new_frame =
-        init_CallFrame(func_code, Function, line_number, func_file_location);
+        init_CallFrame(func_code, func, func_file_location);
 
     // adds function arguments to lookup table and ref list
     // arguments are shallowed copied if there of a primitive type, and added into GC
@@ -570,26 +580,20 @@ static CallFrame *perform_regular_func_call(
     for (unsigned int i = 0; i < arg_count; i++)
     {
         RtObject *arg = arguments[i];
+        char *argname = func->func_data.user_func.args[i];
 
         if (!disposable[i])
             assert(GC_Registry_has(arg));
 
-        Identifier_Table_add_var(
-            new_frame->lookup,
-            Function->func_data.user_func.args[i],
-            arg,
-            DOES_NOT_APPLY);
+        Identifier_Table_add_var(new_frame->lookup, argname, arg, DOES_NOT_APPLY);
     }
 
     // adds closure variables
-    for (unsigned int i = 0; i < Function->func_data.user_func.closure_count; i++)
+    for (unsigned int i = 0; i < func->func_data.user_func.closure_count; i++)
     {
-
-        Identifier_Table_add_var(
-            new_frame->lookup,
-            Function->func_data.user_func.closures[i],
-            Function->func_data.user_func.closure_obj[i],
-            DOES_NOT_APPLY);
+        char * closure_name = func->func_data.user_func.closures[i];
+        RtObject *closure_obj = func->func_data.user_func.closure_obj[i];
+        Identifier_Table_add_var(new_frame->lookup, closure_name, closure_obj, DOES_NOT_APPLY);
     }
 
     // adds function definition to lookup (to allow recursion)
@@ -597,46 +601,15 @@ static CallFrame *perform_regular_func_call(
     if (funcname)
     {
         RtObject *cpy_func = init_RtObject(FUNCTION_TYPE);
-        cpy_func->data.Func = rtfunc_cpy(Function, true);
+        cpy_func->data.Func = rtfunc_cpy(func, true);
 
-        Identifier_Table_add_var(
-            new_frame->lookup,
-            funcname,
-            cpy_func,
-            DOES_NOT_APPLY);
+        Identifier_Table_add_var(new_frame->lookup, funcname, cpy_func, DOES_NOT_APPLY);
 
         // call frame is pushed before adding func to GC registry
         add_to_GC_registry(cpy_func);
     }
     RunTime_push_callframe(new_frame);
     return new_frame;
-}
-
-/**
- * DESCRIPTION:
- * Performs exception call
- */
-static void perform_exception_call(const char *exception_name, RtObject **args, size_t arg_count)
-{
-    assert(exception_name);
-
-    if (arg_count > 1)
-    {
-        char buffer[110 + strlen(exception_name)];
-        snprintf(
-            buffer,
-            sizeof(buffer),
-            "%s: Exception Constructor can only take 1 or 0 arguments, but was given %zu",
-            exception_name,
-            arg_count);
-        raiseException(InvalidNumberOfArgumentsException(buffer));
-    }
-
-    RtObject *exception_obj = init_RtObject(EXCEPTION_TYPE);
-    exception_obj->data.Exception = init_RtException(exception_name, NULL);
-    exception_obj->data.Exception->msg = arg_count == 1 ? rtobj_toString(args[0]) : cpy_string("");
-
-    StackMachine_push(stk_machine, exception_obj, true);
 }
 
 /**
@@ -754,10 +727,19 @@ static void perform_get_index()
     bool obj_disposable = disposable();
     RtObject *obj = StackMachine_pop(StackMachine, false);
 
+    assert(!raisedException);
+
     RtObject *indexed_obj = rtobj_getindex(obj, index_);
 
     dispose_disposable_obj(index_, index_disposable);
     dispose_disposable_obj(obj, obj_disposable);
+
+    // if exception occurred during indexing
+    if(raisedException) {
+        assert(indexed_obj);
+        raiseException(raisedException);
+        return;
+    }
 
     // object was fetched from an other object, therefor it should be disposed, since the latter has ref to it
     StackMachine_push(StackMachine, indexed_obj, false);
@@ -851,7 +833,6 @@ static void perform_create_exception(const char *exception_name, AccessModifier 
  */
 static void perform_get_attribute(char *attrs)
 {
-    // VERY TEMPORARY CODE
     bool target_disposable = disposable();
     RtObject *target = StackMachine_pop(StackMachine, false);
 
@@ -869,17 +850,19 @@ static void perform_get_attribute(char *attrs)
             dispose_disposable_obj(target, target_disposable);
             return;
         }
+
+        rtobj_free(attrsname, false);
     }
 
     RtObject *builtin_attr = rtattr_getattr(target, attrs);
 
     if (!builtin_attr)
     {
-        printf("Object of type %s does not have builtin attribute %s",
-               rtobj_type_toString(target->type),
-               attrs);
-        StackMachine_push(StackMachine, init_RtObject(UNDEFINED_TYPE), true);
+        const char* type = rtobj_type_toString(target->type);
+        char buffer[strlen(attrs) + strlen(type) + 50];
+        snprintf(buffer, sizeof(buffer), "Object of type %s does not have attribute '%s'", type, attrs);
         dispose_disposable_obj(target, target_disposable);
+        raiseException(InvalidAttributeException(buffer));
         return;
     }
 
@@ -950,15 +933,21 @@ static void perform_raise_exception()
 {
     bool disposable = disposable();
     RtObject *obj = StackMachine_pop(stk_machine, false);
+
     if (obj->type != EXCEPTION_TYPE)
     {
-        // todo raise exception
+        const char* type = rtobj_type_toString(obj->type);
+        char buffer[strlen(type) + 90];
+        snprintf(buffer, sizeof(buffer), 
+        "Cannot raise an object of type %s. Raise conditions must always be an exception.", type);
         dispose_disposable_obj(obj, disposable);
+        raiseException(InvalidTypeException(buffer));
         return;
     }
-
-    add_to_GC_registry(obj);
-    handle_runtime_exception(obj->data.Exception);
+    
+    RtException *exception = rtexception_cpy(obj->data.Exception);
+    dispose_disposable_obj(obj, disposable);
+    handle_runtime_exception(exception);
 }
 
 int run_program()
@@ -1131,10 +1120,11 @@ int run_program()
 
             case FUNCTION_CALL:
             {
+                
                 // checks wether a new call frame was created
                 // if it was, then it ends the inner loop
                 // otherwise, it was a built in function, in which case we continue the inner loop as usual
-                if (perform_function_call(code->data.FUNCTION_CALL.arg_count, code->data.FUNCTION_CALL.line_number))
+                if (perform_function_call(code->data.FUNCTION_CALL.arg_count))
                 {
                     loop = false; // ends loop
                 }

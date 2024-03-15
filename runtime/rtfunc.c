@@ -207,6 +207,7 @@ __attribute__((warn_unused_result))
 char *
 rtfunc_toString(RtFunction *function)
 {
+    assert(function);
     switch (function->functype)
     {
     case EXCEPTION_CONSTRUCTOR_FUNC: {

@@ -19,7 +19,6 @@ typedef struct CallFrame
     // the associated function, if applicable,
     // if its global scope then it will be NULL
     RtFunction *function;
-    size_t line_number;       // line number where function was called
     char *code_file_location; // file where the code resides (i.e where the file where the functions is defined)
 
     // used by exception handling
@@ -44,7 +43,7 @@ RtObject *StackMachine_push(StackMachine *stk_machine, RtObject *obj, bool dispo
 RtObject **StackMachine_to_list(StackMachine *stk_machine);
 void free_StackMachine(StackMachine *stk_machine, bool free_rtobj);
 
-CallFrame *init_CallFrame(ByteCodeList *program, RtFunction *function, size_t line_number, const char *filename);
+CallFrame *init_CallFrame(ByteCodeList *program, RtFunction *function, const char *filename);
 
 void free_CallFrame(CallFrame *call, bool free_rtobj);
 
@@ -61,7 +60,7 @@ CallFrame *RunTime_pop_callframe();
 void dispose_disposable_obj(RtObject *obj, bool disposable);
 
 int prep_runtime_env(ByteCodeList *code, const char *mainfile);
-CallFrame *perform_function_call(size_t arg_count, size_t line_number);
+CallFrame *perform_function_call(size_t arg_count);
 int run_program();
 bool isRuntimeActive();
 void perform_cleanup();

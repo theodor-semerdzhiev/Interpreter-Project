@@ -279,6 +279,7 @@ ExpressionNode *malloc_expression_node(Parser *parser)
     node->negation = false;
     node->type = -1;
     node->token_num = parser->token_ptr;
+    node->line_nb = parser->token_list->list[parser->token_ptr]->line_num;
 
     if (parser)
         push_to_memtracker(parser->memtracker, node, free);
@@ -1136,7 +1137,7 @@ AST_node *malloc_ast_node(Parser *parser)
     node->next = NULL;
     node->type = -1;
     node->access = DOES_NOT_APPLY;
-    node->line_num = -1;
+    node->line_nb = -1;
     node->token_num = parser->token_ptr;
 
     if (parser)
@@ -1274,7 +1275,8 @@ void free_ast_node(AST_node *node)
         return;
     }
 
-    case RAISE_EXPRESSION: {
+    case RAISE_EXPRESSION:
+    {
         free_expression_tree(node->ast_data.exp);
         free(node);
         return;
@@ -1374,7 +1376,7 @@ AST_node *parse_variable_declaration(Parser *parser, int rec_lvl __attribute__((
     AST_node *node = malloc_ast_node(parser);
     node->access = access_modifier;
     node->type = VAR_DECLARATION;
-    node->line_num = list[parser->token_ptr]->line_num;
+    node->line_nb = list[parser->token_ptr]->line_num;
 
     // gets the var name
     node->identifier.declared_var = malloc_string_cpy(parser, list[parser->token_ptr + 1]->ident);
@@ -1431,7 +1433,7 @@ AST_node *parse_while_loop(Parser *parser, int rec_lvl)
     AST_node *node = malloc_ast_node(parser);
 
     node->type = WHILE_LOOP;
-    node->line_num = list[parser->token_ptr]->line_num;
+    node->line_nb = list[parser->token_ptr]->line_num;
 
     parser->token_ptr += 2;
 
@@ -1487,7 +1489,7 @@ AST_node *parse_for_loop(Parser *parser, int rec_lvl)
 
     AST_node *node = malloc_ast_node(parser);
     node->type = FOR_LOOP;
-    node->line_num = list[parser->token_ptr]->line_num;
+    node->line_nb = list[parser->token_ptr]->line_num;
     parser->token_ptr += 2;
 
     node->ast_data.for_loop.initialization = NULL;
@@ -1551,7 +1553,7 @@ AST_node *parse_if_conditional(Parser *parser, int rec_lvl)
     AST_node *node = malloc_ast_node(parser);
 
     node->type = IF_CONDITIONAL;
-    node->line_num = list[parser->token_ptr]->line_num;
+    node->line_nb = list[parser->token_ptr]->line_num;
 
     parser->token_ptr += 2;
 
@@ -1598,7 +1600,7 @@ AST_node *parse_loop_termination(Parser *parser, int rec_lvl __attribute__((unus
     AST_node *node = malloc_ast_node(parser);
 
     node->type = LOOP_TERMINATOR;
-    node->line_num = list[parser->token_ptr]->line_num;
+    node->line_nb = list[parser->token_ptr]->line_num;
 
     parser->token_ptr += 2;
 
@@ -1627,7 +1629,7 @@ AST_node *parse_loop_continuation(Parser *parser, int rec_lvl __attribute__((unu
 
     AST_node *node = malloc_ast_node(parser);
     node->type = LOOP_CONTINUATION;
-    node->line_num = list[parser->token_ptr]->line_num;
+    node->line_nb = list[parser->token_ptr]->line_num;
 
     parser->token_ptr += 2;
 
@@ -1645,7 +1647,7 @@ AST_node *parse_return_expression(Parser *parser, int rec_lvl __attribute__((unu
 
     AST_node *node = malloc_ast_node(parser);
     node->type = RETURN_VAL;
-    node->line_num = list[parser->token_ptr]->line_num;
+    node->line_nb = list[parser->token_ptr]->line_num;
 
     parser->token_ptr++;
 
@@ -1670,7 +1672,7 @@ AST_node *parse_else_conditional(Parser *parser, int rec_lvl)
         AST_node *node = malloc_ast_node(parser);
 
         node->type = ELSE_IF_CONDITIONAL;
-        node->line_num = list[parser->token_ptr]->line_num;
+        node->line_nb = list[parser->token_ptr]->line_num;
 
         // Makes sure opening parenthesis
         if (list[parser->token_ptr + 2]->type != OPEN_PARENTHESIS)
@@ -1709,7 +1711,7 @@ AST_node *parse_else_conditional(Parser *parser, int rec_lvl)
         AST_node *node = malloc_ast_node(parser);
 
         node->type = ELSE_CONDITIONAL;
-        node->line_num = list[parser->token_ptr]->line_num;
+        node->line_nb = list[parser->token_ptr]->line_num;
 
         enum token_type end_of_block[] = {CLOSING_CURLY_BRACKETS};
         parser->token_ptr += 2;
@@ -1773,7 +1775,7 @@ AST_node *parse_func_declaration(Parser *parser, int rec_lvl)
     AST_node *node = malloc_ast_node(parser);
     node->access = access_modifier;
     node->type = FUNCTION_DECLARATION;
-    node->line_num = list[parser->token_ptr]->line_num;
+    node->line_nb = list[parser->token_ptr]->line_num;
 
     node->identifier.func_name = malloc_string_cpy(parser, list[parser->token_ptr + 1]->ident);
     parser->token_ptr += 3;
@@ -1824,7 +1826,7 @@ AST_node *parse_inline_func(Parser *parser, int rec_lvl)
     AST_node *node = malloc_ast_node(parser);
 
     node->type = INLINE_FUNCTION_DECLARATION;
-    node->line_num = list[parser->token_ptr]->line_num;
+    node->line_nb = list[parser->token_ptr]->line_num;
     node->identifier.func_name = NULL;
 
     parser->token_ptr += 2;
@@ -1884,7 +1886,7 @@ AST_node *parse_object_declaration(Parser *parser, int rec_lvl)
     AST_node *node = malloc_ast_node(parser);
     node->access = access_modifier;
     node->type = CLASS_DECLARATION;
-    node->line_num = list[parser->token_ptr]->line_num;
+    node->line_nb = list[parser->token_ptr]->line_num;
     node->identifier.obj_name = malloc_string_cpy(parser, list[parser->token_ptr + 1]->ident);
 
     parser->token_ptr += 3;
@@ -1932,7 +1934,7 @@ AST_node *parse_variable_assignment_exp_func_component(Parser *parser, int rec_l
 
     AST_node *node = malloc_ast_node(parser);
     node->identifier.expression_component = component;
-    node->line_num = list[parser->token_ptr]->line_num;
+    node->line_nb = list[parser->token_ptr]->line_num;
 
     // single expression component (func call, etc)
     if (list[parser->token_ptr]->type == SEMI_COLON)
@@ -1970,7 +1972,7 @@ AST_node *parse_exception_declaration(Parser *parser)
     {
         char *exename = list[parser->token_ptr + 1]->ident;
         AST_node *node = malloc_ast_node(parser);
-        node->line_num = list[parser->token_ptr]->line_num;
+        node->line_nb = list[parser->token_ptr]->line_num;
         node->token_num = list[parser->token_ptr]->line_pos;
         node->type = EXCEPTION_DECLARATION;
         node->identifier.exception_name = malloc_string_cpy(parser, exename);
@@ -2014,7 +2016,7 @@ AST_node *parse_try_block(Parser *parser, int rec_lvl)
 
     AST_node *try_block = malloc_ast_node(parser);
     try_block->type = TRY_CLAUSE;
-    try_block->line_num = list[parser->token_ptr]->line_num;
+    try_block->line_nb = list[parser->token_ptr]->line_num;
     try_block->token_num = list[parser->token_ptr]->line_pos;
 
     parser->token_ptr += 2;
@@ -2036,7 +2038,7 @@ AST_node *parse_catch_block(Parser *parser, int rec_lvl)
     assert(get_keyword_type(list[parser->token_ptr]->ident) == CATCH_KEYWORD);
 
     AST_node *catch_block = malloc_ast_node(parser);
-    catch_block->line_num = list[parser->token_ptr]->line_num;
+    catch_block->line_nb = list[parser->token_ptr]->line_num;
     catch_block->token_num = list[parser->token_ptr]->line_pos;
     catch_block->type = CATCH_CLAUSE;
 
@@ -2086,21 +2088,22 @@ AST_node *parse_catch_block(Parser *parser, int rec_lvl)
 /**
  * DESCRIPTION:
  * Parses raise exception
-*/
-AST_node *parse_raise_exception(Parser *parser) {
+ */
+AST_node *parse_raise_exception(Parser *parser)
+{
     assert(parser);
     Token **list = parser->token_list->list;
     assert(get_keyword_type(list[parser->token_ptr]->ident) == RAISE_KEYWORD);
 
     AST_node *raise = malloc_ast_node(parser);
-    raise->line_num = list[parser->token_ptr]->line_num;
+    raise->line_nb = list[parser->token_ptr]->line_num;
     raise->token_num = list[parser->token_ptr]->line_pos;
     raise->type = RAISE_EXPRESSION;
 
     parser->token_ptr++;
-    enum token_type endOfExp[] = { SEMI_COLON };
+    enum token_type endOfExp[] = {SEMI_COLON};
     raise->ast_data.exp = parse_expression(parser, endOfExp, 1);
-    
+
     return raise;
 }
 
@@ -2224,7 +2227,7 @@ AST_List *parse_code_block(
 
         case EXCEPTION_KEYWORD:
         {
-            exception_keyword:;
+        exception_keyword:;
 
             AST_node *node = parse_exception_declaration(parser);
             push_to_ast_list(ast_list, node);
@@ -2246,7 +2249,8 @@ AST_List *parse_code_block(
             break;
         }
 
-        case RAISE_KEYWORD: {
+        case RAISE_KEYWORD:
+        {
             AST_node *node = parse_raise_exception(parser);
             push_to_ast_list(ast_list, node);
             break;
@@ -2255,7 +2259,7 @@ AST_List *parse_code_block(
         // function declaration
         case FUNC_KEYWORD:
         {
-            func_keyword:; // label
+        func_keyword:; // label
 
             AST_node *node = parse_func_declaration(parser, rec_lvl);
             push_to_ast_list(ast_list, node);

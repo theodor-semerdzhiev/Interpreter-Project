@@ -4,16 +4,21 @@
 #include <stddef.h>
 #include <ctype.h>
 
-typedef struct RtException {
+typedef struct RtException
+{
     char *ex_name;
     char *msg;
     bool GCFlag;
 } RtException;
 
-
-#define rtexception_free(exc) if(exc) {free(exc->ex_name); free(exc->msg); free(exc);}
+#define rtexception_free(exc) \
+    if (exc)                  \
+    {                         \
+        free(exc->ex_name);   \
+        free(exc->msg);       \
+        free(exc);            \
+    }
 #define rtexception_print(exc) printf("%s.exception@%p", exc->ex_name, exc);
-
 
 RtException *init_RtException(const char *exname, const char *msg);
 RtException *rtexception_cpy(const RtException *exc);
@@ -31,6 +36,9 @@ bool rtexception_compare(const RtException *exc1, const RtException *exc2);
 #define InvalidNumberOfArgumentsExceptionString "InvalidNumberOfArgumentsException"
 #define InvalidNumberOfArgumentsException(msg) init_RtException(InvalidNumberOfArgumentsExceptionString, msg)
 
+#define ObjectNotCallableExceptionString "ObjectNotCallableException"
+#define ObjectNotCallableException(msg) init_RtException(ObjectNotCallableExceptionString, msg)
+
 #define NullPointerExceptionString "NullPointerException"
 #define NullPointerException(msg) init_RtException(NullPointerExceptionString, msg)
 
@@ -43,6 +51,9 @@ bool rtexception_compare(const RtException *exc1, const RtException *exc2);
 #define KeyErrorExceptionString "KeyErrorException"
 #define KeyErrorException(msg) init_RtException(KeyErrorExceptionString, msg)
 
+#define NonIndexibleObjectExceptionString "NonIndexibleObjectException"
+#define NonIndexibleObjectException(msg) init_RtException(NonIndexibleObjectExceptionString, msg)
+
 #define DivisonByZeroExceptionString "DivisionByZeroException"
 #define DivisonByZeroException(msg) init_RtException(DivisonByZeroExceptionString, msg)
 
@@ -53,7 +64,7 @@ bool rtexception_compare(const RtException *exc1, const RtException *exc2);
 #define StackOverflowException(msg) init_RtException(StackOverflowExceptionString, msg)
 
 #define InvalidAttributeExceptionString "InvalidAttributeException"
-#define InvalidAttributeException(msg) init_RtException(InvalidAttributeExceptionString, msg);
+#define InvalidAttributeException(msg) init_RtException(InvalidAttributeExceptionString, msg)
 
 #define InvalidValueExceptionString "InvalidValueException"
-#define InvalidValueException(msg) init_RtException(InvalidValueExceptionString, msg);
+#define InvalidValueException(msg) init_RtException(InvalidValueExceptionString, msg)

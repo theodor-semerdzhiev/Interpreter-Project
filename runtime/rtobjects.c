@@ -5,6 +5,7 @@
 #include <math.h>
 #include "rtobjects.h"
 #include "../compiler/compiler.h"
+#include "./rtexchandler.h"
 #include "../generics/utilities.h"
 #include "rtfunc.h"
 #include "gc.h"
@@ -1514,24 +1515,39 @@ RtObject *rtobj_getindex(RtObject *obj, RtObject *index)
     case UNDEFINED_TYPE:
     case FUNCTION_TYPE:
     case EXCEPTION_TYPE:
+    case CLASS_TYPE:
     {
-        // TODO SHOULD THROW ERROR
-        printf("Cannot get index of type %s\n", rtobj_type_toString(obj->type));
+        // cannot take index of these types
+        const char *type = rtobj_type_toString(obj->type);
+        char buffer[40 + strlen(type)];
+        snprintf(buffer, sizeof(buffer), "Object of type %s, is not indexible", type);
+        setRaisedException(NonIndexibleObjectException(buffer))
         return NULL;
     }
 
     case LIST_TYPE:
     {
-        if (index->type != NUMBER_TYPE)
-        {
-            printf("Index must be a number type\n");
-            assert(false);
+        // Index must be a number type
+        if (index->type != NUMBER_TYPE) {
+            const char *type = rtobj_type_toString(obj->type);
+            char buffer[50 + strlen(type)];
+            snprintf(buffer, sizeof(buffer), "Invalid type '%s', list index must be a number", type);
+            setRaisedException(InvalidTypeException(buffer))
             return NULL;
         }
+
         long i = (long)index->data.Number->number;
+
+        // Index out of bounds
         if ((size_t)i >= obj->data.List->length)
         {
-            printf("Index out of bounds, cannot take index %ld of list of length %zu\n", i, obj->data.List->length);
+            const char *type = rtobj_type_toString(obj->type);
+            char buffer[50 + strlen(type)];
+            snprintf(buffer, sizeof(buffer), 
+            "Index out of bounds Exception, cannot get index %zu of list with length %zu", 
+            i, obj->data.List->length);
+            setRaisedException(IndexOutOfBoundsException(buffer))
+            return NULL;
         }
 
         return rtlist_get(obj->data.List, i);
@@ -1541,13 +1557,10 @@ RtObject *rtobj_getindex(RtObject *obj, RtObject *index)
     {
         RtObject *tmp = rtmap_get(obj->data.Map, index);
 
-        // element is not found
+        // element is not found, key error exception
         if (!tmp)
         {
-            char *obj_str = rtobj_toString(index);
-            // TODO SHOULD RAISE EXCEPTION
-            printf("%s could not be found as a key in map\n", obj_str);
-            free(obj_str);
+            setRaisedException(KeyErrorException("Key Error on Map"));
             return NULL;
         }
         return tmp;
@@ -1557,24 +1570,13 @@ RtObject *rtobj_getindex(RtObject *obj, RtObject *index)
     {
         RtObject *tmp = rtset_get(obj->data.Set, index);
 
-        // element is not found
+        // element is not found key error exception
         if (!tmp)
         {
-            char *obj_str = rtobj_toString(index);
-            // TODO SHOULD RAISE EXCEPTION
-            printf("%s could not be found in set\n", obj_str);
-            free(obj_str);
+            setRaisedException(KeyErrorException("Key Error on Set"));
             return NULL;
         }
         return tmp;
-    }
-
-    case CLASS_TYPE:
-    {
-
-        // TODO
-        assert(false);
-        return NULL;
     }
     }
 }

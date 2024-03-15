@@ -1,7 +1,7 @@
 
-exception z;
+exception Exception__;
 exception Ex;
-println(z);
+println(Exception__);
 
 func test2() {
     println("Hello World");
@@ -9,17 +9,19 @@ func test2() {
 
 func test1(x) {
     try {
-        test2(123123, 122321, x);
-        raise z();
-    } catch (z()) {
-        print("z");
+        #test2(123123, 122321, x);
+        raise Exception__("Hello World");
+        raise Exception__();
+    } catch (Exception__()) {
+        print("Exception__");
+        print(1/0);
     }
 }
 
 func a() {
     func b() {
         func c() {
-            test1();
+            test1(2);
         }
         c();
     }

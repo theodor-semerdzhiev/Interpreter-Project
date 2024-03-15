@@ -518,13 +518,12 @@ static void _collect_free_vars_obj_declaration(
     _collect_free_vars_from_body(recursion_lvl + 1, node->body, true, free_var_set, bound_var_set);
 }
 
-
 /* Handles case for exception delclaration */
 static void _collect_free_vars_exception_declaration(
-int recursion_lvl,
-AST_node *node,
-GenericSet *free_var_set,
-GenericSet *bound_var_set) {
+    int recursion_lvl,
+    AST_node *node,
+    GenericSet *bound_var_set)
+{
 
     FreeVariable var;
     var.nesting_lvl = recursion_lvl;
@@ -543,9 +542,10 @@ static void _collect_free_vars_try_block(
     int recursion_lvl,
     AST_node *node,
     GenericSet *free_var_set,
-    GenericSet *bound_var_set) {
+    GenericSet *bound_var_set)
+{
 
-    _collect_free_vars_from_body(recursion_lvl+1, node->body, false, free_var_set, bound_var_set);
+    _collect_free_vars_from_body(recursion_lvl + 1, node->body, false, free_var_set, bound_var_set);
 }
 
 /* Handles case for catch block */
@@ -553,11 +553,11 @@ static void _collect_free_vars_catch_block(
     int recursion_lvl,
     AST_node *node,
     GenericSet *free_var_set,
-    GenericSet *bound_var_set) {
+    GenericSet *bound_var_set)
+{
 
     _collect_free_vars_from_exp(recursion_lvl, node->ast_data.raise.exp, free_var_set, bound_var_set);
-    _collect_free_vars_from_body(recursion_lvl+1, node->body, false, free_var_set, bound_var_set);
-
+    _collect_free_vars_from_body(recursion_lvl + 1, node->body, false, free_var_set, bound_var_set);
 }
 
 /* Handles case for catch block */
@@ -565,12 +565,11 @@ static void _collect_free_vars_raise_expression(
     int recursion_lvl,
     AST_node *node,
     GenericSet *free_var_set,
-    GenericSet *bound_var_set) {
+    GenericSet *bound_var_set)
+{
 
     _collect_free_vars_from_exp(recursion_lvl, node->ast_data.raise.exp, free_var_set, bound_var_set);
-
 }
-
 
 /* Logic for capturing all free variables within the body of an ast node*/
 static void _collect_free_vars_from_ast_node(
@@ -637,7 +636,7 @@ static void _collect_free_vars_from_ast_node(
         break;
 
     case EXCEPTION_DECLARATION:
-        _collect_free_vars_exception_declaration(recursion_lvl, node, free_var_set, bound_var_set);
+        _collect_free_vars_exception_declaration(recursion_lvl, node, bound_var_set);
         break;
 
     case TRY_CLAUSE:
@@ -647,11 +646,10 @@ static void _collect_free_vars_from_ast_node(
     case CATCH_CLAUSE:
         _collect_free_vars_catch_block(recursion_lvl, node, free_var_set, bound_var_set);
         break;
-    
+
     case RAISE_EXPRESSION:
         _collect_free_vars_raise_expression(recursion_lvl, node, free_var_set, bound_var_set);
         break;
-
     }
 }
 
@@ -706,10 +704,11 @@ static bool expression_component_has(ExpressionComponent *cm, enum expression_co
 static void print_offset(int offset);
 
 /* Mallocs ByteCode */
-ByteCode *init_ByteCode(OpCode code)
+ByteCode *init_ByteCode(OpCode code, size_t line_nb)
 {
     ByteCode *bytecode = malloc(sizeof(ByteCode));
     bytecode->op_code = code;
+    bytecode->line_nb = line_nb;
     return bytecode;
 }
 
@@ -840,7 +839,7 @@ ByteCodeList *compile_expression_component(Compiler *compiler, ExpressionCompone
     // terminal constants
     case NUMERIC_CONSTANT:
     {
-        instruction = init_ByteCode(LOAD_CONST);
+        instruction = init_ByteCode(LOAD_CONST, cm->line_num);
         RtObject *number_constant = init_RtObject(NUMBER_TYPE);
         number_constant->data.Number = init_RtNumber(cm->meta_data.numeric_const);
         instruction->data.LOAD_CONST.constant = number_constant;
@@ -849,7 +848,7 @@ ByteCodeList *compile_expression_component(Compiler *compiler, ExpressionCompone
 
     case STRING_CONSTANT:
     {
-        instruction = init_ByteCode(LOAD_CONST);
+        instruction = init_ByteCode(LOAD_CONST, cm->line_num);
         RtObject *string_constant = init_RtObject(STRING_TYPE);
         string_constant->data.String = init_RtString(cm->meta_data.string_literal);
         instruction->data.LOAD_CONST.constant = string_constant;
@@ -865,7 +864,7 @@ ByteCodeList *compile_expression_component(Compiler *compiler, ExpressionCompone
         ByteCodeList *compiled_seq = compile_exps_sequence(compiler, elements, list_length);
         list = concat_bytecode_lists(list, compiled_seq);
 
-        instruction = init_ByteCode(CREATE_LIST);
+        instruction = init_ByteCode(CREATE_LIST, cm->line_num);
         instruction->data.CREATE_LIST.list_length = list_length;
 
         break;
@@ -874,7 +873,7 @@ ByteCodeList *compile_expression_component(Compiler *compiler, ExpressionCompone
     case NULL_CONSTANT:
     {
 
-        instruction = init_ByteCode(LOAD_CONST);
+        instruction = init_ByteCode(LOAD_CONST, cm->line_num);
         instruction->data.LOAD_CONST.constant = init_RtObject(NULL_TYPE);
 
         break;
@@ -895,7 +894,7 @@ ByteCodeList *compile_expression_component(Compiler *compiler, ExpressionCompone
             list = concat_bytecode_lists(list, concat_bytecode_lists(key, val));
         }
 
-        instruction = init_ByteCode(CREATE_MAP);
+        instruction = init_ByteCode(CREATE_MAP, cm->line_num);
         instruction->data.CREATE_MAP.map_size = key_val_count;
 
         break;
@@ -909,7 +908,7 @@ ByteCodeList *compile_expression_component(Compiler *compiler, ExpressionCompone
         ByteCodeList *compiled_seq = compile_exps_sequence(compiler, elements, set_size);
         list = concat_bytecode_lists(list, compiled_seq);
 
-        instruction = init_ByteCode(CREATE_SET);
+        instruction = init_ByteCode(CREATE_SET, cm->line_num);
         instruction->data.CREATE_SET.set_size = set_size;
 
         break;
@@ -923,16 +922,16 @@ ByteCodeList *compile_expression_component(Compiler *compiler, ExpressionCompone
         if (cm->sub_component)
         {
             const char *varname = cm->meta_data.variable_reference;
-            instruction = init_ByteCode(LOAD_ATTRIBUTE);
-            instruction->data.LOAD_ATTR.attribute_name = malloc_string_cpy(NULL, varname);
+            instruction = init_ByteCode(LOAD_ATTRIBUTE, cm->line_num);
+            instruction->data.LOAD_ATTR.attribute_name = cpy_string(varname);
             instruction->data.LOAD_ATTR.str_length = strlen(varname);
 
             // if its a variable
         }
         else
         {
-            instruction = init_ByteCode(LOAD_VAR);
-            instruction->data.LOAD_VAR.variable = malloc_string_cpy(NULL, cm->meta_data.variable_reference);
+            instruction = init_ByteCode(LOAD_VAR, cm->line_num);
+            instruction->data.LOAD_VAR.variable = cpy_string(cm->meta_data.variable_reference);
         }
         break;
     }
@@ -942,7 +941,7 @@ ByteCodeList *compile_expression_component(Compiler *compiler, ExpressionCompone
         ExpressionNode *exp = cm->meta_data.list_index;
         ByteCodeList *compiled_exp = compile_expression(compiler, exp);
         list = concat_bytecode_lists(list, compiled_exp);
-        instruction = init_ByteCode(LOAD_INDEX);
+        instruction = init_ByteCode(LOAD_INDEX, cm->line_num);
         break;
     }
 
@@ -952,9 +951,8 @@ ByteCodeList *compile_expression_component(Compiler *compiler, ExpressionCompone
         ExpressionNode **args = cm->meta_data.func_data.func_args;
         ByteCodeList *compiled_args = compile_exps_sequence(compiler, args, arg_count);
         list = concat_bytecode_lists(list, compiled_args);
-        instruction = init_ByteCode(FUNCTION_CALL);
+        instruction = init_ByteCode(FUNCTION_CALL, cm->line_num);
         instruction->data.FUNCTION_CALL.arg_count = arg_count;
-        instruction->data.FUNCTION_CALL.line_number = cm->line_num;
         break;
     }
 
@@ -1001,9 +999,10 @@ ByteCodeList *compile_expression(Compiler *compiler, ExpressionNode *root)
     // Base case (Reached a leaf)
     if (root->type == VALUE)
     {
+        assert(root->component);
         ByteCodeList *compiled_leaf = compile_expression_component(compiler, root->component);
         if (root->negation)
-            add_bytecode(compiled_leaf, init_ByteCode(LOGICAL_NOT_VARS_OP));
+            add_bytecode(compiled_leaf, init_ByteCode(LOGICAL_NOT_VARS_OP, root->line_nb));
 
         return compiled_leaf;
     }
@@ -1017,64 +1016,64 @@ ByteCodeList *compile_expression(Compiler *compiler, ExpressionNode *root)
     switch (root->type)
     {
     case PLUS:
-        operation = init_ByteCode(ADD_VARS_OP);
+        operation = init_ByteCode(ADD_VARS_OP, root->line_nb);
         break;
     case MINUS:
-        operation = init_ByteCode(SUB_VARS_OP);
+        operation = init_ByteCode(SUB_VARS_OP, root->line_nb);
         break;
     case MULT:
-        operation = init_ByteCode(MULT_VARS_OP);
+        operation = init_ByteCode(MULT_VARS_OP, root->line_nb);
         break;
     case DIV:
-        operation = init_ByteCode(DIV_VARS_OP);
+        operation = init_ByteCode(DIV_VARS_OP, root->line_nb);
         break;
     case MOD:
-        operation = init_ByteCode(MOD_VARS_OP);
+        operation = init_ByteCode(MOD_VARS_OP, root->line_nb);
         break;
     case EXPONENT:
-        operation = init_ByteCode(EXP_VARS_OP);
+        operation = init_ByteCode(EXP_VARS_OP, root->line_nb);
         break;
     case BITWISE_AND:
-        operation = init_ByteCode(BITWISE_VARS_AND_OP);
+        operation = init_ByteCode(BITWISE_VARS_AND_OP, root->line_nb);
         break;
     case BITWISE_OR:
-        operation = init_ByteCode(BITWISE_VARS_OR_OP);
+        operation = init_ByteCode(BITWISE_VARS_OR_OP, root->line_nb);
         break;
     case BITWISE_XOR:
-        operation = init_ByteCode(BITWISE_XOR_VARS_OP);
+        operation = init_ByteCode(BITWISE_XOR_VARS_OP, root->line_nb);
         break;
     case SHIFT_LEFT:
-        operation = init_ByteCode(SHIFT_LEFT_VARS_OP);
+        operation = init_ByteCode(SHIFT_LEFT_VARS_OP, root->line_nb);
         break;
     case SHIFT_RIGHT:
-        operation = init_ByteCode(SHIFT_RIGHT_VARS_OP);
+        operation = init_ByteCode(SHIFT_RIGHT_VARS_OP, root->line_nb);
         break;
     case GREATER_THAN:
-        operation = init_ByteCode(GREATER_THAN_VARS_OP);
+        operation = init_ByteCode(GREATER_THAN_VARS_OP, root->line_nb);
         break;
     case GREATER_EQUAL:
-        operation = init_ByteCode(GREATER_EQUAL_VARS_OP);
+        operation = init_ByteCode(GREATER_EQUAL_VARS_OP, root->line_nb);
         break;
     case LESSER_THAN:
-        operation = init_ByteCode(LESSER_THAN_VARS_OP);
+        operation = init_ByteCode(LESSER_THAN_VARS_OP, root->line_nb);
         break;
     case LESSER_EQUAL:
-        operation = init_ByteCode(LESSER_EQUAL_VARS_OP);
+        operation = init_ByteCode(LESSER_EQUAL_VARS_OP, root->line_nb);
         break;
     case EQUAL_TO:
-        operation = init_ByteCode(EQUAL_TO_VARS_OP);
+        operation = init_ByteCode(EQUAL_TO_VARS_OP, root->line_nb);
         break;
 
         // There 2 are special cases that involve short circuit evaluation
 
     case LOGICAL_AND:
     {
-        operation = init_ByteCode(LOGICAL_AND_VARS_OP);
+        operation = init_ByteCode(LOGICAL_AND_VARS_OP, root->line_nb);
         break;
     }
     case LOGICAL_OR:
     {
-        operation = init_ByteCode(LOGICAL_OR_VARS_OP);
+        operation = init_ByteCode(LOGICAL_OR_VARS_OP, root->line_nb);
         break;
     }
 
@@ -1091,7 +1090,7 @@ ByteCodeList *compile_expression(Compiler *compiler, ExpressionNode *root)
 
     // Special Case if entire expression is negated
     if (root->negation)
-        add_bytecode(list, init_ByteCode(LOGICAL_NOT_VARS_OP));
+        add_bytecode(list, init_ByteCode(LOGICAL_NOT_VARS_OP, root->line_nb));
 
     return list;
 }
@@ -1146,10 +1145,10 @@ ByteCode *compile_func_declaration(Compiler *compiler, AST_node *function)
     // Adds function return <=> a return is not present in top scope of function body OR the last AST node is a else block, meaning
     if ((function->body && function->body->length > 0 && !ast_list_has(function->body, RETURN_VAL)))
     {
-        add_bytecode(func->func_data.user_func.body, init_ByteCode(FUNCTION_RETURN_UNDEFINED));
+        add_bytecode(func->func_data.user_func.body, init_ByteCode(FUNCTION_RETURN_UNDEFINED, function->body->tail->line_nb));
     }
 
-    ByteCode *instruction = init_ByteCode(CREATE_FUNCTION);
+    ByteCode *instruction = init_ByteCode(CREATE_FUNCTION, function->line_nb);
     RtObject *func_obj = init_RtObject(FUNCTION_TYPE);
     func_obj->data.Func = func;
     instruction->data.CREATE_FUNCTION.function = func_obj;
@@ -1190,7 +1189,7 @@ ByteCodeList *compile_conditional_chain(Compiler *compiler, AST_node *node, bool
         ByteCodeList *compiled_exp = compile_expression(compiler, node->ast_data.exp);
         ByteCodeList *compiled_body = compile_code_body(compiler, node->body, is_global_scope, true);
 
-        jump_if_false = init_ByteCode(OFFSET_JUMP_IF_FALSE_POP);
+        jump_if_false = init_ByteCode(OFFSET_JUMP_IF_FALSE_POP, node->line_nb);
         jump_if_false->data.OFFSET_JUMP_IF_FALSE_POP.offset =
             compiled_body ? compiled_body->pg_length + 1 : 2;
 
@@ -1222,7 +1221,7 @@ ByteCodeList *compile_conditional_chain(Compiler *compiler, AST_node *node, bool
         !ast_list_has(node->body, LOOP_CONTINUATION) &&
         !ast_list_has(node->body, LOOP_TERMINATOR))
     {
-        ByteCode *instr = init_ByteCode(OFFSET_JUMP);
+        ByteCode *instr = init_ByteCode(OFFSET_JUMP, node->line_nb);
         instr->data.OFFSET_JUMP.offset = next->pg_length + 1;
 
         add_bytecode(compiled_node, instr);
@@ -1278,15 +1277,18 @@ ByteCodeList *compile_try_catch_chain(Compiler *compiler, AST_node *node, bool i
         ByteCodeList *catch_chain = compile_try_catch_chain(compiler, node->next, is_global_scope, rec_lvl + 1);
 
         // adds exception handler pop
-        try_body = add_bytecode(try_body, init_ByteCode(POP_EXCEPTION_HANDLER));
+        try_body = add_bytecode(
+            try_body, 
+            init_ByteCode(POP_EXCEPTION_HANDLER, node->next? node->next->line_nb: node->line_nb)
+        );
 
         // adds offset jump at the end of the try body
-        ByteCode *jump = init_ByteCode(OFFSET_JUMP);
+        ByteCode *jump = init_ByteCode(OFFSET_JUMP, node->line_nb);
         jump->data.OFFSET_JUMP.offset = catch_chain->pg_length + 1;
         try_body = add_bytecode(try_body, jump);
 
         // adds exception handler push
-        ByteCode *exception_handler = init_ByteCode(PUSH_EXCEPTION_HANDLER);
+        ByteCode *exception_handler = init_ByteCode(PUSH_EXCEPTION_HANDLER, node->line_nb);
         exception_handler->data.PUSH_EXCEPTION_HANDLER.start_of_catch_block = try_body->pg_length + 1;
         list = add_bytecode(list, exception_handler);
 
@@ -1294,14 +1296,14 @@ ByteCodeList *compile_try_catch_chain(Compiler *compiler, AST_node *node, bool i
 
         // catch case
     }
-    else
+    else if(node->type == CATCH_CLAUSE && rec_lvl != 0)
     {
 
         ByteCodeList *catch_block = compile_code_body(compiler, node->body, is_global_scope, true);
 
         if (!node->ast_data.catch_block.exception)
         {
-            list = add_bytecode(list, init_ByteCode(RESOLVE_RAISED_EXCEPTION));
+            list = add_bytecode(list, init_ByteCode(RESOLVE_RAISED_EXCEPTION, node->line_nb));
             list = concat_bytecode_lists(list, catch_block);
             return list;
         }
@@ -1312,9 +1314,16 @@ ByteCodeList *compile_try_catch_chain(Compiler *compiler, AST_node *node, bool i
         // case where we reached the end of the catch chain
         if (!rest_of_chain)
         {
-            compiled_exp = add_bytecode(compiled_exp, init_ByteCode(RAISE_EXCEPTION_IF_COMPARE_EXCEPTION_FALSE));
+            compiled_exp = add_bytecode(
+                compiled_exp, 
+                init_ByteCode(RAISE_EXCEPTION_IF_COMPARE_EXCEPTION_FALSE, node->line_nb)
+            );
 
-            compiled_exp = add_bytecode(compiled_exp, init_ByteCode(RESOLVE_RAISED_EXCEPTION));
+            compiled_exp = add_bytecode(
+                compiled_exp, 
+                init_ByteCode(RESOLVE_RAISED_EXCEPTION, node->line_nb)
+            );
+
             catch_block = concat_bytecode_lists(compiled_exp, catch_block);
 
             list = concat_bytecode_lists(list, catch_block);
@@ -1325,16 +1334,16 @@ ByteCodeList *compile_try_catch_chain(Compiler *compiler, AST_node *node, bool i
             // then it must be skipped with a OFFSET JUMP
             if (rest_of_chain->pg_length > 0)
             {
-                ByteCode *jump = init_ByteCode(OFFSET_JUMP);
+                ByteCode *jump = init_ByteCode(OFFSET_JUMP, node->line_nb);
                 jump->data.OFFSET_JUMP.offset = rest_of_chain->pg_length + 1;
                 catch_block = add_bytecode(catch_block, jump);
             }
 
-            ByteCode *conditional_jump = init_ByteCode(OFFSET_JUMP_IF_COMPARE_EXCEPTION_FALSE);
+            ByteCode *conditional_jump = init_ByteCode(OFFSET_JUMP_IF_COMPARE_EXCEPTION_FALSE, node->line_nb);
             conditional_jump->data.OFFSET_JUMP_IF_COMPARE_EXCEPTION_FALSE.offset = catch_block->pg_length + 1;
             compiled_exp = add_bytecode(compiled_exp, conditional_jump);
 
-            compiled_exp = add_bytecode(compiled_exp, init_ByteCode(RESOLVE_RAISED_EXCEPTION));
+            compiled_exp = add_bytecode(compiled_exp, init_ByteCode(RESOLVE_RAISED_EXCEPTION, node->line_nb));
             catch_block = concat_bytecode_lists(compiled_exp, catch_block);
 
             list = concat_bytecode_lists(list, concat_bytecode_lists(catch_block, rest_of_chain));
@@ -1353,7 +1362,7 @@ ByteCodeList *compile_raise_exception(Compiler *compiler, AST_node *node)
     assert(node);
     assert(node->type == RAISE_EXPRESSION);
     ByteCodeList *compiled_exp = compile_expression(compiler, node->ast_data.raise.exp);
-    compiled_exp = add_bytecode(compiled_exp, init_ByteCode(RAISE_EXCEPTION));
+    compiled_exp = add_bytecode(compiled_exp, init_ByteCode(RAISE_EXCEPTION, node->line_nb));
     return compiled_exp;
 }
 
@@ -1387,12 +1396,12 @@ ByteCodeList *resolve_loop_continuation_termination(ByteCodeList *loop_code)
 /**
  * DESCRIPTION:
  * Compilation logic for compiling while loops
- * 
+ *
  * 1- Compiles condition expression
  * 2- Compiles while body
  * 3- Concats the latter and the former
  * 3- Resolves control flow jumps (i.e break and continue)
-*/
+ */
 ByteCodeList *compiled_while_loop(Compiler *compiler, AST_node *node, bool is_global_scope)
 {
     assert(node->type == WHILE_LOOP);
@@ -1404,7 +1413,7 @@ ByteCodeList *compiled_while_loop(Compiler *compiler, AST_node *node, bool is_gl
     if (!compiled_body)
         compiled_body = init_ByteCodeList();
 
-    ByteCode *jump = init_ByteCode(OFFSET_JUMP_IF_FALSE_POP);
+    ByteCode *jump = init_ByteCode(OFFSET_JUMP_IF_FALSE_POP, node->line_nb);
     // +2 because we must jump over the offset jump at the end
     jump->data.OFFSET_JUMP_IF_FALSE_POP.offset = compiled_body->pg_length + 2;
 
@@ -1414,8 +1423,8 @@ ByteCodeList *compiled_while_loop(Compiler *compiler, AST_node *node, bool is_gl
     loop_code = resolve_loop_continuation_termination(loop_code);
 
     // End of while loop should back to beginning ot loop
-    ByteCode *code = init_ByteCode(OFFSET_JUMP);
-    code->data.OFFSET_JUMP.offset = (loop_code->pg_length * -1);
+    ByteCode *code = init_ByteCode(OFFSET_JUMP, node->line_nb);
+    code->data.OFFSET_JUMP.offset = loop_code->pg_length * -1;
     add_bytecode(loop_code, code);
 
     return loop_code;
@@ -1455,7 +1464,7 @@ ByteCodeList *compile_for_loop(Compiler *compiler, AST_node *node, bool is_globa
 
     if (cond)
     {
-        jump = init_ByteCode(OFFSET_JUMP_IF_FALSE_POP);
+        jump = init_ByteCode(OFFSET_JUMP_IF_FALSE_POP, node->line_nb);
         // +2 because we must jump over the offset jump at the end
         jump->data.OFFSET_JUMP_IF_FALSE_POP.offset = compiled_body->pg_length + 2;
     }
@@ -1467,7 +1476,7 @@ ByteCodeList *compile_for_loop(Compiler *compiler, AST_node *node, bool is_globa
     loop_code = resolve_loop_continuation_termination(loop_code);
 
     // End of while loop should back to beginning ot loop
-    ByteCode *negative_offset_jump = init_ByteCode(OFFSET_JUMP);
+    ByteCode *negative_offset_jump = init_ByteCode(OFFSET_JUMP, node->line_nb);
     negative_offset_jump->data.OFFSET_JUMP.offset = (loop_code->pg_length * -1);
     add_bytecode(loop_code, negative_offset_jump);
 
@@ -1476,7 +1485,7 @@ ByteCodeList *compile_for_loop(Compiler *compiler, AST_node *node, bool is_globa
     // adds deref if initializer code creates a variable
     if (init && init->length == 1 && init->head->type == VAR_DECLARATION)
     {
-        ByteCode *deref = init_ByteCode(DEREF_VAR);
+        ByteCode *deref = init_ByteCode(DEREF_VAR, node->line_nb);
         char *varname = node->ast_data.for_loop.initialization->head->identifier.declared_var;
         deref->data.DEREF_VAR.var = cpy_string(varname);
         loop_code = add_bytecode(loop_code, deref);
@@ -1526,13 +1535,13 @@ ByteCode *compile_class_body(Compiler *compiler, AST_node *node)
     free(free_vars);
     GenericSet_free(free_vars_set, true);
 
-    add_bytecode(constructor->func_data.user_func.body, init_ByteCode(CREATE_OBJECT_RETURN));
+    add_bytecode(constructor->func_data.user_func.body, init_ByteCode(CREATE_OBJECT_RETURN, node->line_nb));
 
     RtObject *constructor_obj = init_RtObject(FUNCTION_TYPE);
     constructor_obj->data.Func = constructor;
 
-    ByteCode *constructor_func = init_ByteCode(CREATE_FUNCTION);
-    constructor_func->line_nb = node->line_num;
+    ByteCode *constructor_func = init_ByteCode(CREATE_FUNCTION, node->line_nb);
+    constructor_func->line_nb = node->line_nb;
     constructor_func->data.CREATE_FUNCTION.function = constructor_obj;
 
     return constructor_func;
@@ -1580,7 +1589,7 @@ static ByteCodeList *add_var_derefs(AST_List *body, ByteCodeList *target)
 
         if (node->type == VAR_DECLARATION)
         {
-            ByteCode *deref = init_ByteCode(DEREF_VAR);
+            ByteCode *deref = init_ByteCode(DEREF_VAR, body->tail->line_nb);
             deref->data.DEREF_VAR.var = cpy_string(node->identifier.declared_var);
             add_bytecode(target, deref);
         }
@@ -1599,7 +1608,7 @@ static void add_var_derefs_via_list(ByteCodeList *list)
     {
         if (list->code[i]->op_code == CREATE_VAR)
         {
-            ByteCode *deref = init_ByteCode(DEREF_VAR);
+            ByteCode *deref = init_ByteCode(DEREF_VAR, list->code[i]->line_nb);
             deref->data.DEREF_VAR.var = cpy_string(list->code[i]->data.CREATE_VAR.new_var_name);
             add_bytecode(list, deref);
         }
@@ -1631,7 +1640,7 @@ ByteCodeList *compile_code_body(Compiler *compiler, AST_List *body, bool is_glob
             }
             else
             {
-                ByteCode *code = init_ByteCode(LOAD_CONST);
+                ByteCode *code = init_ByteCode(LOAD_CONST, node->line_nb);
                 code->data.LOAD_CONST.constant = init_RtObject(UNDEFINED_TYPE);
                 if (!list)
                     list = init_ByteCodeList();
@@ -1640,7 +1649,7 @@ ByteCodeList *compile_code_body(Compiler *compiler, AST_List *body, bool is_glob
             }
 
             char *varname = node->identifier.declared_var;
-            ByteCode *instruction = init_ByteCode(CREATE_VAR);
+            ByteCode *instruction = init_ByteCode(CREATE_VAR, node->line_nb);
             instruction->data.CREATE_VAR.new_var_name = cpy_string(varname);
             assert(node->access != DOES_NOT_APPLY);
             instruction->data.CREATE_VAR.access = node->access;
@@ -1659,7 +1668,7 @@ ByteCodeList *compile_code_body(Compiler *compiler, AST_List *body, bool is_glob
 
             list = concat_bytecode_lists(list, concat_bytecode_lists(compiled_lhs, compiled_rhs));
 
-            ByteCode *instruction = init_ByteCode(MUTATE_VAR);
+            ByteCode *instruction = init_ByteCode(MUTATE_VAR, node->line_nb);
 
             add_bytecode(list, instruction);
             break;
@@ -1690,9 +1699,9 @@ ByteCodeList *compile_code_body(Compiler *compiler, AST_List *body, bool is_glob
             // Only compiles, if a function call is present, implying possible variable mutation
             if (expression_component_has(node->identifier.expression_component, FUNC_CALL))
             {
-                ByteCodeList *compiled_exp_component = 
+                ByteCodeList *compiled_exp_component =
                     compile_expression_component(compiler, node->identifier.expression_component);
-                add_bytecode(compiled_exp_component, init_ByteCode(POP_STACK));
+                add_bytecode(compiled_exp_component, init_ByteCode(POP_STACK, node->identifier.expression_component->line_num));
                 list = concat_bytecode_lists(list, compiled_exp_component);
             }
             break;
@@ -1708,21 +1717,21 @@ ByteCodeList *compile_code_body(Compiler *compiler, AST_List *body, bool is_glob
 
             if (is_global_scope)
             {
-                return_instruction = init_ByteCode(EXIT_PROGRAM);
+                return_instruction = init_ByteCode(EXIT_PROGRAM, node->line_nb);
             }
             else if (return_exp)
             {
-                return_instruction = init_ByteCode(FUNCTION_RETURN);
+                return_instruction = init_ByteCode(FUNCTION_RETURN, node->line_nb);
             }
             else
             {
-                return_instruction = init_ByteCode(FUNCTION_RETURN_UNDEFINED);
+                return_instruction = init_ByteCode(FUNCTION_RETURN_UNDEFINED, node->line_nb);
             }
 
             // adds return value if one is not specified
             if (!return_exp && is_global_scope)
             {
-                ByteCode *return_val = init_ByteCode(LOAD_CONST);
+                ByteCode *return_val = init_ByteCode(LOAD_CONST, node->line_nb);
                 return_val->data.LOAD_CONST.constant = init_RtObject(NUMBER_TYPE);
                 return_val->data.LOAD_CONST.constant->data.Number = init_RtNumber(0);
                 add_bytecode(list, return_val);
@@ -1734,7 +1743,7 @@ ByteCodeList *compile_code_body(Compiler *compiler, AST_List *body, bool is_glob
         // continue
         case LOOP_CONTINUATION:
         {
-            ByteCode *jump = init_ByteCode(OFFSET_JUMP);
+            ByteCode *jump = init_ByteCode(OFFSET_JUMP, node->line_nb);
             jump->data.OFFSET_JUMP.offset = -INT32_MAX;
             if (!list)
                 list = init_ByteCodeList();
@@ -1745,7 +1754,7 @@ ByteCodeList *compile_code_body(Compiler *compiler, AST_List *body, bool is_glob
         // break
         case LOOP_TERMINATOR:
         {
-            ByteCode *jump = init_ByteCode(OFFSET_JUMP);
+            ByteCode *jump = init_ByteCode(OFFSET_JUMP, node->line_nb);
             jump->data.OFFSET_JUMP.offset = INT32_MAX;
             if (!list)
                 list = init_ByteCodeList();
@@ -1769,7 +1778,7 @@ ByteCodeList *compile_code_body(Compiler *compiler, AST_List *body, bool is_glob
         case INLINE_FUNCTION_DECLARATION:
         {
             ByteCode *create_func = compile_func_declaration(compiler, node);
-            ByteCode *create_var = init_ByteCode(CREATE_VAR);
+            ByteCode *create_var = init_ByteCode(CREATE_VAR, node->line_nb);
             create_var->data.CREATE_VAR.new_var_name = cpy_string(node->identifier.func_name);
             create_var->data.CREATE_VAR.access = node->access;
             if (!list)
@@ -1783,7 +1792,7 @@ ByteCodeList *compile_code_body(Compiler *compiler, AST_List *body, bool is_glob
         case CLASS_DECLARATION:
         {
             ByteCode *class_constructor = compile_class_body(compiler, node);
-            ByteCode *create_var = init_ByteCode(CREATE_VAR);
+            ByteCode *create_var = init_ByteCode(CREATE_VAR, node->line_nb);
             create_var->data.CREATE_VAR.new_var_name = cpy_string(node->identifier.func_name);
             create_var->data.CREATE_VAR.access = node->access;
 
@@ -1797,7 +1806,7 @@ ByteCodeList *compile_code_body(Compiler *compiler, AST_List *body, bool is_glob
 
         case EXCEPTION_DECLARATION:
         {
-            ByteCode *code = init_ByteCode(CREATE_EXCEPTION);
+            ByteCode *code = init_ByteCode(CREATE_EXCEPTION, node->line_nb);
             code->data.CREATE_EXCEPTION.exception = cpy_string(node->identifier.exception_name);
             code->data.CREATE_EXCEPTION.access = node->access;
             if (!list)
@@ -1857,11 +1866,12 @@ ByteCodeList *compile_code_body(Compiler *compiler, AST_List *body, bool is_glob
     // Is only added when in global scope (i.e not nested in a function), and no EXIT_PROGRAM is already present
     if (!ast_list_has(body, RETURN_VAL) && !body->parent_block && is_global_scope)
     {
-        ByteCode *return_code_val = init_ByteCode(LOAD_CONST);
+        size_t line_number = body->tail? body->tail->line_nb: 0;
+        ByteCode *return_code_val = init_ByteCode(LOAD_CONST, line_number);
         return_code_val->data.LOAD_CONST.constant = init_RtObject(NUMBER_TYPE);
         return_code_val->data.LOAD_CONST.constant->data.Number = init_RtNumber(0);
         add_bytecode(list, return_code_val);
-        add_bytecode(list, init_ByteCode(EXIT_PROGRAM));
+        add_bytecode(list, init_ByteCode(EXIT_PROGRAM, line_number));
     }
 
     return list;

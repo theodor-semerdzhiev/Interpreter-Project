@@ -33,6 +33,13 @@ static bool _attrbuiltinin_equal(const AttrBuiltinKey *attr1, const AttrBuiltinK
            attr1->target_type == attr2->target_type;
 }
 
+/**
+ * DESCRIPTION:
+ * Gets attribute off runtime object with specific name
+ * 
+ * The objects returned by this function will always be disposable
+ * 
+*/
 RtObject *rtattr_getattr(RtObject *obj, const char *attrname)
 {
     AttrBuiltinKey key;
@@ -45,7 +52,8 @@ RtObject *rtattr_getattr(RtObject *obj, const char *attrname)
         assert(val);
         return NULL;
     }
-
+    
+    // 
     if (val->is_func)
     {
         RtFunction *attr = init_rtfunc(ATTR_BUILTIN_FUNC);

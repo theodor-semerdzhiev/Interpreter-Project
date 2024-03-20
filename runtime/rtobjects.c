@@ -1496,14 +1496,14 @@ RtObject *rtobj_mutate(RtObject *target, const RtObject *new_value, bool new_val
  * DESCRIPTION:
  * Takes index from element. The latter can be a list, set, map, etc..
  *
- *
  * NOTE:
- * Returns NULL if obj is not indexable
+ * IF a runtime exception occurs during this function, it returns NULL, and the current raisedException is set to the relevant RtException struct
+ *
  * PARAMS:
  * obj: object to index from
  * index: index
  */
-RtObject *rtobj_getindex(RtObject *obj, RtObject *index)
+RtObject *rtobj_getindex(const RtObject *obj, const RtObject *index)
 {
     assert(obj && index);
 
@@ -1518,21 +1518,16 @@ RtObject *rtobj_getindex(RtObject *obj, RtObject *index)
     case CLASS_TYPE:
     {
         // cannot take index of these types
-        const char *type = rtobj_type_toString(obj->type);
-        char buffer[40 + strlen(type)];
-        snprintf(buffer, sizeof(buffer), "Object of type %s, is not indexible", type);
-        setRaisedException(NonIndexibleObjectException(buffer))
+        raisedException = init_NonIndexibleObjectException(obj);
         return NULL;
     }
 
     case LIST_TYPE:
     {
         // Index must be a number type
-        if (index->type != NUMBER_TYPE) {
-            const char *type = rtobj_type_toString(obj->type);
-            char buffer[50 + strlen(type)];
-            snprintf(buffer, sizeof(buffer), "Invalid type '%s', list index must be a number", type);
-            setRaisedException(InvalidTypeException(buffer))
+        if (index->type != NUMBER_TYPE)
+        {
+            raisedException = init_InvalidIndexTypeException(index, obj, "Number");
             return NULL;
         }
 
@@ -1541,12 +1536,7 @@ RtObject *rtobj_getindex(RtObject *obj, RtObject *index)
         // Index out of bounds
         if ((size_t)i >= obj->data.List->length)
         {
-            const char *type = rtobj_type_toString(obj->type);
-            char buffer[50 + strlen(type)];
-            snprintf(buffer, sizeof(buffer), 
-            "Index out of bounds Exception, cannot get index %zu of list with length %zu", 
-            i, obj->data.List->length);
-            setRaisedException(IndexOutOfBoundsException(buffer))
+            raisedException = init_IndexOutOfBoundsException(i, obj->data.List->length);
             return NULL;
         }
 
@@ -1560,7 +1550,7 @@ RtObject *rtobj_getindex(RtObject *obj, RtObject *index)
         // element is not found, key error exception
         if (!tmp)
         {
-            setRaisedException(KeyErrorException("Key Error on Map"));
+            raisedException = init_KeyErrorException(obj, index);
             return NULL;
         }
         return tmp;
@@ -1573,7 +1563,7 @@ RtObject *rtobj_getindex(RtObject *obj, RtObject *index)
         // element is not found key error exception
         if (!tmp)
         {
-            setRaisedException(KeyErrorException("Key Error on Set"));
+            raisedException = init_KeyErrorException(obj, index);
             return NULL;
         }
         return tmp;

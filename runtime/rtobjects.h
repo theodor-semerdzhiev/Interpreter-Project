@@ -19,6 +19,7 @@ typedef struct RtMap RtMap;
 typedef struct RtSet RtSet;
 typedef struct Identifier Identifier;
 typedef struct RtClass RtClass;
+typedef struct RtException RtException;
 typedef enum RtType RtType;
 
 // Generic object for all variables
@@ -91,7 +92,7 @@ RtObject *rtobj_shallow_cpy(const RtObject *obj);
 RtObject *rtobj_deep_cpy(const RtObject *obj, bool add_to_gc);
 
 RtObject *rtobj_mutate(RtObject *target, const RtObject *new_value, bool new_val_disposable);
-RtObject *rtobj_getindex(RtObject *obj, RtObject *index);
+RtObject *rtobj_getindex(const RtObject *obj, const RtObject *index);
 
 RtObject **rtobj_getrefs(const RtObject *obj);
 void *rtobj_getdata(const RtObject *obj);

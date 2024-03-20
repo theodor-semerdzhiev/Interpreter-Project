@@ -97,6 +97,10 @@ RtExceptionHandler *pop_exception_handler()
 /**
  * DESCRIPTION:
  * Contains logic for properly handling exception
+ * 
+ * PREDICATE:
+ * exception paramter MUST NOT be contained in the GC, 
+ * it should be able to freed at anytime without any problem
  *
  * 1- Pops all call frames until it gets to the proper one
  * 2- Pops Stack Machine until its reached the state that it was when the try block was invoked
@@ -109,6 +113,14 @@ void handle_runtime_exception(RtException *exception)
     // if there is not exception handler, or there is already an other raised Exception
     if ((tail == NULL && head == NULL) || raisedException) {
         print_unhandledexception(exception);
+        
+        // handles special case
+        if(raisedException) {
+            free_exception_handler(raisedException);
+            raisedException = NULL;
+        }
+        rtexception_free(exception);
+
         longjmp(global_program_interrupt, 1);
         return;
     }

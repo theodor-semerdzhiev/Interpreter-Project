@@ -250,7 +250,9 @@ static void perform_binary_operation(
     bool free_interm_2 = disposable();
     RtObject *intermediate2 = StackMachine_pop(StackMachine, false);
 
-    StackMachine_push(StackMachine, op_function(intermediate2, intermediate1), true);
+    RtObject *result = op_function(intermediate2, intermediate1);
+
+    StackMachine_push(StackMachine, result, true);
 
     dispose_disposable_obj(intermediate1, free_interm_1);
     dispose_disposable_obj(intermediate2, free_interm_2);
@@ -436,7 +438,7 @@ CallFrame *perform_function_call(size_t arg_count)
     else
         assert(GC_Registry_has(func));
 
-    // called object is not a function
+    // called object is not a function exception
     if (func->type != FUNCTION_TYPE)
     {
         const char *type = rtobj_type_toString(func->type);
@@ -467,7 +469,7 @@ CallFrame *perform_function_call(size_t arg_count)
         {
             char buffer[110 + strlen(funcname)];
             snprintf(buffer,sizeof(buffer),
-                "%s: Exception Constructor can only take 1 or 0 arguments, but was given %zu",
+                "%s Exception Constructor can only take 1 or 0 arguments, but was given %zu",
                 funcname, arg_count);
 
             dispose_disposable_obj(func, func_disposable);
@@ -736,7 +738,7 @@ static void perform_get_index()
 
     // if exception occurred during indexing
     if(raisedException) {
-        assert(indexed_obj);
+        assert(!indexed_obj);
         raiseException(raisedException);
         return;
     }
@@ -831,7 +833,7 @@ static void perform_create_exception(const char *exception_name, AccessModifier 
  * DESCRIPTION:
  * Contains logic for getting atribute from a rt object
  */
-static void perform_get_attribute(char *attrs)
+static void perform_get_attribute(const char *attrs)
 {
     bool target_disposable = disposable();
     RtObject *target = StackMachine_pop(StackMachine, false);
@@ -858,11 +860,9 @@ static void perform_get_attribute(char *attrs)
 
     if (!builtin_attr)
     {
-        const char* type = rtobj_type_toString(target->type);
-        char buffer[strlen(attrs) + strlen(type) + 50];
-        snprintf(buffer, sizeof(buffer), "Object of type %s does not have attribute '%s'", type, attrs);
+        RtException *exc = init_InvalidAttrsException(target, attrs);
         dispose_disposable_obj(target, target_disposable);
-        raiseException(InvalidAttributeException(buffer));
+        raiseException(exc);
         return;
     }
 
@@ -889,11 +889,12 @@ static void perform_raise_exception_if_compare_exception_false()
 
     if (obj->type != EXCEPTION_TYPE)
     {
-        // TODO raise exception
+        RtException *exc = init_InvalidRaiseTypeException(obj);
         dispose_disposable_obj(obj, disposable);
-        return;
+        raiseException(exc);
     }
 
+    // currently raised Exception does not match the pattern matched exception
     if (!rtexception_compare(raisedException, obj->data.Exception)) {
         dispose_disposable_obj(obj, disposable);
         raiseException(raisedException);
@@ -910,10 +911,13 @@ static void perform_offset_jump_if_compare_exception_false(int offset)
 {
     bool disposable = disposable();
     RtObject *obj = StackMachine_pop(stk_machine, false);
+
+    // handles case where catch block does receive exception type
     if (obj->type != EXCEPTION_TYPE)
     {
-        // TODO should raise exception
+        RtException *exc = init_InvalidRaiseTypeException(obj);
         dispose_disposable_obj(obj, disposable);
+        raiseException(exc);
         return;
     }
 
@@ -936,12 +940,9 @@ static void perform_raise_exception()
 
     if (obj->type != EXCEPTION_TYPE)
     {
-        const char* type = rtobj_type_toString(obj->type);
-        char buffer[strlen(type) + 90];
-        snprintf(buffer, sizeof(buffer), 
-        "Cannot raise an object of type %s. Raise conditions must always be an exception.", type);
+        RtException *exc = init_InvalidRaiseTypeException(obj);
         dispose_disposable_obj(obj, disposable);
-        raiseException(InvalidTypeException(buffer));
+        raiseException(exc);
         return;
     }
     
@@ -957,6 +958,7 @@ int run_program()
         CallFrame *frame = callStack[stack_ptr];
         ByteCodeList *bytecode = frame->pg;
 
+        // used for exception handling 
         int new_pg_counter = setjmp((int *)frame->exception_jump);
         if (new_pg_counter != 0)
         {
@@ -1243,7 +1245,8 @@ int run_program()
                 push_exception_handler(
                     stack_ptr,
                     frame->pg_counter + code->data.PUSH_EXCEPTION_HANDLER.start_of_catch_block,
-                    stk_machine->size);
+                    stk_machine->size
+                );
                 break;
             }
 
@@ -1257,7 +1260,8 @@ int run_program()
             {
                 perform_create_exception(
                     code->data.CREATE_EXCEPTION.exception,
-                    code->data.CREATE_EXCEPTION.access);
+                    code->data.CREATE_EXCEPTION.access
+                );
                 break;
             }
 
@@ -1282,6 +1286,7 @@ int run_program()
 
             case RESOLVE_RAISED_EXCEPTION:
             {
+                assert(raisedException);
                 rtexception_free(raisedException);
                 raisedException = NULL;
                 break;

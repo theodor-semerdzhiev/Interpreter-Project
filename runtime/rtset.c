@@ -245,7 +245,7 @@ RtObject *rtset_insert(RtSet *set, RtObject *val)
  * set: set
  * obj: obj to get
  */
-RtObject *rtset_get(const RtSet *set, RtObject *obj)
+RtObject *rtset_get(const RtSet *set, const RtObject *obj)
 {
     assert(set && obj);
     unsigned int index = GetIndexedHash(set, obj);

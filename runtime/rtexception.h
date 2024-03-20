@@ -1,4 +1,5 @@
 #pragma once
+#include "rtobjects.h"
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -24,6 +25,21 @@ RtException *init_RtException(const char *exname, const char *msg);
 RtException *rtexception_cpy(const RtException *exc);
 char *rtexception_toString(const RtException *exc);
 bool rtexception_compare(const RtException *exc1, const RtException *exc2);
+
+RtException *init_InvalidRaiseTypeException(const RtObject *raisedobj);
+
+RtException *init_InvalidAttrsException(const RtObject *target, const char *attrname);
+
+RtException *init_NonIndexibleObjectException(const RtObject *nonindexibleobj);
+
+RtException *init_InvalidIndexTypeException(
+    const RtObject *index, 
+    const RtObject *target, 
+    const char *expected_index_type);
+
+RtException *init_IndexOutOfBoundsException(size_t index, size_t length);
+
+RtException *init_KeyErrorException(const RtObject *target, const RtObject *key);
 
 /* All built in exceptions */
 

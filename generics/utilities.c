@@ -69,7 +69,7 @@ void exitprogram(ErrorCode code)
     switch (code)
     {
     case FAILED_MEMORY_ALLOCATION:
-        printf("MEMORY ERROR: memory allocation return NULL");
+        printf("MEMORY ERROR: memory allocation returned NULL");
         break;
     default:
         printf("Exited with error %d", (int)code);

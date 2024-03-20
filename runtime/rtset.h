@@ -16,7 +16,7 @@ typedef struct RtSet
 
 RtSet *init_RtSet(size_t max_buckets);
 RtObject *rtset_insert(RtSet *set, RtObject *val);
-RtObject *rtset_get(const RtSet *set, RtObject *obj);
+RtObject *rtset_get(const RtSet *set, const RtObject *obj);
 RtObject *rtset_remove(RtSet *set, RtObject *obj);
 RtObject **rtset_getrefs(const RtSet *set);
 void rtset_free(RtSet *set, bool free_obj, bool free_immutable);

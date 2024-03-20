@@ -1,0 +1,6 @@
+
+# Should return Buffer Overflow Exception
+func test(n) {
+    return test(n + 1);
+}
+test(0);

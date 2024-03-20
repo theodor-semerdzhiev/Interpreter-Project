@@ -16,7 +16,7 @@ typedef struct RtMap
 RtMap *init_RtMap(unsigned long initial_bucket_size);
 RtObject *rtmap_insert(RtMap *map, RtObject *key, RtObject *val);
 RtObject *rtmap_remove(RtMap *map, RtObject *key);
-RtObject *rtmap_get(const RtMap *map, RtObject *key);
+RtObject *rtmap_get(const RtMap *map, const RtObject *key);
 RtObject **rtmap_getrefs(const RtMap *map, bool getkeys, bool getvals);
 void rtmap_free(RtMap *map, bool free_keys, bool free_vals, bool free_immutable);
 char *rtmap_toString(const RtMap *map);

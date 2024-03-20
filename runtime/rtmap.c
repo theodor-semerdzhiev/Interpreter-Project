@@ -309,7 +309,7 @@ RtObject *rtmap_remove(RtMap *map, RtObject *key)
  * map: map
  * key: key
  */
-RtObject *rtmap_get(const RtMap *map, RtObject *key)
+RtObject *rtmap_get(const RtMap *map, const RtObject *key)
 {
     assert(map && key);
     unsigned int index = GetIndexedHash(map, key);

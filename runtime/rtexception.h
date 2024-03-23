@@ -41,6 +41,18 @@ RtException *init_IndexOutOfBoundsException(size_t index, size_t length);
 
 RtException *init_KeyErrorException(const RtObject *target, const RtObject *key);
 
+RtException *init_InvalidTypeException_BinaryOp(
+    const RtObject *obj1, 
+    const RtObject *obj2, 
+    const char* binaryOp);
+
+RtException *init_InvalidTypeException_UnaryOp(const RtObject *target, const char *unaryOp);
+
+RtException *init_InvalidNumberOfArgumentsException(const char* callable_name, size_t actual_args, size_t expected_args);
+
+RtException *init_InvalidTypeException_Builtin(const char* builtin_name, const char* expected_type, const RtObject *actual_arg);
+
+
 /* All built in exceptions */
 
 #define GenericExceptionString "Exception"
@@ -84,3 +96,6 @@ RtException *init_KeyErrorException(const RtObject *target, const RtObject *key)
 
 #define InvalidValueExceptionString "InvalidValueException"
 #define InvalidValueException(msg) init_RtException(InvalidValueExceptionString, msg)
+
+#define IOExceptionString "IOException"
+#define IOExceptionException(msg) init_RtException(IOExceptionString, msg)

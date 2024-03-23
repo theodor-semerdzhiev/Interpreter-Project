@@ -244,6 +244,7 @@ static void perform_binary_operation(
     RtObject *(*op_function)(RtObject *obj1, RtObject *obj2))
 {
     assert(op_function);
+    assert(!Intermediate_raisedException);
 
     bool free_interm_1 = disposable();
     RtObject *intermediate1 = StackMachine_pop(StackMachine, false);
@@ -252,10 +253,15 @@ static void perform_binary_operation(
 
     RtObject *result = op_function(intermediate2, intermediate1);
 
-    StackMachine_push(StackMachine, result, true);
-
     dispose_disposable_obj(intermediate1, free_interm_1);
     dispose_disposable_obj(intermediate2, free_interm_2);
+
+    if(Intermediate_raisedException) {
+        assert(!result);
+        raiseException(Intermediate_raisedException);
+        return;
+    }
+    StackMachine_push(StackMachine, result, true);
 }
 
 /**
@@ -487,15 +493,16 @@ CallFrame *perform_function_call(size_t arg_count)
     case BUILTIN_FUNC: {
 
         assert(func->data.Func->func_data.built_in.func);
+        assert(!Intermediate_raisedException);
 
         BuiltinFunc *builtin = func->data.Func->func_data.built_in.func;
         RtObject *obj = builtin->builtin_func((RtObject **)arguments, arg_count);
 
         // if an exception occured during execution of built in function
-        if(raisedException) {
+        if(Intermediate_raisedException) {
             assert(!obj);
             dispose_disposable_obj(func, func_disposable);
-            raiseException(raisedException);
+            raiseException(Intermediate_raisedException);
         }
 
         // pushes result of function onto stack machine
@@ -505,15 +512,17 @@ CallFrame *perform_function_call(size_t arg_count)
 
     case ATTR_BUILTIN_FUNC:
     {
+        assert(!Intermediate_raisedException);
+
         AttrBuiltin *attrfunc = func->data.Func->func_data.attr_built_in.func;
         RtObject *target = func->data.Func->func_data.attr_built_in.target;
         RtObject *obj = attrfunc->func.builtin_func(target, arguments, arg_count);
 
         // exception occurred during execution of built in attribute function
-        if(raisedException) {
+        if(Intermediate_raisedException) {
             assert(!obj);
             dispose_disposable_obj(func, func_disposable);
-            raiseException(raisedException);
+            raiseException(Intermediate_raisedException);
         }
 
         StackMachine_push(StackMachine, obj, obj != target);
@@ -723,13 +732,13 @@ static void perform_create_set(int setsize)
  * Fetches object from somce other object, using an index object
  */
 static void perform_get_index()
-{
+{    
     bool index_disposable = disposable();
     RtObject *index_ = StackMachine_pop(StackMachine, false);
     bool obj_disposable = disposable();
     RtObject *obj = StackMachine_pop(StackMachine, false);
 
-    assert(!raisedException);
+    assert(!Intermediate_raisedException);
 
     RtObject *indexed_obj = rtobj_getindex(obj, index_);
 
@@ -737,9 +746,9 @@ static void perform_get_index()
     dispose_disposable_obj(obj, obj_disposable);
 
     // if exception occurred during indexing
-    if(raisedException) {
+    if(Intermediate_raisedException) {
         assert(!indexed_obj);
-        raiseException(raisedException);
+        raiseException(Intermediate_raisedException);
         return;
     }
 
@@ -1091,7 +1100,11 @@ int run_program()
 
             case LOGICAL_NOT_VARS_OP:
             {
-                logical_not_op(StackMachine->head->obj);
+                assert(!Intermediate_raisedException);
+                if(!logical_not_op(StackMachine->head->obj)) {
+                    assert(Intermediate_raisedException);
+                    raiseException(Intermediate_raisedException);
+                }
                 break;
             }
 

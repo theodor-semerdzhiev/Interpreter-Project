@@ -16,7 +16,7 @@
  * This file contains the implementation of runtime objects, and the corresponding operations on them
  */
 
-static RtObject *multiply_obj_by_multiplier(double multiplier, const RtObject *obj);
+static RtObject *multiply_obj_by_multiplier(const RtObject* multiplier_obj, const RtObject *obj);
 static void print_offset(int offset);
 static char *repeat_string(int repeated, const char *str, int strlen);
 
@@ -59,6 +59,7 @@ repeat_string(int repeated, const char *str, int strlen)
 RtObject *set_rtobj_number_data(RtObject *obj, long double num)
 {
     assert(obj);
+    assert(obj->type == NUMBER_TYPE);
     obj->type = NUMBER_TYPE;
     obj->data.Number = init_RtNumber(num);
     return obj;
@@ -226,21 +227,36 @@ void rtobj_print(const RtObject *obj)
     }
 }
 
+/* Useful macro for flagging an exception during mult operation */
+
+#define SetMultException(obj1, obj2) \
+setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Multiplication (*)"))
+
 __attribute__((warn_unused_result))
 /**
  * This function is a helper for applying multiplication on a runtime object and creating a new object
  * For Functions, Bytecode is never copied, and therefor will never be freed
  */
 static RtObject *
-multiply_obj_by_multiplier(double multiplier, const RtObject *obj)
+multiply_obj_by_multiplier(const RtObject *multiplier_obj, const RtObject *obj)
 {
+    long double multiplier;
+
+    // asserts type
+    if(multiplier_obj->type == NUMBER_TYPE) {
+        multiplier = multiplier_obj->data.Number->number;
+    } else if(multiplier_obj->type == NULL_TYPE) {
+        multiplier = 0;
+    } else {
+        assert(false);
+    }
+
+
     switch (obj->type)
     {
     case NUMBER_TYPE:
     {
         RtObject *result = init_RtObject(NUMBER_TYPE);
-        if (!result)
-            return NULL;
         set_rtobj_number_data(result, multiplier * obj->data.Number->number);
         return result;
     }
@@ -248,8 +264,6 @@ multiply_obj_by_multiplier(double multiplier, const RtObject *obj)
     case NULL_TYPE:
     {
         RtObject *result = init_RtObject(NUMBER_TYPE);
-        if (!result)
-            return NULL;
         set_rtobj_number_data(result, 0);
         return result;
     }
@@ -257,8 +271,6 @@ multiply_obj_by_multiplier(double multiplier, const RtObject *obj)
     case STRING_TYPE:
     {
         RtObject *result = init_RtObject(STRING_TYPE);
-        if (!result)
-            return NULL;
 
         unsigned int multiplicand_len = obj->data.String->length;
         char *multiplicand = obj->data.String->string;
@@ -288,13 +300,14 @@ multiply_obj_by_multiplier(double multiplier, const RtObject *obj)
     }
 
     default:
-    {
-        // invalid type
-        printf("Cannot multiply number by %s\n", rtobj_type_toString(obj->type));
-        return NULL;
+        break;
+    
     }
-    }
+
+    SetMultException(multiplier_obj, obj);
+    return NULL;
 }
+
 
 __attribute__((warn_unused_result))
 /**
@@ -308,7 +321,7 @@ multiply_objs(RtObject *obj1, RtObject *obj2)
     // number * obj2
     case NUMBER_TYPE:
     {
-        return multiply_obj_by_multiplier(obj1->data.Number->number, obj2);
+        return multiply_obj_by_multiplier(obj1, obj2);
     }
 
     // " ... " * obj2
@@ -318,13 +331,13 @@ multiply_objs(RtObject *obj1, RtObject *obj2)
         {
         case NUMBER_TYPE:
         {
-            return multiply_obj_by_multiplier(obj2->data.Number->number, obj1);
+            return multiply_obj_by_multiplier(obj2, obj1);
         }
 
         default:
-            printf("Cannot multiply string and %s\n", rtobj_type_toString(obj2->type));
-            return NULL;
+            break;
         }
+        break;
     }
     // null * obj2
     case NULL_TYPE:
@@ -338,25 +351,24 @@ multiply_objs(RtObject *obj1, RtObject *obj2)
         {
         case NUMBER_TYPE:
         {
-            return multiply_obj_by_multiplier(obj2->data.Number->number, obj1);
+            return multiply_obj_by_multiplier(obj2, obj1);
         }
 
         default:
-            printf("Cannot multiply list and %s\n", rtobj_type_toString(obj2->type));
-            return NULL;
+            break;
         }
+        break;
     }
 
     default:
-    {
-        printf("Cannot multiply %s by %s\n",
-               rtobj_type_toString(obj1->type),
-               rtobj_type_toString(obj2->type));
         break;
     }
-    }
+    SetMultException(obj1, obj2);
     return NULL;
 }
+
+#define SetAdditionException(obj1, obj2) \
+setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Addition (+)"))
 
 __attribute__((warn_unused_result))
 /**
@@ -375,8 +387,6 @@ add_objs(RtObject *obj1, RtObject *obj2)
         case NUMBER_TYPE:
         {
             RtObject *result = init_RtObject(NUMBER_TYPE);
-            if (!result)
-                return NULL;
             set_rtobj_number_data(result, obj1->data.Number->number + obj2->data.Number->number);
             return result;
         }
@@ -384,18 +394,12 @@ add_objs(RtObject *obj1, RtObject *obj2)
         case NULL_TYPE:
         {
             RtObject *result = init_RtObject(NUMBER_TYPE);
-            if (!result)
-                return NULL;
             set_rtobj_number_data(result, obj1->data.Number->number);
             return result;
         }
 
         default:
-        {
-            printf("Cannot perform addition on Number and %s\n",
-                   rtobj_type_toString(obj2->type));
             break;
-        }
         }
         break;
     }
@@ -409,8 +413,6 @@ add_objs(RtObject *obj1, RtObject *obj2)
         case STRING_TYPE:
         {
             RtObject *result = init_RtObject(STRING_TYPE);
-            if (!result)
-                return NULL;
             char *adder2 = obj2->data.String->string;
             int length2 = obj2->data.String->length;
             result->data.String = init_RtString(NULL);
@@ -420,8 +422,6 @@ add_objs(RtObject *obj1, RtObject *obj2)
         }
 
         default:
-            printf("Cannot perform addition on String and %s\n",
-                   rtobj_type_toString(obj2->type));
             break;
         }
         break;
@@ -435,8 +435,6 @@ add_objs(RtObject *obj1, RtObject *obj2)
         case NUMBER_TYPE:
         {
             RtObject *result = init_RtObject(NUMBER_TYPE);
-            if (!result)
-                return NULL;
             set_rtobj_number_data(result, obj2->data.Number->number);
             return result;
         }
@@ -444,16 +442,12 @@ add_objs(RtObject *obj1, RtObject *obj2)
         case NULL_TYPE:
         {
             RtObject *result = init_RtObject(NUMBER_TYPE);
-            if (!result)
-                return NULL;
             set_rtobj_number_data(result, 0);
             return result;
         }
 
         default:
-            printf("Cannot perform addtion for Null and %s\n",
-                   rtobj_type_toString(obj1->type));
-            return NULL;
+            break;
         }
         break;
     }
@@ -464,16 +458,13 @@ add_objs(RtObject *obj1, RtObject *obj2)
         {
         case LIST_TYPE:
         {
-            // TODO
-            return NULL;
+            RtObject *result = init_RtObject(LIST_TYPE);
+            result->data.List = rtlist_concat(obj1->data.List, obj2->data.List, true, true); 
+            return result;
         }
 
         default:
-        {
-            printf("Cannot add List and %s\n",
-                   rtobj_type_toString(obj2->type));
-            return NULL;
-        }
+            break;
         }
         break;
     }
@@ -484,13 +475,12 @@ add_objs(RtObject *obj1, RtObject *obj2)
         {
         case HASHSET_TYPE:
         {
-            // todo: set addition
-            return NULL;
+            RtObject *result = init_RtObject(HASHSET_TYPE);
+            result->data.Set = rtset_union(obj1->data.Set, obj2->data.Set, true, true);
+            return result;
         }
         default:
-            printf("Cannot add Map and %s\n",
-                   rtobj_type_toString(obj2->type));
-            return NULL;
+            break;
         }
         break;
     }
@@ -500,10 +490,16 @@ add_objs(RtObject *obj1, RtObject *obj2)
     case HASHMAP_TYPE:
     case CLASS_TYPE:
     case EXCEPTION_TYPE:
-        return NULL;
+        break;
     }
+
+    SetAdditionException(obj1, obj2);
     return NULL;
 }
+
+/* Useful macro for setting an exception during substraction */
+#define SetSubtractionException(obj1, obj2) \
+setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Substraction (-)"))
 
 __attribute__((warn_unused_result))
 /**
@@ -522,8 +518,6 @@ substract_objs(RtObject *obj1, RtObject *obj2)
         case NUMBER_TYPE:
         {
             RtObject *result = init_RtObject(NUMBER_TYPE);
-            if (!result)
-                return NULL;
             set_rtobj_number_data(result, obj1->data.Number->number - obj2->data.Number->number);
             return result;
         }
@@ -531,18 +525,14 @@ substract_objs(RtObject *obj1, RtObject *obj2)
         case NULL_TYPE:
         {
             RtObject *result = init_RtObject(NUMBER_TYPE);
-            if (!result)
-                return NULL;
             set_rtobj_number_data(result, obj1->data.Number->number);
-
             return result;
         }
 
         default:
-            printf("Cannot perform substraction on Number and %s.\n",
-                   rtobj_type_toString(obj2->type));
-            return NULL;
+           break;
         }
+        break;
     }
 
     case NULL_TYPE:
@@ -552,8 +542,6 @@ substract_objs(RtObject *obj1, RtObject *obj2)
         case NUMBER_TYPE:
         {
             RtObject *result = init_RtObject(NUMBER_TYPE);
-            if (!result)
-                return NULL;
             set_rtobj_number_data(result, -1 * obj2->data.Number->number);
             return result;
         }
@@ -561,17 +549,14 @@ substract_objs(RtObject *obj1, RtObject *obj2)
         case NULL_TYPE:
         {
             RtObject *result = init_RtObject(NUMBER_TYPE);
-            if (!result)
-                return NULL;
             set_rtobj_number_data(result, 0);
             return result;
         }
 
         default:
-            printf("Cannot perform substraction on Number and %s.\n",
-                   rtobj_type_toString(obj2->type));
-            return NULL;
+            break;
         }
+        break;
     }
 
     case HASHSET_TYPE:
@@ -581,13 +566,12 @@ substract_objs(RtObject *obj1, RtObject *obj2)
         case HASHSET_TYPE:
         {
             // todo
-            return NULL;
+
+            // return NULL;
         }
 
         default:
         {
-            printf("Cannot perform substraction on Set and %s.\n",
-                   rtobj_type_toString(obj2->type));
             break;
         }
         }
@@ -600,13 +584,15 @@ substract_objs(RtObject *obj1, RtObject *obj2)
     case FUNCTION_TYPE:
     case UNDEFINED_TYPE:
     case EXCEPTION_TYPE:
-        printf("Cannot perform substraction on types %s and %s.\n",
-               rtobj_type_toString(obj1->type),
-               rtobj_type_toString(obj2->type));
         break;
     }
+
+    SetSubtractionException(obj1, obj2);
     return NULL;
 }
+
+#define SetDivisionException(obj1, obj2) \
+setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Division (/)"))
 
 __attribute__((warn_unused_result))
 /**
@@ -623,12 +609,13 @@ divide_objs(RtObject *obj1, RtObject *obj2)
     }
     else
     {
-        printf("Cannot perform division on %s and %s.\n",
-               rtobj_type_toString(obj1->type),
-               rtobj_type_toString(obj2->type));
+        SetDivisionException(obj1, obj2);
         return NULL;
     }
 }
+
+#define SetModuloException(obj1, obj2) \
+setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Modulo (%)"))
 
 __attribute__((warn_unused_result))
 /**
@@ -648,12 +635,14 @@ modulus_objs(RtObject *obj1, RtObject *obj2)
     }
     else
     {
-        printf("Cannot perform modulus on %s and %s.\n",
-               rtobj_type_toString(obj1->type),
-               rtobj_type_toString(obj2->type));
+        SetModuloException(obj1, obj2);
         return NULL;
     }
 }
+
+
+#define SetExponentiationException(obj1, obj2) \
+setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Exponentiation (**)"))
 
 /**
  * DESCRIPTION:
@@ -675,12 +664,14 @@ RtObject *exponentiate_obj(RtObject *base, RtObject *exponent)
     }
     else
     {
-        printf("Cannot exponentiate %s with %s.\n",
-               rtobj_type_toString(base->type),
-               rtobj_type_toString(exponent->type));
-        return init_RtObject(UNDEFINED_TYPE);
+        SetExponentiationException(base, exponent);
+        return NULL;
     }
 }
+
+
+#define SetBitwiseAndException(obj1, obj2) \
+setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Bitwise AND (&)"))
 
 __attribute__((warn_unused_result))
 /**
@@ -698,12 +689,15 @@ bitwise_and_objs(RtObject *obj1, RtObject *obj2)
     }
     else
     {
-        printf("Cannot perform bitwise AND on %s and %s.\n",
-               rtobj_type_toString(obj1->type),
-               rtobj_type_toString(obj2->type));
+        SetBitwiseAndException(obj1, obj2);
         return NULL;
     }
 }
+
+
+
+#define SetBitwiseOrException(obj1, obj2) \
+setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Bitwise OR (|)"))
 
 __attribute__((warn_unused_result))
 /**
@@ -721,12 +715,14 @@ bitwise_or_objs(RtObject *obj1, RtObject *obj2)
     }
     else
     {
-        printf("Cannot perform bitwise OR on %s and %s.\n",
-               rtobj_type_toString(obj1->type),
-               rtobj_type_toString(obj2->type));
+        SetBitwiseOrException(obj1, obj2);
         return NULL;
     }
 }
+
+
+#define SetBitwiseXorException(obj1, obj2) \
+setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Bitwise XOR (^)"))
 
 __attribute__((warn_unused_result))
 /**
@@ -744,12 +740,14 @@ bitwise_xor_objs(RtObject *obj1, RtObject *obj2)
     }
     else
     {
-        printf("Cannot perform bitwise XOR on %s and %s.\n",
-               rtobj_type_toString(obj1->type),
-               rtobj_type_toString(obj2->type));
+        SetBitwiseXorException(obj1, obj2);
         return NULL;
     }
 }
+
+
+#define SetBitwiseShiftLeftException(obj1, obj2) \
+setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Bitwise Shift Left (<<)"))
 
 __attribute__((warn_unused_result))
 /**
@@ -767,12 +765,14 @@ shift_left_objs(RtObject *obj1, RtObject *obj2)
     }
     else
     {
-        printf("Cannot perform left shift on %s and %s.\n",
-               rtobj_type_toString(obj1->type),
-               rtobj_type_toString(obj2->type));
+        SetBitwiseShiftLeftException(obj1, obj2);
         return NULL;
     }
 }
+
+
+#define SetBitwiseShiftRightException(obj1, obj2) \
+setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Bitwise Shift Right (>>)"))
 
 __attribute__((warn_unused_result))
 /**
@@ -790,12 +790,14 @@ shift_right_objs(RtObject *obj1, RtObject *obj2)
     }
     else
     {
-        printf("Cannot perform left right on %s and %s.\n",
-               rtobj_type_toString(obj1->type),
-               rtobj_type_toString(obj2->type));
+        SetBitwiseShiftRightException(obj1, obj2);
         return NULL;
     }
 }
+
+
+#define SetGreaterThanException(obj1, obj2) \
+setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Greater Than (>)"))
 
 __attribute__((warn_unused_result))
 /**
@@ -820,12 +822,13 @@ greater_than_op(RtObject *obj1, RtObject *obj2)
     }
     else
     {
-        printf("Cannot perform greater than on %s and %s.\n",
-               rtobj_type_toString(obj1->type),
-               rtobj_type_toString(obj2->type));
+        SetGreaterThanException(obj1, obj2);
         return NULL;
     }
 }
+
+#define SetGreaterThanEqException(obj1, obj2) \
+setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Greater Than Equal (>=)"))
 
 __attribute__((warn_unused_result))
 /**
@@ -850,16 +853,18 @@ greater_equal_op(RtObject *obj1, RtObject *obj2)
     }
     else
     {
-        printf("Cannot perform greater than or equal on %s and %s.\n",
-               rtobj_type_toString(obj1->type),
-               rtobj_type_toString(obj2->type));
+        SetGreaterThanEqException(obj1, obj2);
         return NULL;
     }
 }
 
+
+#define SetLesserThanException(obj1, obj2) \
+setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Lesser Than (<)"))
+
 __attribute__((warn_unused_result))
 /**
- *  Defines a lesser than operation (i.e wether obj1 > obj2)
+ *  Defines a lesser than operation (i.e wether obj1 < obj2)
  */
 RtObject *
 lesser_than_op(RtObject *obj1, RtObject *obj2)
@@ -880,12 +885,13 @@ lesser_than_op(RtObject *obj1, RtObject *obj2)
     }
     else
     {
-        printf("Cannot perform lesser than on %s and %s.\n",
-               rtobj_type_toString(obj1->type),
-               rtobj_type_toString(obj2->type));
+        SetLesserThanException(obj1, obj2);
         return NULL;
     }
 }
+
+#define SetLesserThanEqException(obj1, obj2) \
+setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Lesser Than (<=)"))
 
 __attribute__((warn_unused_result))
 /**
@@ -910,9 +916,7 @@ lesser_equal_op(RtObject *obj1, RtObject *obj2)
     }
     else
     {
-        printf("Cannot perform lesser than or equal on %s and %s.\n",
-               rtobj_type_toString(obj1->type),
-               rtobj_type_toString(obj2->type));
+        SetLesserThanEqException(obj1, obj2);
         return NULL;
     }
 }
@@ -956,6 +960,9 @@ logical_or_op(RtObject *obj1, RtObject *obj2)
     return result;
 }
 
+#define SetLogicalNotException(obj) \
+setIntermediateException(init_InvalidTypeException_UnaryOp(obj, "Logical NOT (!)"))
+
 __attribute__((warn_unused_result))
 /**
  * DESCRIPTION:
@@ -970,14 +977,14 @@ logical_not_op(RtObject *target)
     if (target->type == NUMBER_TYPE)
     {
         target->data.Number->number = !target->data.Number->number;
+        return target;
     }
     else
     {
-        printf("Cannot perform logical NOT on %s\n",
-               rtobj_type_toString(target->type));
+        SetLogicalNotException(target);
     }
 
-    return target;
+    return NULL;
 }
 
 /**
@@ -1518,7 +1525,7 @@ RtObject *rtobj_getindex(const RtObject *obj, const RtObject *index)
     case CLASS_TYPE:
     {
         // cannot take index of these types
-        raisedException = init_NonIndexibleObjectException(obj);
+        setIntermediateException(init_NonIndexibleObjectException(obj));
         return NULL;
     }
 
@@ -1527,7 +1534,7 @@ RtObject *rtobj_getindex(const RtObject *obj, const RtObject *index)
         // Index must be a number type
         if (index->type != NUMBER_TYPE)
         {
-            raisedException = init_InvalidIndexTypeException(index, obj, "Number");
+            setIntermediateException(init_InvalidIndexTypeException(index, obj, "Number"));
             return NULL;
         }
 
@@ -1536,7 +1543,7 @@ RtObject *rtobj_getindex(const RtObject *obj, const RtObject *index)
         // Index out of bounds
         if ((size_t)i >= obj->data.List->length)
         {
-            raisedException = init_IndexOutOfBoundsException(i, obj->data.List->length);
+            setIntermediateException(init_IndexOutOfBoundsException(i, obj->data.List->length));
             return NULL;
         }
 
@@ -1550,7 +1557,7 @@ RtObject *rtobj_getindex(const RtObject *obj, const RtObject *index)
         // element is not found, key error exception
         if (!tmp)
         {
-            raisedException = init_KeyErrorException(obj, index);
+            setIntermediateException(init_KeyErrorException(obj, index));
             return NULL;
         }
         return tmp;
@@ -1563,7 +1570,7 @@ RtObject *rtobj_getindex(const RtObject *obj, const RtObject *index)
         // element is not found key error exception
         if (!tmp)
         {
-            raisedException = init_KeyErrorException(obj, index);
+            setIntermediateException(init_KeyErrorException(obj, index));
             return NULL;
         }
         return tmp;
@@ -1573,7 +1580,7 @@ RtObject *rtobj_getindex(const RtObject *obj, const RtObject *index)
 
 /**
  * DESCRIPTION:
- * Gets an object references, this heavily used by the GC.
+ * Gets an object's references
  *
  * If object does not have any refs, a empty, single size array is created, populated with a NULL terminator
  *

@@ -216,7 +216,7 @@ RtException *init_IndexOutOfBoundsException(size_t index, size_t length)
 
 /**
  * DESCRIPTION:
- * Creates a key error exception
+ * Creates a KeyErrorException
  *
  * USECASE:
  * Example: Used when trying to fetch something from a set or map but the key does not exist
@@ -248,5 +248,144 @@ RtException *init_KeyErrorException(const RtObject *target, const RtObject *key)
     free(keytostr);
 
     RtException *exc = KeyErrorException(buffer);
+    return exc;
+}
+
+/**
+ * DESCRIPTION:
+ * Creates a InvalidTypeException for binary operations
+ * 
+ * USECASE:
+ * Used when types do not match for a certain binary or unary operation
+ * 
+ * PARAMS:
+*/
+RtException *init_InvalidTypeException_BinaryOp(
+    const RtObject *obj1, 
+    const RtObject *obj2, 
+    const char* binaryOp) {
+    
+    assert(obj1); 
+    assert(obj2); 
+    assert(binaryOp);
+
+    const char* typeobj1 = rtobj_type_toString(obj1->type);
+    const char* typeobj2 = rtobj_type_toString(obj2->type);
+    char *obj1tostr = rtobj_toString(obj1);
+    char *obj2tostr = rtobj_toString(obj1);
+
+    char buffer[
+        100 + strlen(binaryOp) + strlen(typeobj1) + strlen(typeobj2) + strlen(obj1tostr) + strlen(obj2tostr)
+    ];
+
+    snprintf(buffer, sizeof(buffer),
+        "Cannot perform %s operation on Objects %s and %s, with type %s and %s, respectively.",
+        binaryOp, obj1tostr, obj2tostr, typeobj1, typeobj2
+    );
+
+    free(obj1tostr);
+    free(obj2tostr);
+
+    RtException *exc = InvalidTypeException(buffer);
+    return exc;
+}
+
+/**
+ * DESCRIPTION:
+ * Creates a InvalidTypeException for cases where a invalid type was given to a unary operator
+ * 
+ * PARAMS:
+ * target: object that unary operator was applied to
+ * unaryOp: Name of the operation
+*/
+RtException *init_InvalidTypeException_UnaryOp(const RtObject *target, const char *unaryOp) {
+    assert(target);
+    assert(unaryOp);
+
+    const char *target_type = rtobj_type_toString(target->type);
+
+    char* targettostr = rtobj_toString(target);
+
+    char buffer[100 + strlen(unaryOp) + strlen(target_type) + strlen(targettostr)];
+
+    snprintf(buffer, sizeof(buffer),
+        "Cannot perform %s unary operation on Object %s with type %s",
+        unaryOp, targettostr, target_type
+    );
+
+    free(targettostr);
+
+    RtException *exc = InvalidTypeException(buffer);
+    return exc;
+}
+
+/**
+ * DESCRIPTION:
+ * Creates a InvalidNumberOfArgumentsException
+ * 
+ * PARAMS:
+ * callable_name: name of object that was called with given arguments
+ * actual_args: number of arguments that was given to callable object
+ * expected_args: number of arguments that the callable object was expecting 
+ * 
+ * NOTE:
+ * If expected_args == INT64_INT, then function assumes callable object must take any amount of arguments (but at least more than 1)
+*/
+RtException *init_InvalidNumberOfArgumentsException(const char* callable_name, size_t actual_args, size_t expected_args) {
+
+    assert(callable_name);
+
+    char buffer[300 + strlen(callable_name)];
+
+    if(expected_args != INT64_MAX) {
+        snprintf(buffer, sizeof(buffer),
+            "%s expects %zu arguments, but got %zu arguments.",
+            callable_name, expected_args, actual_args
+        );
+    } else {
+        snprintf(buffer, sizeof(buffer),
+            "%s expects more than 0 arguments, but got %zu arguments.",
+            callable_name, actual_args
+        );
+    }
+
+    RtException *exc = InvalidTypeException(buffer);
+    return exc;
+}
+
+
+/**
+ * DESCRIPTION:
+ * Creates a InvalidTypeException
+ * 
+ * USECASE:
+ * When a builtin function expects a certain object type but gets an other
+ * 
+ * PARAMS:
+ * builtin_name: name of the builtin function
+ * expected_type: the type the builtin function expects
+ * actual_arg: the invalid argument
+*/
+RtException *init_InvalidTypeException_Builtin(const char* builtin_name, const char* expected_type, const RtObject *actual_arg) {
+
+    assert(builtin_name);
+    assert(expected_type);
+    assert(actual_arg);
+
+    const char* actual_type = rtobj_type_toString(actual_arg->type);
+    char *argtostr = rtobj_toString(actual_arg);
+
+    char buffer[
+        90 + strlen(builtin_name) + strlen(expected_type) + strlen(actual_type) + strlen(argtostr)
+    ];
+
+    snprintf(buffer, sizeof(buffer),
+        "Builtin function %s expected argument with type %s, but got Object %s with type %s",
+        builtin_name, expected_type, argtostr, actual_type
+    );
+
+    free(argtostr);
+
+    RtException *exc = InvalidTypeException(buffer);
     return exc;
 }

@@ -20,16 +20,19 @@ typedef struct RtExceptionHandler
 } RtExceptionHandler;
 
 extern RtException *raisedException;
+extern RtException *Intermediate_raisedException;
 
 #define free_exception_handler(handler) free(handler);
 
 void _set_raised_exception(RtException *exc);
+void _set_intermediate_exception(RtException *exc);
 
 RtExceptionHandler *push_exception_handler(size_t stack_ptr, size_t start_of_try_catch, size_t stk_machine_ptr);
 RtExceptionHandler *pop_exception_handler();
 void handle_runtime_exception(RtException *exception);
 void print_unhandledexception(RtException *exception);
 
+#define setIntermediateException(exception) _set_intermediate_exception(exception);
 #define setRaisedException(exception) _set_raised_exception(exception);
 
 #define raiseException(exception) handle_runtime_exception(exception);

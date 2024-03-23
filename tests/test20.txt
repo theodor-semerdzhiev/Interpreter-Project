@@ -1,6 +1,8 @@
 
 # Should return Buffer Overflow Exception
 func test(n) {
+    cmd("ls", "ls");
     return test(n + 1);
+
 }
 test(0);

@@ -14,6 +14,12 @@
 */
 RtException *raisedException = NULL;
 
+/**
+ * This variable is responsible for storing intermediate exceptions created during runtime operations
+ * When an exception is raised, this variable gets reset
+*/
+RtException *Intermediate_raisedException = NULL;
+
 static RtExceptionHandler *head = NULL;
 static RtExceptionHandler *tail = NULL;
 
@@ -33,6 +39,16 @@ void _set_raised_exception(RtException *exc) {
 
 /**
  * DESCRIPTION:
+ * Useful helper for setting intermidate exception, and checks predicates
+*/
+void _set_intermediate_exception(RtException *exc) {
+    assert(exc);
+    assert(!Intermediate_raisedException);
+    Intermediate_raisedException = exc;
+}
+
+/**
+ * DESCRIPTION:
  * Frees entire exception handler linked list
  */
 void free_exception_handlers()
@@ -43,7 +59,7 @@ void free_exception_handlers()
     {
         RtExceptionHandler *tmp = ptr->next;
         free_exception_handler(ptr)
-            ptr = tmp;
+        ptr = tmp;
     }
     head = NULL;
     tail = NULL;
@@ -110,7 +126,15 @@ void handle_runtime_exception(RtException *exception)
 {
     assert(exception);
 
-    // if there is not exception handler, or there is already an other raised Exception
+
+    // resets Intermediate variable
+    if(exception == Intermediate_raisedException) {
+        Intermediate_raisedException = NULL;
+    }
+    
+    assert(!Intermediate_raisedException);
+    
+    // if there is not exception handler, or there is already another raised Exception
     if ((tail == NULL && head == NULL) || raisedException) {
         print_unhandledexception(exception);
         

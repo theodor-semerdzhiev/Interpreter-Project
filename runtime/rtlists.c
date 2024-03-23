@@ -208,8 +208,11 @@ rtlist_cpy(const RtList *list, bool deepcpy, bool add_to_GC)
 /**
  * DESCRIPTION:
  * Helper function for multiplying a list, this function creates a new list
- * 
+ * i.e
+ * [1,2,3] * 3 = [1,2,3, 1,2,3, 1,2,3]
  * The rtobj_rt_preprocess function is used. Primitives type are always deep copied
+ * 
+ * 
  * 
  * PARAMS:
  * list: list to multiply
@@ -240,6 +243,52 @@ RtList *rtlist_mult(const RtList *list, unsigned int number, bool add_to_GC) {
     }
 
     return newlist;
+}
+
+
+/**
+ * DESCRIPTION:
+ * This function takes 2 lists and appends them together. This function CREATES a new list
+ * 
+ * NOTE:
+ * This function runs rtobj_rt_preprocess if cpy = true, before adding obj into the new list
+ * Therefore, primitive types (Number, Undefined, Null) are always gonna be deep copied
+ * 
+ * PARAMS:
+ * list1: 
+ * list2:
+ * cpy: wether rtobj_rt_preprocess should be run before inserting object into new list
+ * add_to_GC: wether elements in the new list should be added to the GC
+*/
+RtList *rtlist_concat(const RtList *list1, const RtList *list2, bool cpy, bool add_to_GC) {
+    assert(list1 && list2);
+
+    RtList *newlist = init_RtList(list1->length + list2->length);
+    
+    if(!newlist) {
+        MallocError();
+        return NULL;
+    }
+
+    for(size_t i=0; i < list1->length; i++) {
+        RtObject *obj = list1->objs[i];
+        if(cpy)
+            obj = rtobj_rt_preprocess(list1->objs[i], false, add_to_GC);
+
+        rtlist_append(newlist, obj);
+    }
+
+    for(size_t i=0; i < list2->length; i++) {
+        RtObject *obj = list2->objs[i];
+
+        if(cpy)
+            obj = rtobj_rt_preprocess(list2->objs[i], false, add_to_GC);
+
+        rtlist_append(newlist, obj);
+    }
+    
+    return newlist;
+
 }
 
 /**

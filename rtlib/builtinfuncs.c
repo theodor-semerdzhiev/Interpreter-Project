@@ -5,13 +5,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include "builtinexception.h"
+#include "builtins.h"
 #include "../compiler/compiler.h"
 #include "../generics/utilities.h"
 #include "../generics/hashmap.h"
 #include "../runtime/runtime.h"
 #include "../runtime/rtobjects.h"
 #include "../runtime/rttype.h"
-#include "builtins.h"
+#include "../runtime/rtexchandler.h"
 
 /**
  * This file contains the implementation of all general built in functions:
@@ -66,6 +67,9 @@ static const BuiltinFunc _builtin_min = {"min", builtin_min, INT64_MAX};
 static const BuiltinFunc _builtin_max = {"max", builtin_max, INT_FAST64_MAX};
 static const BuiltinFunc _builtin_abs = {"abs", builtin_abs, INT_FAST64_MAX};
 static const BuiltinFunc _builtin_copy = {"copy", builtin_copy, INT_FAST64_MAX};
+
+#define setInvalidNumberOfArgsIntermediateException(built_name, actual_args, expected_args) \
+    setIntermediateException(init_InvalidNumberOfArgumentsException(built_name, actual_args, expected_args))
 
 /**
  * Defines equality for built in functions
@@ -210,11 +214,17 @@ static RtObject *builtin_println(RtObject **args, int arg_count)
 }
 
 /**
+ * DESCRIPTION:
  * Implementation for string built in function
  * Converts a RtObject to a string
  */
 static RtObject *builtin_toString(RtObject **args, int arg_count)
 {
+    if(arg_count != 1) {
+        setInvalidNumberOfArgsIntermediateException("Builtin str()", arg_count, 1)
+        return NULL;
+    }
+
     char *str = malloc(sizeof(char));
     *str = '\0';
 
@@ -246,8 +256,8 @@ static RtObject *builtin_typeof(RtObject **args, int arg_count)
 {
     if (arg_count != 1)
     {
-        printf("typeof builtin function can only take 1 argument\n");
-        return init_RtObject(UNDEFINED_TYPE);
+        setInvalidNumberOfArgsIntermediateException("Builtin typeof()", arg_count, 1);
+        return NULL;
     }
 
     RtObject *string_obj = init_RtObject(STRING_TYPE);
@@ -268,8 +278,8 @@ static RtObject *builtin_input(RtObject **args, int arg_count)
 {
     if (arg_count != 1)
     {
-        printf("input builtin function can only take 1 argument\n");
-        return init_RtObject(UNDEFINED_TYPE);
+        setInvalidNumberOfArgsIntermediateException("Builtin input()", arg_count, 1);
+        return NULL;
     }
 
     char *msg = rtobj_toString(args[0]);
@@ -287,9 +297,28 @@ static RtObject *builtin_input(RtObject **args, int arg_count)
     }
     else
     {
-        printf("Error reading input \n");
-        return init_RtObject(UNDEFINED_TYPE);
+        setIntermediateException(IOExceptionException("Error occured trying to fetch Standard Input."));
+        return NULL;
     }
+}
+
+/**
+ * DESCRIPTION:
+ * Helper Function for creating exception for when num() is enable to convert object to number
+*/
+static RtException *_CannotConvertObjToNumber(RtObject *invalid_arg) {
+    assert(invalid_arg);
+    const char *type = rtobj_type_toString(invalid_arg->type);
+    char *argtostr = rtobj_toString(invalid_arg);
+    char buffer[100 + strlen(type) + strlen(argtostr)];
+    snprintf(buffer, sizeof(buffer), 
+        "Builtin num() cannot convert Object %s with type %s to a Number",
+        argtostr, type
+    );
+
+    free(argtostr);
+
+    return InvalidValueException(buffer);
 }
 
 /**
@@ -300,8 +329,8 @@ static RtObject *builtin_toNumber(RtObject **args, int arg_count)
 {
     if (arg_count != 1)
     {
-        printf("input builtin function can only take 1 argument\n");
-        return init_RtObject(UNDEFINED_TYPE);
+        setInvalidNumberOfArgsIntermediateException("Builtin num()", arg_count, 1);
+        return NULL;
     }
 
     if (args[0]->type == NUMBER_TYPE)
@@ -321,14 +350,14 @@ static RtObject *builtin_toNumber(RtObject **args, int arg_count)
         }
         else
         {
-            printf("String '%s' cannot be converted to a number\n", str);
-            return init_RtObject(UNDEFINED_TYPE);
+            setIntermediateException(_CannotConvertObjToNumber(args[0]));
+            return NULL;
         }
     }
     else
     {
-        printf("%s type cannot be converted to a int\n", rtobj_type_toString(args[0]->type));
-        return init_RtObject(UNDEFINED_TYPE);
+        setIntermediateException(_CannotConvertObjToNumber(args[0]));
+        return NULL;
     }
 }
 
@@ -345,9 +374,10 @@ static RtObject *builtin_len(RtObject **args, int arg_count)
 {
     if (arg_count != 1)
     {
-        printf("len builtin function can only take 1 argument \n");
-        return init_RtObject(UNDEFINED_TYPE);
+        setInvalidNumberOfArgsIntermediateException("Builtin len()", arg_count, 1);
+        return NULL;
     }
+
     RtObject *arg = args[0];
     assert(arg);
     switch (arg->type)
@@ -380,21 +410,15 @@ static RtObject *builtin_len(RtObject **args, int arg_count)
         return length;
     }
 
-    case CLASS_TYPE:
-    {
-        // UNDER CONSTRUCTION
-        // RtObject *length = init_RtObject(NUMBER_TYPE);
-        // length->data.Number = init_RtNumber(0);
-        printf("Cannot get length of Class type\n");
-        return init_RtObject(UNDEFINED_TYPE);
-    }
-
     default:
-        printf("Cannot get length of object of type %s", rtobj_type_toString(arg->type));
-        return init_RtObject(UNDEFINED_TYPE);
+        setIntermediateException(
+            init_InvalidTypeException_Builtin("len()", "Map, List, String, or Set", arg)
+        );
+        return NULL;
     }
 }
 
+#define MAX_STDOUT_BUFFER 6000
 /**
  * DESCRIPTION:
  * Built in function for running commands in the command line
@@ -403,19 +427,19 @@ static RtObject *builtin_cmd(RtObject **args, int arg_count)
 {
     if (arg_count != 1)
     {
-        printf("Built in function cmd must take exactly one argument\n");
-        return init_RtObject(UNDEFINED_TYPE);
+        setInvalidNumberOfArgsIntermediateException("Builtin cmd()", arg_count, 1);
+        return NULL;
     }
 
     if (args[0]->type != STRING_TYPE)
     {
-        printf("Built in function cmd must take a string type argument\n");
-        return init_RtObject(UNDEFINED_TYPE);
+        setIntermediateException(init_InvalidTypeException_Builtin("cmd()", "String", args[0]));
+        return NULL;
     }
 
-    char stdoutbuffer[5000];
+    char stdoutbuffer[MAX_STDOUT_BUFFER];
     FILE *fp = NULL;
-    char *command = args[0]->data.String->string;
+    const char *command = args[0]->data.String->string;
     char *output = NULL;
     size_t output_size = 0;
     size_t bytes_read;
@@ -424,8 +448,10 @@ static RtObject *builtin_cmd(RtObject **args, int arg_count)
     fp = popen(command, "r");
     if (fp == NULL)
     {
-        printf("Failed to run command '%s'\n", command);
-        return init_RtObject(UNDEFINED_TYPE);
+        char buffer[60 + strlen(command)];
+        snprintf(buffer, sizeof(buffer), "Builtin function cmd() failed to run command '%s'", command);
+        setIntermediateException(IOExceptionException(buffer));
+        return NULL;
     }
 
     // Read the entire command output
@@ -436,8 +462,9 @@ static RtObject *builtin_cmd(RtObject **args, int arg_count)
         output = realloc(output, output_size + 1);
         if (output == NULL)
         {
-            perror("Memory allocation failed");
-            pclose(fp);
+            char buffer[80];
+            snprintf(buffer, sizeof(buffer), "Builtin function cmd() failed to run command due to memory allocation error.");
+            setIntermediateException(IOExceptionException(buffer));
             return NULL;
         }
 
@@ -464,8 +491,8 @@ static RtObject *builtin_cmd(RtObject **args, int arg_count)
 static RtObject *builtin_max(RtObject **args, int argcount)
 {
     if(argcount == 0) {
-        assert(false);
-
+        setInvalidNumberOfArgsIntermediateException("Builtin max()", 0, INT64_MAX)
+        return NULL;
     }
 
     RtObject *max = args[0];
@@ -487,8 +514,10 @@ static RtObject *builtin_max(RtObject **args, int argcount)
  */
 static RtObject *builtin_min(RtObject **args, int argcount)
 {
-    // temporary
-    assert(argcount > 0);
+    if(argcount != 1) {
+        setInvalidNumberOfArgsIntermediateException("Builtin min()", argcount, INT64_MAX)
+        return NULL;
+    }
 
     RtObject *max = args[0];
     for (int i = 1; i < argcount; i++)
@@ -509,9 +538,16 @@ static RtObject *builtin_min(RtObject **args, int argcount)
  */
 static RtObject *builtin_abs(RtObject **args, int argcount)
 {
-    // temporary
-    assert(argcount == 1);
-    assert(args[0]->type == NUMBER_TYPE);
+    if(argcount != 1) {
+        setInvalidNumberOfArgsIntermediateException("Builtin abs()", argcount, 1)
+        return NULL;
+    }
+
+    if(args[0]->type != NUMBER_TYPE) {
+        setIntermediateException(init_InvalidTypeException_Builtin("abs()", "Number", args[0])); 
+        return NULL;
+    }
+
     RtNumber *num = init_RtNumber(fabsl(args[0]->data.Number->number));
     RtObject *obj = init_RtObject(NUMBER_TYPE);
     obj->data.Number = num;
@@ -520,14 +556,15 @@ static RtObject *builtin_abs(RtObject **args, int argcount)
 
 /**
  * DESCRIPTION:
- * Built in function for creating a deep copy of a runtime object
+ * Built in function for creating a shallow copy of a runtime object
  */
 static RtObject *builtin_copy(RtObject **args, int argcount)
 {
-    // temporary
-    assert(argcount == 1);
-    // objects is deep copied and ALL objects contained by that object are also deep copied
-    // therefore, all of those objects are added to the GC
-    RtObject *obj = rtobj_deep_cpy(args[0], true);
+    if(argcount != 1) {
+        setInvalidNumberOfArgsIntermediateException("Builtin abs()", argcount, 1);
+        return NULL;
+    }
+
+    RtObject *obj = rtobj_shallow_cpy(args[0]);
     return obj;
 }

@@ -491,7 +491,7 @@ __attribute__((warn_unused_result))
  * PARAMS:
  * set1: set1
  * set2: set2
- * cpy: wether the contents of the new set should be shallow copied or passed directly by reference
+ * cpy: wether the contents of the new set should be run through rtobj_rt_preprocess first
  * add_to_GC: wether objs in the new set should be added to the GC registry
 */
 RtSet *rtset_union(const RtSet *set1, const RtSet *set2, bool cpy, bool add_to_GC) {

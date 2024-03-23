@@ -22,6 +22,8 @@ RtObject *rtlist_popfirst(RtList *list);
 RtObject *rtlist_get(const RtList *list, long index);
 RtList *rtlist_cpy(const RtList *list, bool deepcpy, bool add_to_GC);
 RtList *rtlist_mult(const RtList *list, unsigned int number, bool add_to_GC);
+RtList *rtlist_concat(const RtList *list1, const RtList *list2, bool cpy, bool add_to_GC);
+
 RtObject **rtlist_getrefs(const RtList *list);
 RtObject *rtlist_remove(RtList *list, RtObject *obj);
 

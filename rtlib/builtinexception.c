@@ -26,7 +26,7 @@ static RtObject *builtin_NullPointerException(RtObject **args, int arg_count);
 static const BuiltinFunc _builtin_Exception = {GenericExceptionString, builtin_Exception, 1};
 static const BuiltinFunc _builtin_InvalidType = {InvalidTypeExceptionString, builtin_InvalidType, 1};
 static const BuiltinFunc _builtin_InvalidNumberOfArguments = {InvalidNumberOfArgumentsExceptionString, builtin_InvalidNumberOfArguments, 1};
-static const BuiltinFunc _builtin_NullPointerException = {NullPointerExceptionString, builtin_NullPointerException, 1};
+static const BuiltinFunc _builtin_NullPointerException = {NullTypeExceptionString, builtin_NullPointerException, 1};
 
 
 /**
@@ -96,7 +96,7 @@ static RtObject *builtin_NullPointerException(RtObject **args, int arg_count) {
     }
 
     RtObject *obj = init_RtObject(EXCEPTION_TYPE);
-    obj->data.Exception = NullPointerException(arg_count == 0? "": args[0]->data.String->string);
+    obj->data.Exception = NullTypeException(arg_count == 0? "": args[0]->data.String->string);
     return obj;
 }
 

@@ -67,11 +67,11 @@ RtException *init_InvalidTypeException_Builtin(const char* builtin_name, const c
 #define ObjectNotCallableExceptionString "ObjectNotCallableException"
 #define ObjectNotCallableException(msg) init_RtException(ObjectNotCallableExceptionString, msg)
 
-#define NullPointerExceptionString "NullPointerException"
-#define NullPointerException(msg) init_RtException(NullPointerExceptionString, msg)
+#define NullTypeExceptionString "NullTypeException"
+#define NullTypeException(msg) init_RtException(NullTypeExceptionString, msg)
 
-#define UndefinedPointerExceptionString "UndefinedPointerException"
-#define UndefinedPointerException(msg) init_RtException(UndefinedPointerExceptionString, msg)
+#define UndefinedTypeExceptionString "UndefinedTypeException"
+#define UndefinedTypeException(msg) init_RtException(UndefinedTypeExceptionString, msg)
 
 #define IndexOutOfBoundsExceptionString "IndexOutOfBoundsException"
 #define IndexOutOfBoundsException(msg) init_RtException(IndexOutOfBoundsExceptionString, msg)

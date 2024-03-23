@@ -847,6 +847,24 @@ static void perform_get_attribute(const char *attrs)
     bool target_disposable = disposable();
     RtObject *target = StackMachine_pop(StackMachine, false);
 
+    // handles special cases
+
+    if(target->type == NULL_TYPE) {
+        char buffer[60 + strlen(attrs)];
+        snprintf(buffer, sizeof(buffer), "Attemped to fetch attribute '%s' on Null type.", attrs);
+        dispose_disposable_obj(target, target_disposable);
+        raiseException(NullTypeException(buffer))
+        return;
+    } 
+
+    if(target->type == UNDEFINED_TYPE) {
+        char buffer[60 + strlen(attrs)];
+        snprintf(buffer, sizeof(buffer), "Attemped to fetch attribute '%s' on Undefined type.", attrs);
+        dispose_disposable_obj(target, target_disposable);
+        raiseException(UndefinedTypeException(buffer))
+        return;
+    }
+
     if (target->type == CLASS_TYPE)
     {
         RtObject *attrsname = init_RtObject(STRING_TYPE);

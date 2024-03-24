@@ -180,7 +180,7 @@ void handle_runtime_exception(RtException *exception)
  * DESCRIPION:
  * Functions prints out unhandled exception error
 */
-#define TAB3 "          "
+#define TAB2 "      "
 #define StackPtr getCallStackPointer()
 
 #define RED_TEXT "\x1b[31m"
@@ -188,6 +188,7 @@ void handle_runtime_exception(RtException *exception)
 
 void print_unhandledexception(RtException *exception) {
     assert(exception);
+    printf("\n");
 
     // Error message will depend on the currently raised exception
     if(raisedException) {
@@ -209,10 +210,10 @@ void print_unhandledexception(RtException *exception) {
             size_t cur_linenb = frame->pg->code[frame->pg_counter]->line_nb;
             char *functostring = rtfunc_toString(frame->function);
 
-            printf("%s:%s:%zu" TAB3 "Function Signature: %s\n", 
+            printf("%s:%zu" TAB2 "%s()" TAB2 "Function Signature: %s\n", 
                 frame->code_file_location, 
-                rtfunc_get_funcname(frame->function),
                 cur_linenb,
+                rtfunc_get_funcname(frame->function),
                 functostring);
 
             free(functostring);

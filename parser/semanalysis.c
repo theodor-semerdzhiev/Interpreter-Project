@@ -1141,10 +1141,12 @@ bool AST_list_has_consistent_semantics(SemanticAnalyzer *sem_analyzer, AST_List 
                 return false;
             }
 
+            sem_analyzer->nesting_lvl++;
+
             if (!AST_list_has_consistent_semantics(sem_analyzer, node->body))
-            {
                 return false;
-            }
+
+            sem_analyzer->nesting_lvl--;
 
             break;
         }
@@ -1156,10 +1158,14 @@ bool AST_list_has_consistent_semantics(SemanticAnalyzer *sem_analyzer, AST_List 
                 // error will be printed out by function
                 return false;
 
+            sem_analyzer->nesting_lvl++;
+
             if (!AST_list_has_consistent_semantics(sem_analyzer, node->body))
                 // error will be printed out
                 return false;
 
+            sem_analyzer->nesting_lvl--;
+            
             break;
         }
 

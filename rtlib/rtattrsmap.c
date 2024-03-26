@@ -2,6 +2,8 @@
 #include "rtattrs.h"
 #include "../runtime/gc.h"
 #include "../generics/hashmap.h"
+#include "../runtime/rtexchandler.h"
+
 
 static RtObject *builtin_map_add(RtObject *obj, RtObject **args, int argcount);
 static RtObject *builtin_map_remove(RtObject *obj, RtObject **args, int argcount);
@@ -45,6 +47,12 @@ static const AttrBuiltinKey _map_items_key = {HASHMAP_TYPE, "items"};
 static const AttrBuiltin _map_items =
     {HASHMAP_TYPE, {.builtin_func = builtin_map_getitems}, 1, "items", true};
 
+
+// Helper for abstracting away invalid number of arguments exception
+#define setInvalidNumberOfArgsIntermediateException(map_attr, actual_args, expected_args) \
+    setIntermediateException(init_InvalidNumberOfArgumentsException( \
+        "Map attribute function " map_attr, (size_t)actual_args, (size_t)expected_args))
+
 /**
  * DESCRIPTION:
  * Inserts RtMap attribute functions to the registry
@@ -67,8 +75,11 @@ void init_RtMapAttr(GenericMap *registry)
  */
 static RtObject *builtin_map_add(RtObject *obj, RtObject **args, int argcount)
 {
-    assert(argcount == 2); // temporary
     assert(obj->type == HASHMAP_TYPE);
+    if(argcount != 2) {
+        setInvalidNumberOfArgsIntermediateException("add()", argcount, 2);
+        return NULL;
+    }
 
     RtMap *map = obj->data.Map;
     RtObject *key = args[0];
@@ -83,8 +94,11 @@ static RtObject *builtin_map_add(RtObject *obj, RtObject **args, int argcount)
  */
 static RtObject *builtin_map_remove(RtObject *obj, RtObject **args, int argcount)
 {
-    assert(argcount == 1); // temporary
     assert(obj->type == HASHMAP_TYPE);
+    if(argcount != 1) {
+        setInvalidNumberOfArgsIntermediateException("remove()", argcount, 1);
+        return NULL;
+    }
 
     RtMap *map = obj->data.Map;
     RtObject *key = args[0];
@@ -98,8 +112,12 @@ static RtObject *builtin_map_remove(RtObject *obj, RtObject **args, int argcount
  */
 static RtObject *builtin_map_containskey(RtObject *obj, RtObject **args, int argcount)
 {
-    assert(argcount == 1); // temporary
     assert(obj->type == HASHMAP_TYPE);
+
+    if(argcount != 1) {
+        setInvalidNumberOfArgsIntermediateException("containsKey()", argcount, 1);
+        return NULL;
+    }
 
     RtMap *map = obj->data.Map;
     RtObject *key = args[0];
@@ -111,12 +129,16 @@ static RtObject *builtin_map_containskey(RtObject *obj, RtObject **args, int arg
 
 /**
  * DESCRIPTION:
- * Builtin function for checking if a key is contained within a map
+ * Builtin function for checking if a value is contained within a map
  */
 static RtObject *builtin_map_contains_val(RtObject *obj, RtObject **args, int argcount)
 {
-    assert(argcount == 1); // temporary
     assert(obj->type == HASHMAP_TYPE);
+
+    if(argcount != 1) {
+        setInvalidNumberOfArgsIntermediateException("containsVal()", argcount, 1);
+        return NULL;
+    }
 
     RtMap *map = obj->data.Map;
     RtObject *val = args[0];
@@ -145,10 +167,14 @@ static RtObject *builtin_map_contains_val(RtObject *obj, RtObject **args, int ar
  */
 static RtObject *builtin_map_clear(RtObject *obj, RtObject **args, int argcount)
 {
-    assert(argcount == 0); // temporary
     assert(obj->type == HASHMAP_TYPE);
-    (void)args;
 
+    if(argcount != 0) {
+        setInvalidNumberOfArgsIntermediateException("clear()", argcount, 0);
+        return NULL;
+    }
+    
+    (void)args;
     RtMap *map = obj->data.Map;
     rtmap_clear(map, false, false, false);
     return obj;
@@ -160,10 +186,14 @@ static RtObject *builtin_map_clear(RtObject *obj, RtObject **args, int argcount)
  */
 static RtObject *builtin_map_getkeys(RtObject *obj, RtObject **args, int argcount)
 {
-    assert(argcount == 0); // temporary
     assert(obj->type == HASHMAP_TYPE);
-    (void)args;
 
+    if(argcount != 0) {
+        setInvalidNumberOfArgsIntermediateException("keys()", argcount, 0);
+        return NULL;
+    }
+    
+    (void)args;
     RtMap *map = obj->data.Map;
     RtObject **keys = rtmap_getrefs(map, true, false);
     RtList *list = init_RtList(map->size);
@@ -184,10 +214,14 @@ static RtObject *builtin_map_getkeys(RtObject *obj, RtObject **args, int argcoun
  */
 static RtObject *builtin_map_getvalues(RtObject *obj, RtObject **args, int argcount)
 {
-    assert(argcount == 0); // temporary
     assert(obj->type == HASHMAP_TYPE);
-    (void)args;
 
+    if(argcount != 0) {
+        setInvalidNumberOfArgsIntermediateException("values()", argcount, 0);
+        return NULL;
+    }
+
+    (void)args;
     RtMap *map = obj->data.Map;
     RtObject **values = rtmap_getrefs(map, false, true);
     RtList *list = init_RtList(map->size);
@@ -208,10 +242,14 @@ static RtObject *builtin_map_getvalues(RtObject *obj, RtObject **args, int argco
 */
 static RtObject *builtin_map_getitems(RtObject *obj, RtObject **args, int argcount)
 {
-    assert(argcount == 0); // temporary
     assert(obj->type == HASHMAP_TYPE);
-    (void)args;
 
+    if(argcount != 0) {
+        setInvalidNumberOfArgsIntermediateException("items()", argcount, 0);
+        return NULL;
+    }
+
+    (void)args;
     RtMap *map = obj->data.Map;
     RtObject **keyval = rtmap_getrefs(map, true, true);
     RtList *list = init_RtList(map->size);

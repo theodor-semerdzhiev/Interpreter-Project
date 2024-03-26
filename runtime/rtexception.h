@@ -37,7 +37,7 @@ RtException *init_InvalidIndexTypeException(
     const RtObject *target, 
     const char *expected_index_type);
 
-RtException *init_IndexOutOfBoundsException(size_t index, size_t length);
+RtException *init_IndexOutOfBoundsException(const RtObject *list, size_t index, size_t length);
 
 RtException *init_KeyErrorException(const RtObject *target, const RtObject *key);
 

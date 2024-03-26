@@ -204,12 +204,19 @@ RtException *init_InvalidIndexTypeException(
  * length: length of list
  *
  */
-RtException *init_IndexOutOfBoundsException(size_t index, size_t length)
-{
-    char buffer[200];
+RtException *init_IndexOutOfBoundsException(const RtObject *list, size_t index, size_t length)
+{   
+    assert(list);
+    assert(list->type == LIST_TYPE);
+
+    char *listtostr = rtobj_toString(list);
+    char buffer[200+strlen(listtostr)];
+
     snprintf(buffer, sizeof(buffer),
-             "Index out of bounds, cannot get index %zu of List with length %zu",
-             index, length);
+             "Index out of bounds, cannot get index %zu of List Object %s with length %zu",
+             index, listtostr, length);
+    
+    free(listtostr);
     RtException *exc = InvalidTypeException(buffer);
     return exc;
 }

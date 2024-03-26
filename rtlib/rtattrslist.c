@@ -2,6 +2,7 @@
 #include "rtattrs.h"
 #include "../generics/hashmap.h"
 #include "../generics/utilities.h"
+#include "../runtime/rtexchandler.h"
 
 static RtObject *builtin_list_append(RtObject *list, RtObject **args, int argcount);
 static RtObject *builtin_list_pop(RtObject *target, RtObject **args, int argcount);
@@ -64,6 +65,20 @@ static const AttrBuiltinKey _list_max_key = {LIST_TYPE, "max"};
 static const AttrBuiltin _list_max = 
 {LIST_TYPE, {.builtin_func = builtin_list_max}, -1, "max", true};
 
+
+// Helper for abstracting away invalid number of arguments exception
+#define setInvalidNumberOfArgsIntermediateException(list_attr, actual_args, expected_args) \
+    setIntermediateException(init_InvalidNumberOfArgumentsException( \
+        "List attribute function " list_attr, (size_t)actual_args, (size_t)expected_args))
+
+// Helper for abstracting away Index out of bounds exception
+#define setIndexOutOfBoundsException(target, index, list_len) \
+    setIntermediateException(init_IndexOutOfBoundsException(target, (size_t)index, (size_t)list_len))
+
+// Helper for abstracting away Invalid argument type exception
+#define setInvalidArgTypeException(attr_name, expected_type, argobj) \
+    setIntermediateException(init_InvalidTypeException_Builtin("attribute " attr_name, expected_type, argobj))
+
 void init_RtListAttr(GenericMap *registry) {
     addToAttrRegistry(registry, _list_append_key, _list_append);
     addToAttrRegistry(registry, _list_pop_key, _list_pop);
@@ -82,6 +97,8 @@ void init_RtListAttr(GenericMap *registry) {
 /**
  * DESCRIPTION:
  * Builtin function for adding objects to a rt list
+ * EX:
+ * list->append(obj)
  */
 static RtObject *builtin_list_append(RtObject *target, RtObject **args, int argcount)
 {
@@ -97,21 +114,38 @@ static RtObject *builtin_list_append(RtObject *target, RtObject **args, int argc
 /**
  * DESCRIPTION:
  * Builtin function for removing objects from a rt list, at a specific index
+ * 
+ * EX:
+ * list->pop(obj)
  */
 static RtObject *builtin_list_pop(RtObject *target, RtObject **args, int argcount)
 {
-    // temporary
-    assert(argcount  == 1); 
     assert(target->type == LIST_TYPE);
-    assert(args[0]->type == NUMBER_TYPE);
+    
+    // Checks # of args
+    if(argcount != 1) {
+        setInvalidNumberOfArgsIntermediateException("pop()", argcount, 1);
+        return NULL;
+    }
+
+    // Checks index is a number
+    if(args[0]->type != NUMBER_TYPE) {
+        setInvalidArgTypeException("pop()", "Number", args[0]);
+        return NULL;
+    }
 
     RtList *list = target->data.List;
+    size_t list_len = list->length;
     double number = args[0]->data.Number->number;
 
     RtObject *removed = rtlist_removeindex(list, (size_t)number);
-    if(!removed) {
-        printf("Cannot removed index out of range\n");
+
+    // If NULL is returned, then its an out of bounds exception
+    if(!removed) {  
+        setIndexOutOfBoundsException(target, number, list_len);
+        return NULL;
     }
+
     return target;
 }
 
@@ -120,11 +154,24 @@ static RtObject *builtin_list_pop(RtObject *target, RtObject **args, int argcoun
  * Built in function for adding a element into a specific index of a rt list
 */
 static RtObject *builtin_list_popLast(RtObject *target, RtObject **args, int argcount) {
-    // temporary
-    assert(argcount == 0); 
     assert(target->type == LIST_TYPE);
+
+    // Checks # of arguments     
+    if(argcount != 0) {
+        setInvalidNumberOfArgsIntermediateException("popLast()", argcount, 1);
+        return NULL;
+    }
+
     (void)args;
-    rtlist_poplast(target->data.List);
+
+    RtObject *obj = rtlist_poplast(target->data.List);
+    
+    // If NULL is returned, then list is empty
+    if(!obj) {
+        setIndexOutOfBoundsException(target, 0, 0);
+        return NULL;
+    }
+    
     return target;
 }
 
@@ -133,11 +180,23 @@ static RtObject *builtin_list_popLast(RtObject *target, RtObject **args, int arg
  * Built in function for adding a element into a specific index of a rt list
 */
 static RtObject *builtin_list_popFirst(RtObject *target, RtObject **args, int argcount) {
-    // temporary
-    assert(argcount == 0); 
     assert(target->type == LIST_TYPE);
+
+    // Checks # of arguments     
+    if(argcount != 0) {
+        setInvalidNumberOfArgsIntermediateException("popFirst()", argcount, 1);
+        return NULL;
+    }
+
     (void)args;
-    rtlist_popfirst(target->data.List);
+    RtObject *obj = rtlist_popfirst(target->data.List);
+
+    // If NULL is returned, then list is empty
+    if(!obj) {
+        setIndexOutOfBoundsException(target, 0, 0);
+        return NULL;
+    }
+
     return target;
 }
 
@@ -146,9 +205,14 @@ static RtObject *builtin_list_popFirst(RtObject *target, RtObject **args, int ar
  * Built in function for adding a element into a specific index of a rt list
 */
 static RtObject *builtin_list_clear(RtObject *target, RtObject **args, int argcount) {
-    // temporary
-    assert(argcount == 0); 
     assert(target->type == LIST_TYPE);
+
+    // Checks # of arguments     
+    if(argcount != 0) {
+        setInvalidNumberOfArgsIntermediateException("clear()", argcount, 1);
+        return NULL;
+    }
+
     (void)args;
 
     while(target->data.List->length > 0) {
@@ -164,9 +228,13 @@ static RtObject *builtin_list_clear(RtObject *target, RtObject **args, int argco
  * Built in function for checking if an element is found in a list
 */
 static RtObject *builtin_list_contains(RtObject *target, RtObject **args, int argcount) {
-    // temporary
-    assert(argcount == 1); 
     assert(target->type == LIST_TYPE);
+    // Checks # of arguments     
+    if(argcount != 1) {
+        setInvalidNumberOfArgsIntermediateException("contains()", argcount, 1);
+        return NULL;
+    }
+
     RtObject *res = init_RtObject(NUMBER_TYPE);
     res->data.Number = init_RtNumber(rtlist_contains(target->data.List, args[0]));
     return res;
@@ -177,11 +245,12 @@ static RtObject *builtin_list_contains(RtObject *target, RtObject **args, int ar
  * Built in function for removing some amount of matching rt objects in a list
 */
 static RtObject *builtin_list_remove(RtObject *target, RtObject **args, int argcount) {
-    // temporary
     assert(target->type == LIST_TYPE);
+
     for(int i = 0; i < argcount; i++) {
         rtlist_remove(target->data.List, args[i]);
     }
+
     return target;
 }
 
@@ -190,10 +259,14 @@ static RtObject *builtin_list_remove(RtObject *target, RtObject **args, int argc
  * Built in function for converting a list to a set
 */
 static RtObject *builtin_list_toset(RtObject *target, RtObject **args, int argcount) {
-    // temporary
-    assert(argcount == 0);
     assert(target->type == LIST_TYPE);
     (void)args;
+
+    // Checks # of arguments     
+    if(argcount != 0) {
+        setInvalidNumberOfArgsIntermediateException("clear()", argcount, 1);
+        return NULL;
+    }
 
     RtList *list = target->data.List;
     RtSet* set = init_RtSet(list->length);
@@ -212,9 +285,14 @@ static RtObject *builtin_list_toset(RtObject *target, RtObject **args, int argco
  * Built in function for reversing a list
 */
 static RtObject *builtin_list_reverse(RtObject *target, RtObject **args, int argcount) {
-    // temporary
-    assert(argcount == 0);
     assert(target->type == LIST_TYPE);
+
+    // Checks # of arguments     
+    if(argcount != 0) {
+        setInvalidNumberOfArgsIntermediateException("clear()", argcount, 1);
+        return NULL;
+    }
+
     (void)args;
     rtlist_reverse(target->data.List);
     return target;
@@ -269,10 +347,14 @@ static int _rtobj_reverse_compare_wrapper(const RtObject **o1, const RtObject **
  * then the list will be sorted in reverse order
 */
 static RtObject *builtin_list_sort(RtObject *target, RtObject **args, int argcount) {
-    // temporary
-    assert(argcount == 1 || argcount == 0);
     assert(target->type == LIST_TYPE);
     (void)args;
+
+    // Checks # of arguments     
+    if(argcount != 1 || argcount != 0) {
+        setInvalidNumberOfArgsIntermediateException("sort()", argcount, 1);
+        return NULL;
+    }
 
     bool reverse = false;
     if( argcount == 1 && 
@@ -294,10 +376,14 @@ static RtObject *builtin_list_sort(RtObject *target, RtObject **args, int argcou
  * 
 */
 static RtObject *builtin_list_max(RtObject *target, RtObject **args, int argcount) {
-    // temporary
     assert(target->type == LIST_TYPE);
-    assert(argcount == 0);
     (void)args;
+
+    // Checks # of arguments     
+    if(argcount == 0) {
+        setInvalidNumberOfArgsIntermediateException("max()", argcount, INT64_MAX);
+        return NULL;
+    }
 
     RtList *list = target->data.List;
     RtObject *max = list->objs[0];
@@ -316,10 +402,14 @@ static RtObject *builtin_list_max(RtObject *target, RtObject **args, int argcoun
  * 
 */
 static RtObject *builtin_list_min(RtObject *target, RtObject **args, int argcount) {
-    // temporary
     assert(target->type == LIST_TYPE);
-    assert(argcount == 0);
     (void)args;
+
+    // Checks # of arguments     
+    if(argcount == 0) {
+        setInvalidNumberOfArgsIntermediateException("min()", argcount, INT64_MAX);
+        return NULL;
+    }
 
     RtList *list = target->data.List;
     RtObject *min = list->objs[0];

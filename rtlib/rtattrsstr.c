@@ -4,11 +4,12 @@
 #include "rtattrs.h"
 #include "../generics/hashmap.h"
 #include "../generics/utilities.h"
+#include "../runtime/rtexchandler.h"
 
 /**
  * DESCRIPTION:
  * This file contains all the implementations for all built in string functions, this includes:
- * 
+ *
  * upper(): Creates new string to all upper string
  * lower(): Creates new string to all lower case
  * strip(): Creates new string stripped of trailing and leading whitespace
@@ -17,7 +18,7 @@
  * isnumeric(): Returns wether string contains ONLY numeric characters
  * isalph(): Returns wether string contains ONLY alphabetical characters
  * isspace(): Returns wether string contains ONLY whitespace
-*/
+ */
 
 static RtObject *builtin_str_upper(RtObject *target, RtObject **args, int arg_count);
 static RtObject *builtin_str_lower(RtObject *target, RtObject **args, int arg_count);
@@ -70,25 +71,41 @@ static const AttrBuiltinKey _str_islower_key = {STRING_TYPE, "islower"};
 static const AttrBuiltin _str_islower =
     {STRING_TYPE, {.builtin_func = builtin_str_islower}, 0, "islower", true};
 
+// Helper for abstracting away invalid number of arguments exception
+#define setInvalidNumberOfArgsIntermediateException(map_attr, actual_args, expected_args) \
+    setIntermediateException(init_InvalidNumberOfArgumentsException(                      \
+        "String attribute function " map_attr, (size_t)actual_args, (size_t)expected_args))
+
+// Helper for abstracting away Invalid argument type exception
+#define setInvalidArgTypeException(attr_name, expected_type, argobj) \
+    setIntermediateException(init_InvalidTypeException_Builtin("attribute " attr_name, expected_type, argobj))
+
 /**
  * DESCRIPTION:
  * Useful macro for applying a true/false check on a string
  * Result of that check gets stored in bool_
-*/
+ */
 #define StrBoolPred(bool, str, length, predicate) \
-for(unsigned int i=0; i < length; i++) { \
-    if(!predicate(str[i])) { bool = false; break;} \
-} 
+    for (unsigned int i = 0; i < length; i++)     \
+    {                                             \
+        if (!predicate(str[i]))                   \
+        {                                         \
+            bool = false;                         \
+            break;                                \
+        }                                         \
+    }
 
 /**
  * DESCRIPTION:
  * Useful macro for initialization a new string on some predicate function
  * Also sets the null char
-*/
+ */
 #define NewStrApply(newstr, str, length, predicate) \
-for(unsigned int i=0; i < length; i++) { \
-    newstr[i]=predicate(str[i]); \
-} newstr[len]='\0'; \
+    for (unsigned int i = 0; i < length; i++)       \
+    {                                               \
+        newstr[i] = predicate(str[i]);              \
+    }                                               \
+    newstr[len] = '\0';
 
 /**
  * DESCRIPTION:
@@ -114,18 +131,23 @@ void init_RtStrAttr(GenericMap *registry)
  */
 static RtObject *builtin_str_upper(RtObject *target, RtObject **args, int arg_count)
 {
-    // temp
     assert(target->type == STRING_TYPE);
-    assert(arg_count == 0);
+
+    if (arg_count != 0)
+    {
+        setInvalidNumberOfArgsIntermediateException("upper()", arg_count, 0);
+        return NULL;
+    }
+
     (void)args;
     char *str = target->data.String->string;
     unsigned int len = target->data.String->length;
-    char *newstr = malloc(sizeof(char)*(len + 1));
+    char *newstr = malloc(sizeof(char) * (len + 1));
     NewStrApply(newstr, str, len, toupper);
     RtObject *strobj = init_RtObject(STRING_TYPE);
-    strobj->data.String=init_RtString(NULL);
-    strobj->data.String->string=newstr;
-    strobj->data.String->length=len;
+    strobj->data.String = init_RtString(NULL);
+    strobj->data.String->string = newstr;
+    strobj->data.String->length = len;
     return strobj;
 }
 
@@ -135,52 +157,63 @@ static RtObject *builtin_str_upper(RtObject *target, RtObject **args, int arg_co
  */
 static RtObject *builtin_str_lower(RtObject *target, RtObject **args, int arg_count)
 {
-    // temp
     assert(target->type == STRING_TYPE);
-    assert(arg_count == 0);
+
+    if (arg_count != 0)
+    {
+        setInvalidNumberOfArgsIntermediateException("lower()", arg_count, 0);
+        return NULL;
+    }
+
     (void)args;
     char *str = target->data.String->string;
     unsigned int len = target->data.String->length;
-    char *newstr = malloc(sizeof(char)*(len + 1));
+    char *newstr = malloc(sizeof(char) * (len + 1));
     NewStrApply(newstr, str, len, tolower);
     RtObject *strobj = init_RtObject(STRING_TYPE);
-    strobj->data.String=init_RtString(NULL);
-    strobj->data.String->string=newstr;
-    strobj->data.String->length=len;
+    strobj->data.String = init_RtString(NULL);
+    strobj->data.String->string = newstr;
+    strobj->data.String->length = len;
     return strobj;
 }
 
 /**
  * DESCRIPTION:
  * Built in function for stripping a string of its whitespace
-*/
-static RtObject *builtin_str_strip(RtObject *target, RtObject **args, int arg_count) {
-    // temp
+ */
+static RtObject *builtin_str_strip(RtObject *target, RtObject **args, int arg_count)
+{
     assert(target->type == STRING_TYPE);
-    assert(arg_count == 0);
+
+    if (arg_count != 0)
+    {
+        setInvalidNumberOfArgsIntermediateException("strip()", arg_count, 0);
+        return NULL;
+    }
+
     (void)args;
     char *str = target->data.String->string;
     unsigned int len = target->data.String->length;
 
-    unsigned int start=0;
-    unsigned int end=len-1;
-    unsigned int i,j;
-    for(i=start; i < len; i++) 
-        if(!isspace(str[i])) 
+    unsigned int start = 0;
+    unsigned int end = len - 1;
+    unsigned int i, j;
+    for (i = start; i < len; i++)
+        if (!isspace(str[i]))
             break;
-            
-    for(j=end; j >= 0; j--) 
-        if(!isspace(str[j])) 
+
+    for (j = end; j >= 0; j--)
+        if (!isspace(str[j]))
             break;
-    start=i;
-    end=j;
+    start = i;
+    end = j;
 
     RtString *stripped_str = init_RtString(NULL);
-    stripped_str->string= malloc_substring(str, start, end);
-    stripped_str->length= end-start;
+    stripped_str->string = malloc_substring(str, start, end);
+    stripped_str->length = end - start;
 
     RtObject *strobj = init_RtObject(STRING_TYPE);
-    strobj->data.String=stripped_str;
+    strobj->data.String = stripped_str;
 
     return strobj;
 }
@@ -189,19 +222,27 @@ static RtObject *builtin_str_strip(RtObject *target, RtObject **args, int arg_co
  * DESCRIPTION:
  * Built in function for returning the first occurence of a sub string
  * If no substring is found, -1 is returned
- * 
-*/
-static RtObject *builtin_str_find(RtObject *target, RtObject **args, int arg_count) {
-    // temp
+ *
+ */
+static RtObject *builtin_str_find(RtObject *target, RtObject **args, int arg_count)
+{
     assert(target->type == STRING_TYPE);
-    assert(arg_count == 1);
+
+    if (arg_count != 1)
+    {
+        setInvalidNumberOfArgsIntermediateException("find()", arg_count, 1);
+        return NULL;
+    }
+
     char *str1 = target->data.String->string;
     char *str2 = args[0]->data.String->string;
     RtObject *res = init_RtObject(NUMBER_TYPE);
     char *occurence = strstr(str1, str2);
     double index;
-    if(occurence) index = (occurence - str1) / sizeof(char) + 1;
-    else index = -1;
+    if (occurence)
+        index = (occurence - str1) / sizeof(char) + 1;
+    else
+        index = -1;
     res->data.Number = init_RtNumber(index);
     return res;
 }
@@ -209,11 +250,17 @@ static RtObject *builtin_str_find(RtObject *target, RtObject **args, int arg_cou
 /**
  * DESCRIPTION:
  * Built in function for checking if a string is an alpha numeric
-*/
-static RtObject *builtin_str_isalnum(RtObject *target, RtObject **args, int arg_count) {
-    // temp
+ */
+static RtObject *builtin_str_isalnum(RtObject *target, RtObject **args, int arg_count)
+{
     assert(target->type == STRING_TYPE);
-    assert(arg_count == 0);
+
+    if (arg_count != 0)
+    {
+        setInvalidNumberOfArgsIntermediateException("isalnum()", arg_count, 0);
+        return NULL;
+    }
+
     (void)args;
     bool ans = true;
     StrBoolPred(ans, target->data.String->string, target->data.String->length, isalnum);
@@ -225,11 +272,17 @@ static RtObject *builtin_str_isalnum(RtObject *target, RtObject **args, int arg_
 /**
  * DESCRIPTION:
  * Built in function for checking if a string only contains digits
-*/
-static RtObject *builtin_str_isnumeric(RtObject *target, RtObject **args, int arg_count) {
-    // temp
+ */
+static RtObject *builtin_str_isnumeric(RtObject *target, RtObject **args, int arg_count)
+{
     assert(target->type == STRING_TYPE);
-    assert(arg_count == 0);
+
+    if (arg_count != 0)
+    {
+        setInvalidNumberOfArgsIntermediateException("isnumeric()", arg_count, 0);
+        return NULL;
+    }
+
     (void)args;
     bool ans = true;
     StrBoolPred(ans, target->data.String->string, target->data.String->length, isdigit);
@@ -241,11 +294,17 @@ static RtObject *builtin_str_isnumeric(RtObject *target, RtObject **args, int ar
 /**
  * DESCRIPTION:
  * Built in function for checking if a string is an alpha numeric
-*/
-static RtObject *builtin_str_isalph(RtObject *target, RtObject **args, int arg_count) {
-    // temp
+ */
+static RtObject *builtin_str_isalph(RtObject *target, RtObject **args, int arg_count)
+{
     assert(target->type == STRING_TYPE);
-    assert(arg_count == 0);
+    
+    if (arg_count != 0)
+    {
+        setInvalidNumberOfArgsIntermediateException("isalph()", arg_count, 0);
+        return NULL;
+    }
+
     (void)args;
     bool ans = true;
     StrBoolPred(ans, target->data.String->string, target->data.String->length, isalpha);
@@ -257,11 +316,17 @@ static RtObject *builtin_str_isalph(RtObject *target, RtObject **args, int arg_c
 /**
  * DESCRIPTION:
  * Built in function for checking if a string contains only whitespace
-*/
-static RtObject *builtin_str_isspace(RtObject *target, RtObject **args, int arg_count) {
-    // temp
+ */
+static RtObject *builtin_str_isspace(RtObject *target, RtObject **args, int arg_count)
+{
     assert(target->type == STRING_TYPE);
-    assert(arg_count == 0);
+
+    if (arg_count != 0)
+    {
+        setInvalidNumberOfArgsIntermediateException("isspace()", arg_count, 0);
+        return NULL;
+    }
+
     (void)args;
     bool ans = true;
     StrBoolPred(ans, target->data.String->string, target->data.String->length, isspace);
@@ -273,11 +338,17 @@ static RtObject *builtin_str_isspace(RtObject *target, RtObject **args, int arg_
 /**
  * DESCRIPTION:
  * Built in function for checking if a string contains only upper case characters
-*/
-static RtObject *builtin_str_isupper(RtObject *target, RtObject **args, int arg_count) {
-    // temp
+ */
+static RtObject *builtin_str_isupper(RtObject *target, RtObject **args, int arg_count)
+{
     assert(target->type == STRING_TYPE);
-    assert(arg_count == 0);
+
+    if (arg_count != 0)
+    {
+        setInvalidNumberOfArgsIntermediateException("isupper()", arg_count, 0);
+        return NULL;
+    }
+
     (void)args;
     bool ans = true;
     StrBoolPred(ans, target->data.String->string, target->data.String->length, isupper);
@@ -289,11 +360,17 @@ static RtObject *builtin_str_isupper(RtObject *target, RtObject **args, int arg_
 /**
  * DESCRIPTION:
  * Built in function for checking if a string contains only lower case characters
-*/
-static RtObject *builtin_str_islower(RtObject *target, RtObject **args, int arg_count) {
-    // temp
+ */
+static RtObject *builtin_str_islower(RtObject *target, RtObject **args, int arg_count)
+{
     assert(target->type == STRING_TYPE);
-    assert(arg_count == 0);
+
+    if (arg_count != 0)
+    {
+        setInvalidNumberOfArgsIntermediateException("islower()", arg_count, 0);
+        return NULL;
+    }
+
     (void)args;
     bool ans = true;
     StrBoolPred(ans, target->data.String->string, target->data.String->length, islower);
@@ -301,5 +378,3 @@ static RtObject *builtin_str_islower(RtObject *target, RtObject **args, int arg_
     res->data.Number = init_RtNumber(ans);
     return res;
 }
-
-

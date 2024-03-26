@@ -504,6 +504,7 @@ CallFrame *perform_function_call(size_t arg_count)
             dispose_disposable_obj(func, func_disposable);
             raiseException(Intermediate_raisedException);
         }
+        assert(obj);
 
         // pushes result of function onto stack machine
         StackMachine_push(StackMachine, obj, true);
@@ -524,6 +525,8 @@ CallFrame *perform_function_call(size_t arg_count)
             dispose_disposable_obj(func, func_disposable);
             raiseException(Intermediate_raisedException);
         }
+        assert(obj);
+
 
         StackMachine_push(StackMachine, obj, obj != target);
         break;

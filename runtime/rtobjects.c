@@ -1543,7 +1543,7 @@ RtObject *rtobj_getindex(const RtObject *obj, const RtObject *index)
         // Index out of bounds
         if ((size_t)i >= obj->data.List->length)
         {
-            setIntermediateException(init_IndexOutOfBoundsException(i, obj->data.List->length));
+            setIntermediateException(init_IndexOutOfBoundsException(obj, i, obj->data.List->length));
             return NULL;
         }
 

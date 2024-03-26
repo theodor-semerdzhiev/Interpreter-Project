@@ -79,6 +79,8 @@ RtObject *rtlist_append(RtList *list, RtObject *obj)
 RtObject *rtlist_poplast(RtList *list)
 {
     assert(list);
+    if(list->length == 0)
+        return NULL;
     RtObject *obj = list->objs[list->length--];
 
     // resizes array if needed

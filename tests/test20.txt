@@ -1,15 +1,10 @@
+exception lol;
 
 # Should return Buffer Overflow Exception
 func test(n) {
-    try {
-        cmd("ls", n);
-    } catch {
-        println("hello");
-        cmd("ls", n);
-    }
-
     return test(n + 1);
 
 }
-print("123123asdadasd"->upper());
-test(0);
+raise 10;
+
+# test(0);

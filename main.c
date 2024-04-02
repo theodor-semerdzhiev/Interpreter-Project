@@ -168,8 +168,6 @@ int main(int argc, char *argv[])
     if (!parse_program_args(argc, argv))
         return 1;
 
-    // mainfile = "tests/test2.txt";
-
     // --help flag was used
     if (print_help_msg_flag)
         return 0;

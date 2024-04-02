@@ -1,2 +1,22 @@
 
-println("hello"->upper());
+
+class Point(x,y) {
+    let x = x;
+    let y = y;
+
+    func getPoint() {
+        return [x,y];
+    }
+
+    func Dist0(x1, y1) {
+        return (abs(x1 - x)**2 + abs(y1-y) ** 2) ** (0.5);
+    }
+
+    func Dist1(p1) {
+        cmd("ls");
+        return (abs(p1->x - x)**2 + abs(p1->y - y) ** 2) ** (0.5);
+    }
+}
+
+let p = Point(1,1);
+println(p->Dist1(Point(2,3)));

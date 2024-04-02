@@ -280,6 +280,8 @@ static void perform_var_mutation()
 
     assert(new_val && old_val);
 
+    // if mutatble value is disposable, then mutation is redundant
+    // since mutable value will get freed
     if (old_val_disposable)
     {
         dispose_disposable_obj(new_val, new_val_disposable);
@@ -287,19 +289,26 @@ static void perform_var_mutation()
         return;
     }
 
+    // Mutation only occurs data pointer are different
+    // i.e If a change actually happens
     RtType type1 = old_val->type;
     void *data1 = rtobj_getdata(old_val);
-
     RtType type2 = new_val->type;
     void *data2 = rtobj_getdata(new_val);
-
     if(data1 != data2) {
+        // variable mutation might lead to pointer loss
+        // therefore data1 is put into the GC to maintain the ptr ref
         add_to_GC_registry(rtobj_shallow_cpy(old_val));
+
         rtobj_mutate(old_val, new_val, new_val_disposable);
+
+        // data2, needs to have its reference count updated
+        // to ensure correctness
         size_t refcount = rttype_get_refcount(data1, type1);
         rttype_increment_refcount(data2, type2, refcount);
     }
 
+    
     if (new_val_disposable)
     {
         assert(!GC_Registry_has(new_val));

@@ -49,7 +49,6 @@ RtObject *rtattr_getattr(RtObject *obj, const char *attrname)
     AttrBuiltin *val = (AttrBuiltin *)GenericHashMap_get(attrsRegistry, &key);
     if (!val)
     {
-        assert(val);
         return NULL;
     }
     

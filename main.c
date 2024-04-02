@@ -113,7 +113,7 @@ static bool parse_program_args(int argc, char *argv[])
             argv[0], argv[0], argv[0]);
         return false;
     }
-    else if (argc == 2)
+    else if (argc >= 2)
     {
         if (strings_equal(argv[1], "--help"))
         {
@@ -122,10 +122,9 @@ static bool parse_program_args(int argc, char *argv[])
             return true;
         }
         mainfile = argv[1];
-        mainfile = "tests/test2.txt";
     }
 
-    for (int i = 3; i < argc; i++)
+    for (int i = 2; i < argc; i++)
     {
         if (strings_equal(argv[i], "--deconstruct"))
         {

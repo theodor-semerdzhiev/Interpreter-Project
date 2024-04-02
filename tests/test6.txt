@@ -25,7 +25,7 @@ func fib(n) {
     return l[n];
 }
 
-println(fib(40));
+println(fib(100));
 print(len(l));
 
 let s = map {1:2, 3:4, 5:4};

@@ -176,7 +176,7 @@ static RtObject *builtin_map_clear(RtObject *obj, RtObject **args, int argcount)
     
     (void)args;
     RtMap *map = obj->data.Map;
-    rtmap_clear(map, false, false, false);
+    rtmap_clear(map, false, false, false, true);
     return obj;
 }
 

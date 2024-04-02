@@ -34,6 +34,7 @@ init_RtList(unsigned long initial_memsize)
         list->objs[i] = NULL;
     }
     list->GCFlag = false;
+    list->refcount = 0;
     return list;
 }
 
@@ -53,6 +54,9 @@ RtObject *rtlist_append(RtList *list, RtObject *obj)
     assert(list && obj);
     list->objs[list->length++] = obj;
 
+    // updates reference count
+    rtobj_refcount_increment1(obj);
+    
     // resizes array if needed
     if (list->length == list->memsize)
     {
@@ -81,7 +85,9 @@ RtObject *rtlist_poplast(RtList *list)
     assert(list);
     if(list->length == 0)
         return NULL;
-    RtObject *obj = list->objs[list->length--];
+    RtObject *obj = list->objs[--list->length];
+
+    rtobj_refcount_decrement1(obj);
 
     // resizes array if needed
     if (list->length == list->memsize / 2 && list->length > DEFAULT_RTLIST_LEN)
@@ -105,8 +111,7 @@ RtObject *rtlist_poplast(RtList *list)
  */
 RtObject *rtlist_popfirst(RtList *list)
 {
-    assert(list);
-    return rtlist_remove(list, 0);
+    return rtlist_removeindex(list, 0);
 }
 
 /**
@@ -125,7 +130,10 @@ RtObject *rtlist_removeindex(RtList *list, size_t index)
     assert(list);
     if (index >= list->length)
         return NULL;
+
     RtObject *obj = list->objs[index];
+    rtobj_refcount_decrement1(obj);
+
     for (size_t i = index + 1; i < list->length; i++)
     {
         list->objs[i - 1] = list->objs[i];
@@ -168,10 +176,16 @@ RtObject *rtlist_get(const RtList *list, long index)
  * NOTE:
  * Does NOT free objects inside list
  */
-void rtlist_free(RtList *list, bool free_refs)
+void rtlist_free(RtList *list, bool free_refs, bool update_ref_counts)
 {
-    for (size_t i = 0; i < free_refs && list->length; i++)
-        rtobj_free(list->objs[i], false);
+    for (size_t i = 0; i < list->length; i++) {
+        
+        if(update_ref_counts)
+            rtobj_refcount_decrement1(list->objs[i]);
+
+        if(free_refs) 
+            rtobj_free(list->objs[i], false, update_ref_counts);        
+    }
 
     free(list->objs);
     free(list);
@@ -198,6 +212,8 @@ rtlist_cpy(const RtList *list, bool deepcpy, bool add_to_GC)
     {
         assert(list->objs[i]);
         RtObject *cpy = deepcpy ? rtobj_deep_cpy(list->objs[i], add_to_GC): list->objs[i];
+        
+        // this function will handle updating the reference count
         rtlist_append(newlist, cpy);
 
         if(add_to_GC)
@@ -213,8 +229,6 @@ rtlist_cpy(const RtList *list, bool deepcpy, bool add_to_GC)
  * i.e
  * [1,2,3] * 3 = [1,2,3, 1,2,3, 1,2,3]
  * The rtobj_rt_preprocess function is used. Primitives type are always deep copied
- * 
- * 
  * 
  * PARAMS:
  * list: list to multiply
@@ -239,8 +253,9 @@ RtList *rtlist_mult(const RtList *list, unsigned int number, bool add_to_GC) {
     for(unsigned int i = 0; i < number; i++) {
         for(size_t j = 0 ; j < list->length; j ++) {
             RtObject *obj = rtobj_rt_preprocess(list->objs[j], false, add_to_GC);
-            rtlist_append(newlist, obj);
 
+            // this function will handle updating the reference count
+            rtlist_append(newlist, obj);
         }
     }
 
@@ -277,6 +292,7 @@ RtList *rtlist_concat(const RtList *list1, const RtList *list2, bool cpy, bool a
         if(cpy)
             obj = rtobj_rt_preprocess(list1->objs[i], false, add_to_GC);
 
+        // this function will handle updating the reference count
         rtlist_append(newlist, obj);
     }
 
@@ -286,6 +302,7 @@ RtList *rtlist_concat(const RtList *list1, const RtList *list2, bool cpy, bool a
         if(cpy)
             obj = rtobj_rt_preprocess(list2->objs[i], false, add_to_GC);
 
+        // this function will handle updating the reference count
         rtlist_append(newlist, obj);
     }
     

@@ -52,6 +52,7 @@ init_rtfunc(RtFuncType type)
         return NULL;
     func->functype = type;
     func->GCFlag = false;
+    func->refcount = 0;
     return func;
 }
 
@@ -63,23 +64,30 @@ init_rtfunc(RtFuncType type)
  * func: address to free
  * free_immutable: wether function data bytecode (and other associated data should be freed)
  */
-void rtfunc_free(RtFunction *func, bool free_immutable)
+void rtfunc_free(RtFunction *func, bool free_immutable, bool update_ref_counts)
 {
     if (!func)
         return;
 
-    if(func->functype == EXCEPTION_CONSTRUCTOR_FUNC) {
+    if (func->functype == EXCEPTION_CONSTRUCTOR_FUNC)
+    {
         free(func->func_data.exception_constructor.exception_name);
         free(func);
         return;
     }
 
-    if (func->functype == BUILTIN_FUNC || func->functype == ATTR_BUILTIN_FUNC)
+    if (func->functype == BUILTIN_FUNC)
     {
         free(func);
         return;
 
-        // data being freed here is immutable, its never freed and exists only in the raw bytecode
+    }
+    if(func->functype == ATTR_BUILTIN_FUNC) {
+        // updates reference count
+        if(update_ref_counts)
+            rtobj_refcount_decrement1(func->func_data.attr_built_in.target);
+        free(func);
+        return;
     }
 
     if (free_immutable)
@@ -101,7 +109,14 @@ void rtfunc_free(RtFunction *func, bool free_immutable)
     }
     else
     {
+
         // closure objects are dynamic (determined during runtime), so they are freed
+        // updates reference count
+        if(update_ref_counts) {
+            for (size_t i=0; i < func->func_data.user_func.closure_count; i++)
+                rtobj_refcount_decrement1(func->func_data.user_func.closure_obj[i]);
+        }
+
         free(func->func_data.user_func.closure_obj);
     }
     free(func);
@@ -119,10 +134,10 @@ void rtfunc_free(RtFunction *func, bool free_immutable)
  * obj: object to free
  * free_immutable: wether function data bytecode (and other associated data should be freed)
  */
-void free_func_data(RtObject *obj, bool free_immutable)
+void free_func_data(RtObject *obj, bool free_immutable, bool update_ref_counts)
 {
     assert(obj->type == FUNCTION_TYPE && obj->data.Func);
-    rtfunc_free(obj->data.Func, free_immutable);
+    rtfunc_free(obj->data.Func, free_immutable, update_ref_counts);
 }
 
 __attribute__((warn_unused_result))
@@ -146,9 +161,10 @@ rtfunc_cpy(const RtFunction *func, bool deepcpy)
 
     switch (func->functype)
     {
-    case EXCEPTION_CONSTRUCTOR_FUNC: {
-        cpy->func_data.exception_constructor.exception_name = 
-        cpy_string(func->func_data.exception_constructor.exception_name);
+    case EXCEPTION_CONSTRUCTOR_FUNC:
+    {
+        cpy->func_data.exception_constructor.exception_name =
+            cpy_string(func->func_data.exception_constructor.exception_name);
         break;
     }
     case BUILTIN_FUNC:
@@ -160,6 +176,8 @@ rtfunc_cpy(const RtFunction *func, bool deepcpy)
     case ATTR_BUILTIN_FUNC:
     {
         cpy->func_data.attr_built_in.func = func->func_data.attr_built_in.func;
+        cpy->func_data.attr_built_in.target = func->func_data.attr_built_in.target;
+        rtobj_refcount_increment1(cpy->func_data.attr_built_in.target);
         break;
     }
 
@@ -188,7 +206,10 @@ rtfunc_cpy(const RtFunction *func, bool deepcpy)
                 return NULL;
             }
             for (unsigned int i = 0; i < func->func_data.user_func.closure_count; i++)
+            {
                 new_arr[i] = func->func_data.user_func.closure_obj[i];
+                rtobj_refcount_increment1(new_arr[i]);
+            }
 
             cpy->func_data.user_func.closure_obj = new_arr;
         }
@@ -210,7 +231,8 @@ rtfunc_toString(RtFunction *function)
     assert(function);
     switch (function->functype)
     {
-    case EXCEPTION_CONSTRUCTOR_FUNC: {
+    case EXCEPTION_CONSTRUCTOR_FUNC:
+    {
         char *exception_name = function->func_data.exception_constructor.exception_name;
         size_t buffer_length = 64 + strlen(exception_name);
         char buffer[buffer_length];
@@ -285,7 +307,7 @@ unsigned int rtfunc_hash(const RtFunction *func)
     switch (func->functype)
     {
     case EXCEPTION_CONSTRUCTOR_FUNC:
-        return hash_pointer((void*)func->func_data.exception_constructor.exception_name);
+        return hash_pointer((void *)func->func_data.exception_constructor.exception_name);
 
     case REGULAR_FUNC:
         return hash_pointer((void *)func->func_data.user_func.body);
@@ -312,10 +334,11 @@ bool rtfunc_equal(const RtFunction *func1, const RtFunction *func2)
 
     switch (func1->functype)
     {
-    case EXCEPTION_CONSTRUCTOR_FUNC: {
+    case EXCEPTION_CONSTRUCTOR_FUNC:
+    {
         char *e1 = func1->func_data.exception_constructor.exception_name;
         char *e2 = func2->func_data.exception_constructor.exception_name;
-        return strcmp(e1, e2) ? 1: 0;
+        return strcmp(e1, e2) ? 1 : 0;
     }
     case REGULAR_FUNC:
         return func1->func_data.user_func.body == func2->func_data.user_func.body;
@@ -389,25 +412,26 @@ const char *rtfunc_type_toString(const RtFunction *func)
 /**
  * DESCRIPTION:
  * Gets the name of the function, function returns the direct reference, it does not create a copy
-*/
-const char *rtfunc_get_funcname(const RtFunction *func) {
+ */
+const char *rtfunc_get_funcname(const RtFunction *func)
+{
     switch (func->functype)
     {
-    case REGULAR_FUNC: {
-        return 
-        func->func_data.user_func.func_name? 
-        func->func_data.user_func.func_name:
-        "(unknown)";
+    case REGULAR_FUNC:
+    {
+        return func->func_data.user_func.func_name ? func->func_data.user_func.func_name : "(unknown)";
     }
-    case EXCEPTION_CONSTRUCTOR_FUNC: {
+    case EXCEPTION_CONSTRUCTOR_FUNC:
+    {
         return func->func_data.exception_constructor.exception_name;
     }
-    case BUILTIN_FUNC: {
+    case BUILTIN_FUNC:
+    {
         return func->func_data.built_in.func->builtin_name;
     }
-    case ATTR_BUILTIN_FUNC: {
+    case ATTR_BUILTIN_FUNC:
+    {
         return func->func_data.attr_built_in.func->attrsname;
     }
-    
     }
 }

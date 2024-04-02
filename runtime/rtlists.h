@@ -12,6 +12,8 @@ typedef struct RtList
     size_t memsize; // keep track of size of array block
 
     bool GCFlag; // used by garbage collector
+
+    size_t refcount; // used by GC for ref counting
 } RtList;
 
 RtList *init_RtList(unsigned long initial_memsize);
@@ -30,7 +32,7 @@ RtObject *rtlist_remove(RtList *list, RtObject *obj);
 bool rtlist_equals(const RtList *l1, const RtList *l2, bool deep_compare);
 RtList *rtlist_reverse(RtList *list);
 bool rtlist_contains(const RtList *list, RtObject *obj);
-void rtlist_free(RtList *list, bool free_refs);
+void rtlist_free(RtList *list, bool free_refs, bool update_ref_counts);
 void rtlist_print(const RtList *list);
 char *rtlist_toString(const RtList *list);
 

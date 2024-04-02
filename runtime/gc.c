@@ -5,6 +5,7 @@
 #include "rtobjects.h"
 #include "runtime.h"
 #include "identtable.h"
+#include "stkmachine.h"
 #include "../generics/hashset.h"
 #include "../generics/utilities.h"
 #include "gc.h"
@@ -77,6 +78,8 @@ void trigger_GC()
 {
     if (liveObjCount >= GC_THRESHOLD)
     {
+        // printf("%d  ", liveObjCount);
+        // printf("%d \n", ticks_since_last_collection);
         garbageCollect();
         GC_THRESHOLD = liveObjCount * 10;
         ticks_since_last_collection = 0;
@@ -105,7 +108,7 @@ RtObject *remove_from_GC_registry(RtObject *obj, bool free_rtobj)
     if (!ptr)
     {
         if (free_rtobj)
-            rtobj_free(obj, false);
+            rtobj_free(obj, false, true);
         return free_rtobj ? NULL : obj;
     }
 
@@ -113,7 +116,7 @@ RtObject *remove_from_GC_registry(RtObject *obj, bool free_rtobj)
 
     if (free_rtobj)
     {
-        rtobj_free(obj, false);
+        rtobj_free(obj, false, true);
     }
 
     return free_rtobj ? NULL : obj;
@@ -136,7 +139,7 @@ static unsigned int _hash_rtobjptr(const RtObject *ptr)
 
 static void _free_rtobj(RtObject *ptr)
 {
-    rtobj_free(ptr, false);
+    rtobj_free(ptr, false, false);
 }
 
 /**
@@ -165,34 +168,32 @@ void init_GarbageCollector()
  */
 static void cleanup_GCRegistry()
 {
-    GenericSet *set = InitPtrSet(NULL);
-    if (!set)
-    {
-        printf("Memory Allocation Error occurred during GC Registry cleanup");
-        MallocError();
-    }
-
     RtObject **objs = (RtObject **)GenericSet_to_list(GCregistry);
     GenericSet_free(GCregistry, false);
-    GenericSet_free(freed_ptrs_set, false);
+
+    // lazily inits the freed pointer set
+    if (!freed_ptrs_set)
+        freed_ptrs_set = InitPtrSet(NULL);
+    
+    assert(freed_ptrs_set->size == 0);
 
     // marks all unique pointers to free
     for (unsigned long i = 0; objs[i] != NULL; i++)
     {
         void *data = rtobj_getdata(objs[i]);
-        if (GenericSet_has(set, data))
+        if (GenericSet_has(freed_ptrs_set, data))
         {
             rtobj_shallow_free(objs[i]);
         }
         else
         {
-            GenericSet_insert(set, data, false);
-            rtobj_free(objs[i], false);
+            GenericSet_insert(freed_ptrs_set, data, false);
+            rtobj_free(objs[i], false, false);
         }
     }
 
     free(objs);
-    GenericSet_free(set, false);
+    GenericSet_free(freed_ptrs_set, false);
 }
 
 /**
@@ -210,6 +211,7 @@ void cleanup_GarbageCollector()
 
 static void traverse_reference_graph(RtObject *root);
 
+/*DEPRECATED*/
 /**
  * DESCRIPTION:
  * This is a Mark and Sweep algorithm, responsible for performing garbage collection
@@ -220,7 +222,8 @@ maek * 3- For all objects in the GCRegistry, if its not marked, that it means it
  * 4- GC flags for all objects in the call frames and stack machine is reset to false
  * NOTE: In order to prevent double free errors, a set is used to keep track of data pointers that are freed
  */
-void garbageCollect()
+#if 0
+void _garbageCollect()
 {
     CallFrame **callStack = getCallStack();
 
@@ -276,7 +279,7 @@ void garbageCollect()
             GenericSet_insert(freed_ptrs_set, data, false);
             RtObject *obj = remove_from_GC_registry(all_active_obj[i], false);
             assert(obj);
-            rtobj_free(obj, false);
+            rtobj_free(obj, false, false);
             freed_obj[i] = true;
             continue;
         }
@@ -312,6 +315,7 @@ void garbageCollect()
     free(all_active_obj);
     free(stk_machine_list);
 }
+#endif
 
 /**
  * DESCRIPTION:
@@ -331,4 +335,51 @@ static void traverse_reference_graph(RtObject *root)
     }
 
     free(refs);
+}
+
+/**
+ * DESCRIPTION:
+ * This a reference count algorihtm for performing garbage collection during runtime
+ * 
+ * 1- Gets all active objects into an array
+ * 2- Lazily intitializes freed pointer set
+ * 3- For every active object
+ *      3.1 - If data contained by object as already been freed then we perform a shallow free of the RtObject struct
+ *      3.2 Otherwise, we add data pointer to a set of freed pointers, then frees all relevant memory
+ * 4- After, we clear the entire freed pointer set for next time this function is called
+*/
+void garbageCollect() {
+    RtObject **all_active_objs = (RtObject**)GenericSet_to_list(GCregistry);
+    if(!all_active_objs) {
+        MallocError();
+    }
+
+    // lazily inits the freed pointer set
+    if (!freed_ptrs_set)
+        freed_ptrs_set = InitPtrSet(NULL);
+    
+    for(int i=0; all_active_objs[i] != NULL; i++) {
+        assert(all_active_objs[i]);
+        RtType type = all_active_objs[i]->type;
+        void *data = rtobj_getdata(all_active_objs[i]);
+
+        // if pointer as already beed freed
+        if(GenericSet_has(freed_ptrs_set, data)) {
+            rtobj_shallow_free(all_active_objs[i]);
+            continue;
+        }
+
+        size_t refcount = rttype_get_refcount(data, type);
+
+        // we free obj from GC if object as already been freed 
+        if(refcount == 0) {
+            RtObject *obj = remove_from_GC_registry(all_active_objs[i], false);
+            assert(obj == all_active_objs[i]);
+            GenericSet_insert(freed_ptrs_set, data, false);
+            rtobj_free(obj, false, true);
+        }
+    }
+
+    GenericSet_clear(freed_ptrs_set, false);
+    free(all_active_objs);
 }

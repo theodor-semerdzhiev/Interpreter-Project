@@ -5,6 +5,7 @@ func test(n) {
     return test(n + 1);
 
 }
-raise 10;
 
-# test(0);
+raise lol("Hello");
+
+test(0);

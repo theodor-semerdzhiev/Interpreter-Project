@@ -5,6 +5,7 @@ typedef struct RtString {
     char* string;
     unsigned int length;
     bool GCFlag;
+    size_t refcount;
 } RtString;
 
 

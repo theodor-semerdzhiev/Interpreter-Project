@@ -61,11 +61,13 @@ typedef struct RtFunction
     } func_data;
 
     bool GCFlag; // used by GC for garbage collection
+
+    size_t refcount; // reference count
 } RtFunction;
 
 RtObject *mutate_func_data(RtObject *target, const RtObject *new_val, bool deepcpy, bool add_to_GC);
-void free_func_data(RtObject *obj, bool free_immutable);
-void rtfunc_free(RtFunction *func, bool free_immutable);
+void free_func_data(RtObject *obj, bool free_immutable, bool update_ref_counts);
+void rtfunc_free(RtFunction *func, bool free_immutable, bool update_ref_counts);
 char *rtfunc_toString(RtFunction *function);
 unsigned int rtfunc_hash(const RtFunction *func);
 bool rtfunc_equal(const RtFunction *func1, const RtFunction *func2);

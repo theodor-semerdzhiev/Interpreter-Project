@@ -16,4 +16,4 @@ func sin(x) {
     return res;
 }
 
-print(sin(PI));
+print(sin(2));

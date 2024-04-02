@@ -10,6 +10,7 @@ typedef struct RtException
     char *ex_name;
     char *msg;
     bool GCFlag;
+    size_t refcount;
 } RtException;
 
 #define rtexception_free(exc) \
@@ -19,6 +20,8 @@ typedef struct RtException
         free(exc->msg);       \
         free(exc);            \
     }
+
+
 #define rtexception_print(exc) printf("%s.exception@%p", exc->ex_name, exc);
 
 RtException *init_RtException(const char *exname, const char *msg);

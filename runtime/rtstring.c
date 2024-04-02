@@ -27,6 +27,7 @@ RtString *init_RtString(const char* str) {
     }
     rtstring->length = str? strlen(str): 0;
     rtstring->GCFlag=false;
+    rtstring->refcount = 0;
     return rtstring;
 }
 

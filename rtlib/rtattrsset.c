@@ -150,7 +150,7 @@ static RtObject *builtin_set_clear(RtObject *target, RtObject **args, int argcou
 
     (void)args;
     RtSet *set = target->data.Set;
-    rtset_clear(set, false, false);
+    rtset_clear(set, false, false, true);
     return target;
 }
 

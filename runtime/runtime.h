@@ -37,11 +37,6 @@ typedef struct CallFrame
 
 #define DisposableOrPrimitive(dispose, obj) (dispose || (!dispose && rttype_isprimitive(obj->type)))
 
-StackMachine *init_StackMachine();
-RtObject *StackMachine_pop(StackMachine *stk_machine, bool dispose);
-RtObject *StackMachine_push(StackMachine *stk_machine, RtObject *obj, bool dispose);
-RtObject **StackMachine_to_list(StackMachine *stk_machine);
-void free_StackMachine(StackMachine *stk_machine, bool free_rtobj);
 
 CallFrame *init_CallFrame(ByteCodeList *program, RtFunction *function, const char *filename);
 

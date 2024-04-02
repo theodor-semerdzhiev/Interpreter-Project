@@ -118,7 +118,7 @@ void perform_cleanup()
 {
     stack_ptr = -1;
 
-    free_StackMachine(stk_machine, true);
+    free_StackMachine(stk_machine, true, false);
     stk_machine = NULL;
 
     cleanup_builtin();
@@ -205,7 +205,7 @@ void RunTime_push_callframe(CallFrame *frame)
 /**
  * Pops Call frame from call stack
  */
-CallFrame *RunTime_pop_callframe()
+CallFrame * RunTime_pop_callframe()
 {
     CallFrame *frame = callStack[stack_ptr];
     callStack[stack_ptr] = NULL;
@@ -228,7 +228,8 @@ void dispose_disposable_obj(RtObject *obj, bool disposable)
     // frees Objects if they are disposable
     if (disposable)
     {
-        rtobj_free(obj, false);
+        assert(rtobj_refcount(obj) == 0);
+        rtobj_free(obj, false, true);
     }
     else
     {
@@ -286,9 +287,18 @@ static void perform_var_mutation()
         return;
     }
 
-    add_to_GC_registry(rtobj_shallow_cpy(old_val));
+    RtType type1 = old_val->type;
+    void *data1 = rtobj_getdata(old_val);
 
-    rtobj_mutate(old_val, new_val, new_val_disposable);
+    RtType type2 = new_val->type;
+    void *data2 = rtobj_getdata(new_val);
+
+    if(data1 != data2) {
+        add_to_GC_registry(rtobj_shallow_cpy(old_val));
+        rtobj_mutate(old_val, new_val, new_val_disposable);
+        size_t refcount = rttype_get_refcount(data1, type1);
+        rttype_increment_refcount(data2, type2, refcount);
+    }
 
     if (new_val_disposable)
     {
@@ -362,6 +372,7 @@ static void perform_create_function(const RtObject *function)
     assert(!func->data.Func->func_data.user_func.closure_obj);
 
     unsigned int closure_count = func->data.Func->func_data.user_func.closure_count;
+
     // adds closure variable objects to function objects
     if (closure_count > 0)
     {
@@ -370,6 +381,10 @@ static void perform_create_function(const RtObject *function)
         {
             char *name = func->data.Func->func_data.user_func.closures[i];
             closures[i] = lookup_variable(name);
+
+            //updates ref count
+            rtobj_refcount_increment1(closures[i]);
+
             assert(GC_Registry_has(closures[i]));
             assert(closures[i]);
         }
@@ -607,6 +622,7 @@ static CallFrame *perform_regular_func_call(
     {
         char * closure_name = func->func_data.user_func.closures[i];
         RtObject *closure_obj = func->func_data.user_func.closure_obj[i];
+        // rtobj_refcount_increment1(closure_obj);
         Identifier_Table_add_var(new_frame->lookup, closure_name, closure_obj, DOES_NOT_APPLY);
     }
 
@@ -622,6 +638,7 @@ static CallFrame *perform_regular_func_call(
         // call frame is pushed before adding func to GC registry
         add_to_GC_registry(cpy_func);
     }
+
     RunTime_push_callframe(new_frame);
     return new_frame;
 }
@@ -767,7 +784,9 @@ static void perform_return_class()
 {
     Identifier **fields = IdentifierTable_to_IdentList(CurrentStackFrame()->lookup);
 
-    RtClass *cl = init_RtClass(getCurrentStackFrame()->function->func_data.user_func.func_name);
+    RtClass *cl = 
+    init_RtClass(getCurrentStackFrame()->function->func_data.user_func.func_name);
+    cl->body = getCurrentStackFrame()->function;
 
     if (!cl)
         MallocError();
@@ -820,6 +839,7 @@ static void perform_create_var(char *varname, AccessModifier access)
     }
 
     Identifier_Table_add_var(frame->lookup, varname, cpy, access);
+    
 
     add_to_GC_registry(cpy);
     // addDisposablePrimitiveToGC(disposable, cpy);
@@ -878,16 +898,17 @@ static void perform_get_attribute(const char *attrs)
         {
             StackMachine_push(StackMachine, attrs, false);
 
-            rtobj_free(attrsname, false);
+            rtobj_free(attrsname, false, true);
             dispose_disposable_obj(target, target_disposable);
             return;
         }
 
-        rtobj_free(attrsname, false);
+        rtobj_free(attrsname, false, true);
     }
 
     RtObject *builtin_attr = rtattr_getattr(target, attrs);
 
+    // if builtin attribute does not exist
     if (!builtin_attr)
     {
         RtException *exc = init_InvalidAttrsException(target, attrs);
@@ -1331,7 +1352,7 @@ int run_program()
             }
             }
 
-            // trigger_GC();
+            trigger_GC();
 
             if (!loop)
                 break;

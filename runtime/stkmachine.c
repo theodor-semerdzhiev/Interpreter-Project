@@ -17,6 +17,7 @@ static StkMachineNode *init_StkMachineNode(RtObject *obj, bool dispose)
     node->next = NULL;
     node->obj = obj;
     node->dispose = dispose;
+    rtobj_refcount_increment1(obj); 
     return node;
 }
 
@@ -26,8 +27,9 @@ static StkMachineNode *init_StkMachineNode(RtObject *obj, bool dispose)
  */
 static void free_StackMachineNode(StkMachineNode *node, bool dispose)
 {
+    rtobj_refcount_decrement1(node->obj); 
     if (node->dispose && dispose) {
-        rtobj_free(node->obj, false);
+        rtobj_free(node->obj, false, true);
     }
 
     free(node);
@@ -82,7 +84,6 @@ RtObject *StackMachine_push(StackMachine *stk_machine, RtObject *obj, bool dispo
     node->next = stk_machine->head;
     stk_machine->head = node;
     stk_machine->size++;
-
     return obj;
 }
 
@@ -113,8 +114,9 @@ RtObject **StackMachine_to_list(StackMachine *stk_machine)
  * PARAMS:
  * stk_machine: stack machine
  * free_rtobj: wether objects still on the stack sould be freed
+ * update_ref_counts: wether reference counts should be updated
  */
-void free_StackMachine(StackMachine *stk_machine, bool free_rtobj)
+void free_StackMachine(StackMachine *stk_machine, bool free_rtobj, bool update_ref_counts)
 {
     if (!stk_machine)
         return;
@@ -124,7 +126,7 @@ void free_StackMachine(StackMachine *stk_machine, bool free_rtobj)
         stk_machine->head = tmp->next;
 
         if (free_rtobj)
-            rtobj_free(tmp->obj, false);
+            rtobj_free(tmp->obj, false, update_ref_counts);
 
         free(tmp);
     }

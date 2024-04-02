@@ -61,6 +61,7 @@ RtObject *rtattr_getattr(RtObject *obj, const char *attrname)
             MallocError();
         attr->func_data.attr_built_in.func = val;
         attr->func_data.attr_built_in.target = obj;
+        rtobj_refcount_increment1(obj);
 
         RtObject *func = init_RtObject(FUNCTION_TYPE);
         if (!func)

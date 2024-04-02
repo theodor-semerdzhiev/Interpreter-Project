@@ -54,6 +54,7 @@ init_RtMap(unsigned long initial_bucket_size)
     }
     map->GCFlag = false;
     map->size = 0;
+    map->refcount = 0;
     return map;
 }
 
@@ -183,16 +184,17 @@ static RtMap *rtmap_downsize(RtMap *map)
  * node: Map Node to free
  * free_key: wether the associated key object should be freed
  * free_val: wether the associated value object should be freed
+ * update_ref_counts: wether reference counts should be updated
  */
-static void free_MapNode(MapNode *node, bool free_key, bool free_val, bool free_immutable)
+static void free_MapNode(MapNode *node, bool free_key, bool free_val, bool free_immutable, bool update_ref_counts)
 {
     if (!node)
         return;
     if (free_key)
-        rtobj_free(node->key, free_immutable);
+        rtobj_free(node->key, free_immutable, update_ref_counts);
 
     if (free_val)
-        rtobj_free(node->value, free_immutable);
+        rtobj_free(node->value, free_immutable, update_ref_counts);
 
     free(node);
 }
@@ -216,6 +218,9 @@ RtObject *rtmap_insert(RtMap *map, RtObject *key, RtObject *val)
     {
         map->buckets[index] = init_MapNode(key, val);
         map->size++;
+
+        rtobj_refcount_increment1(key);
+        rtobj_refcount_increment1(val);
         return val;
     }
 
@@ -226,8 +231,14 @@ RtObject *rtmap_insert(RtMap *map, RtObject *key, RtObject *val)
         // replaces key/val pair in place
         if (rtobj_equal(ptr->key, key))
         {
+            rtobj_refcount_decrement1(ptr->key);
+            rtobj_refcount_decrement1(ptr->value);
+
             ptr->key = key;
             ptr->value = val;
+
+            rtobj_refcount_increment1(key);
+            rtobj_refcount_increment1(val);
             return key;
         }
 
@@ -238,6 +249,9 @@ RtObject *rtmap_insert(RtMap *map, RtObject *key, RtObject *val)
     node->next = map->buckets[index];
     map->buckets[index] = node;
     map->size++;
+
+    rtobj_refcount_increment1(key);
+    rtobj_refcount_increment1(val);
 
     // Resizes buckets array if needed
     if (map->size == (map->bucket_size + map->bucket_size / 2))
@@ -256,7 +270,7 @@ RtObject *rtmap_insert(RtMap *map, RtObject *key, RtObject *val)
  * This function will downsize the number of buckets if:
  * size == # of buckets / 2
  * NOTE:
- * Key inside the map is not freed, its assumed the GC will take care of that
+ * Key and value inside the map is not freed, its assumed the GC will take care of that
  *
  */
 RtObject *rtmap_remove(RtMap *map, RtObject *key)
@@ -284,6 +298,10 @@ RtObject *rtmap_remove(RtMap *map, RtObject *key)
                 prev->next = ptr->next;
             }
             RtObject *tmp = ptr->key;
+
+            rtobj_refcount_decrement1(ptr->key);
+            rtobj_refcount_decrement1(ptr->value);
+
             free(ptr);
             map->size--;
 
@@ -418,7 +436,9 @@ rtmap_cpy(const RtMap *map, bool deepcpy_key, bool deepcpy_val, bool add_to_GC)
 
     for (int i = 0; refs[i] != NULL;) {
         RtObject *key = deepcpy_key? rtobj_deep_cpy(refs[i], add_to_GC): refs[i];
-        RtObject *val = deepcpy_val ? rtobj_deep_cpy(refs[i+1], add_to_GC) : refs[i+1];
+        RtObject *val = deepcpy_val? rtobj_deep_cpy(refs[i+1], add_to_GC) : refs[i+1];
+
+        // this function will update the reference counts
         rtmap_insert(cpy, key, val);
 
         if(add_to_GC) {
@@ -443,7 +463,7 @@ rtmap_cpy(const RtMap *map, bool deepcpy_key, bool deepcpy_val, bool add_to_GC)
  * free_vals: wether the values shouls be freed
  * free_immutable: if any object is to be freed, then should immutable data be freed as well
  */
-void rtmap_free(RtMap *map, bool free_keys, bool free_vals, bool free_immutable)
+void rtmap_free(RtMap *map, bool free_keys, bool free_vals, bool free_immutable, bool update_ref_counts)
 {
 
     for (size_t i = 0; i < map->bucket_size; i++)
@@ -455,7 +475,14 @@ void rtmap_free(RtMap *map, bool free_keys, bool free_vals, bool free_immutable)
         while (ptr)
         {
             MapNode *tmp = ptr->next;
-            free_MapNode(ptr, free_keys, free_vals, free_immutable);
+
+            // updates reference counts
+            if(update_ref_counts) {
+                rtobj_refcount_decrement1(ptr->key);
+                rtobj_refcount_decrement1(ptr->value);
+            }
+
+            free_MapNode(ptr, free_keys, free_vals, free_immutable, update_ref_counts);
             ptr = tmp;
         }
     }
@@ -609,8 +636,8 @@ bool rtmap_equal(const RtMap *map1, const RtMap *map2)
     RtObject **refs = rtmap_getrefs(map1, true, false);
     for (size_t i = 0; refs[i] != NULL; i++)
     {
-        RtObject *tmp2 = rtmap_get(map1, refs[i]);
-        RtObject *tmp1 = rtmap_get(map1, refs[i]);
+        const RtObject *tmp2 = rtmap_get(map1, refs[i]);
+        const RtObject *tmp1 = rtmap_get(map1, refs[i]);
 
         if (!tmp1 || !tmp2 || !rtobj_equal(tmp2, tmp2))
         {
@@ -631,8 +658,9 @@ bool rtmap_equal(const RtMap *map1, const RtMap *map2)
  * free_key: if key objects should be freed
  * free_val: if val objects should be freed
  * free_immutable: wether immutable rt object data should be freed
+ * update_ref_counts: wether reference counts should be updated
  */
-RtMap *rtmap_clear(RtMap *map, bool free_key, bool free_val, bool free_immutable)
+RtMap *rtmap_clear(RtMap *map, bool free_key, bool free_val, bool free_immutable, bool update_ref_counts)
 {
     assert(map);
 
@@ -645,7 +673,11 @@ RtMap *rtmap_clear(RtMap *map, bool free_key, bool free_val, bool free_immutable
         while (node)
         {
             MapNode *tmp = node->next;
-            free_MapNode(node, free_key, free_val, free_immutable);
+            
+            rtobj_refcount_decrement1(node->key);
+            rtobj_refcount_decrement1(node->value);
+
+            free_MapNode(node, free_key, free_val, free_immutable, update_ref_counts);
             map->size--;
             node = tmp;
         }

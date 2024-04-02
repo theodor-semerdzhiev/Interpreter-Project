@@ -14,6 +14,7 @@ RtNumber *init_RtNumber(long double number) {
     if(!num) MallocError();
     num->number=number;
     num->GCFlag=false;
+    num->refcount = 0;
     return num;
 }
 

@@ -1886,7 +1886,7 @@ void free_ByteCode(ByteCode *bytecode)
     switch (bytecode->op_code)
     {
     case LOAD_CONST:
-        rtobj_free(bytecode->data.LOAD_CONST.constant, true);
+        rtobj_free(bytecode->data.LOAD_CONST.constant, true, false);
         break;
     case LOAD_VAR:
         free(bytecode->data.LOAD_VAR.variable);
@@ -1909,7 +1909,7 @@ void free_ByteCode(ByteCode *bytecode)
 
     case CREATE_FUNCTION:
     {
-        rtobj_free(bytecode->data.CREATE_FUNCTION.function, true);
+        rtobj_free(bytecode->data.CREATE_FUNCTION.function, true, false);
         break;
     }
     case CREATE_EXCEPTION:

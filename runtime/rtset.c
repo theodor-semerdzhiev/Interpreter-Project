@@ -46,14 +46,15 @@ static SetNode *init_SetNode(RtObject *obj)
  * PARAMS:
  * node: Map Node to free
  * free_val: wether the associated object should be freed
+ * update_ref_counts: wether references counts should be updated
  */
-static void free_SetNode(SetNode *node, bool free_val, bool free_immutable)
+static void free_SetNode(SetNode *node, bool free_val, bool free_immutable, bool update_ref_counts)
 {
     if (!node)
         return;
 
     if (free_val)
-        rtobj_free(node->obj, free_immutable);
+        rtobj_free(node->obj, free_immutable, update_ref_counts);
 
     free(node);
 }
@@ -81,7 +82,7 @@ RtSet *init_RtSet(size_t max_buckets)
 
     set->size = 0;
     set->GCFlag = false;
-
+    set->refcount = 0;
     return set;
 }
 
@@ -205,6 +206,7 @@ RtObject *rtset_insert(RtSet *set, RtObject *val)
     {
         set->buckets[index] = init_SetNode(val);
         set->size++;
+        rtobj_refcount_increment1(val); 
         return val;
     }
 
@@ -215,7 +217,10 @@ RtObject *rtset_insert(RtSet *set, RtObject *val)
         // replaces key/val pair in place
         if (rtobj_equal(ptr->obj, val))
         {
+            // updates reference counts correctly
+            rtobj_refcount_decrement1(ptr->obj); 
             ptr->obj = val;
+            rtobj_refcount_increment1(val); 
             return val;
         }
 
@@ -226,6 +231,9 @@ RtObject *rtset_insert(RtSet *set, RtObject *val)
     node->next = set->buckets[index];
     set->buckets[index] = node;
     set->size++;
+
+    // updates the reference count 
+    rtobj_refcount_increment1(val);
 
     // Resizes buckets array if needed
     if (set->size == (set->bucket_size + set->bucket_size / 2))
@@ -301,6 +309,10 @@ RtObject *rtset_remove(RtSet *set, RtObject *obj)
                 prev->next = ptr->next;
             }
             RtObject *tmp = ptr->obj;
+            
+            // updates reference count
+            rtobj_refcount_decrement1(tmp);
+
             free(ptr);
             set->size--;
 
@@ -310,6 +322,7 @@ RtObject *rtset_remove(RtSet *set, RtObject *obj)
                 if (!rtset_downsize(set))
                     MallocError();
             }
+
             return tmp;
         }
         prev = ptr;
@@ -368,8 +381,9 @@ rtset_getrefs(const RtSet *set)
  * set: set to free
  * free_obj: wether the runtime objects in the set should also be freed
  * free_immutable: if any object is to be freed, then should immutable data also be freed
+ * update_ref_counts: wether references should be updated
  */
-void rtset_free(RtSet *set, bool free_obj, bool free_immutable)
+void rtset_free(RtSet *set, bool free_obj, bool free_immutable, bool update_ref_counts)
 {
     for (size_t i = 0; i < set->bucket_size; i++)
     {
@@ -380,7 +394,14 @@ void rtset_free(RtSet *set, bool free_obj, bool free_immutable)
         while (ptr)
         {
             SetNode *tmp = ptr->next;
-            free_SetNode(ptr, free_obj, free_immutable);
+            RtObject *obj = ptr->obj;
+            
+            if(update_ref_counts)
+                rtobj_refcount_decrement1(obj);
+
+            free_SetNode(ptr, free_obj, free_immutable, update_ref_counts);
+
+
             ptr = tmp;
         }
     }
@@ -411,6 +432,8 @@ rtset_cpy(const RtSet *set, bool deepcpy, bool add_to_GC)
 
     for (int i = 0; refs[i] != NULL; i++) {
         RtObject *val = deepcpy ? rtobj_deep_cpy(refs[i], add_to_GC) : refs[i];
+
+        // this function will update reference count
         rtset_insert(cpy, val);
 
         if(add_to_GC)
@@ -459,9 +482,10 @@ __attribute__((warn_unused_result))
  * PARAMS:
  * set: set
  * free_obj: if rt objects should be freed
- * free_immutable: wether immutable rt object data should be freed
+ * free_immutable: wether immutable rt object data should be free
+ * update_ref_counts: wether reference counts should be updated
 */
-RtSet *rtset_clear(RtSet *set, bool free_obj, bool free_immutable) {
+RtSet *rtset_clear(RtSet *set, bool free_obj, bool free_immutable, bool update_ref_counts) {
     assert(set);
 
     for(size_t i=0; i < set->bucket_size; i++) {
@@ -471,7 +495,12 @@ RtSet *rtset_clear(RtSet *set, bool free_obj, bool free_immutable) {
         SetNode *node = set->buckets[i];
         while(node) {
             SetNode *tmp = node->next;
-            free_SetNode(node, free_obj, free_immutable);
+
+            // this function will update reference count correctly
+            if(update_ref_counts)
+                rtobj_refcount_decrement1(tmp->obj);
+
+            free_SetNode(node, free_obj, free_immutable, update_ref_counts);
             set->size--;
             node = tmp;
         }
@@ -500,20 +529,24 @@ RtSet *rtset_union(const RtSet *set1, const RtSet *set2, bool cpy, bool add_to_G
     RtObject **contents1 = rtset_getrefs(set1);
     RtObject **contents2 = rtset_getrefs(set2);
 
+    // go through first set
     for(size_t i = 0; contents1[i] != NULL; i++) {
         RtObject *obj = contents1[i];
         if(cpy)
             obj = rtobj_rt_preprocess(contents1[i], false, add_to_GC);
 
+        // this function will update the reference count
         rtset_insert(newset, obj);
     }
 
+    // go through second set
     for(size_t i = 0; contents2[i] != NULL; i++) {
         RtObject *obj = contents2[i];
 
         if(cpy)
             obj = rtobj_rt_preprocess(contents2[i], false, add_to_GC);
 
+        // this function will update the reference count
         rtset_insert(newset, obj);
     }
 
@@ -551,6 +584,7 @@ RtSet *rtset_intersection(const RtSet *set1, const RtSet *set2, bool cpy, bool a
             if(cpy)
                 obj =  rtobj_rt_preprocess(obj, false, add_to_GC);
 
+            // this function will update the reference count
             rtset_insert(newset, obj);
         }
     }
@@ -608,54 +642,4 @@ char* rtset_toString(const RtSet *set) {
     char *strcpy = cpy_string(buffer);
     if(!strcpy) MallocError();
     return strcpy;
-}
-
-
-__attribute__((warn_unused_result))
-/**
- * ** DEPRECATED **
- * DESCRIPTION:
- * Converts set to human readable format
- *
- * PARAMS:
- * set: set
- */
-char *
-_rtset_toString(const RtSet *set)
-{
-    // handles empty string
-    if (set->size == 0)
-        return cpy_string("{}");
-
-    RtObject **setobjs = rtset_getrefs(set);
-    char *str = NULL;
-    for (int i = 0; setobjs[i] != NULL; i++)
-    {
-        char *keystr = rtobj_toString(setobjs[i]);
-        if (setobjs[i]->type == STRING_TYPE) {
-            char *tmp = surround_string(keystr, setobjs[i]->data.String->length, '"', '"');
-            free(keystr);
-            keystr=tmp;
-        }
-
-        char *tmp = concat_strings(str, keystr);
-        free(keystr);
-        free(str);
-        str = tmp;
-
-        if (setobjs[i + 1] != NULL)
-        {
-            tmp = concat_strings(str, ", ");
-            free(str);
-            str = tmp;
-        }
-    }
-
-    char *tmp = concat_strings("{", str);
-    char *tmp_ = concat_strings(tmp, "}");
-    free(str);
-    free(tmp);
-    str = tmp_;
-    free(setobjs);
-    return str;
 }

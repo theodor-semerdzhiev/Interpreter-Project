@@ -17,6 +17,8 @@ RtException *init_RtException(const char *exname, const char *msg)
         MallocError();
     exception->ex_name = cpy_string(exname);
     exception->msg = cpy_string(msg);
+    exception->GCFlag = false;
+    exception->refcount = 0;
     return exception;
 }
 

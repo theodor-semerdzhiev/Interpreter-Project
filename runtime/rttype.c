@@ -51,8 +51,9 @@ const char *rtobj_type_toString(RtType type)
  * type: type of the data pointer
  * data: pointer to free
  * freerefs: wether associated objects should also be freed
+ * update_ref_counts: wether references counts should be updated
 */
-void rttype_freedata(RtType type, void *data, bool freerefs) {
+void rttype_freedata(RtType type, void *data, bool freerefs, bool update_ref_counts) {
     assert(data);
     switch (type)
     {
@@ -69,19 +70,19 @@ void rttype_freedata(RtType type, void *data, bool freerefs) {
         rtstr_free(data);
         return;
     case LIST_TYPE:
-        rtlist_free((RtList*)data, freerefs);
+        rtlist_free((RtList*)data, freerefs, update_ref_counts);
         return;
     case FUNCTION_TYPE: 
-        rtfunc_free((RtFunction*) data, false);
+        rtfunc_free((RtFunction*) data, false, update_ref_counts);
         return;
     case HASHMAP_TYPE:
-        rtmap_free((RtMap*)data, freerefs, freerefs, false);
+        rtmap_free((RtMap*)data, freerefs, freerefs, false, update_ref_counts);
         return;
     case HASHSET_TYPE:
-        rtset_free((RtSet*)data, freerefs, false);
+        rtset_free((RtSet*)data, freerefs, false, update_ref_counts);
         return;
     case CLASS_TYPE:
-        rtclass_free((RtClass*)data, freerefs, false);
+        rtclass_free((RtClass*)data, freerefs, false, update_ref_counts);
         return;
     case EXCEPTION_TYPE:
         rtexception_free(((RtException*)data));
@@ -161,6 +162,123 @@ bool rttype_get_GCFlag(void *data, RtType type) {
     case EXCEPTION_TYPE:
         return ((RtException*)data)->GCFlag;
     }
+}
+
+/**
+ * DESCRIPTION:
+ * Helper function for getting the refence count of some type
+*/
+size_t rttype_get_refcount(void* data, RtType type) {
+    assert(data);
+    switch (type)
+    {
+    case NULL_TYPE:
+    case UNDEFINED_TYPE:
+        return *((size_t*)data);
+    case NUMBER_TYPE:
+        return ((RtNumber*)data)->refcount;
+    case STRING_TYPE:
+        return ((RtString*)data)->refcount;
+    case LIST_TYPE:
+        return ((RtList*)data)->refcount;
+    case FUNCTION_TYPE:
+        return ((RtFunction*)data)->refcount;
+    case HASHMAP_TYPE:
+        return ((RtMap*)data)->refcount;
+    case CLASS_TYPE:
+        return ((RtClass*)data)->refcount;
+    case HASHSET_TYPE:
+        return ((RtSet*)data)->refcount;
+    case EXCEPTION_TYPE:
+        return ((RtException*)data)->refcount;
+    }
+}
+
+/**
+ * DESCRIPTION:
+ * Helper for incrementing reference count
+ * 
+ * NOTE:
+ * If function returns -1, then data pointer was NULL
+*/
+size_t rttype_increment_refcount(void* data, RtType type, size_t n) {
+    if(!data)
+        return -1;
+
+    switch (type)
+    {
+    case NULL_TYPE:
+    case UNDEFINED_TYPE:
+        return *((size_t*)data) += n;
+    case NUMBER_TYPE:
+        return ((RtNumber*)data)->refcount += n;
+    case STRING_TYPE:
+        return ((RtString*)data)->refcount += n;
+    case LIST_TYPE:
+        return ((RtList*)data)->refcount += n;
+    case FUNCTION_TYPE:
+        return ((RtFunction*)data)->refcount += n;
+    case HASHMAP_TYPE:
+        return ((RtMap*)data)->refcount += n;
+    case CLASS_TYPE:
+        return ((RtClass*)data)->refcount += n;
+    case HASHSET_TYPE:
+        return ((RtSet*)data)->refcount += n;
+    case EXCEPTION_TYPE:
+        return ((RtException*)data)->refcount += n;
+    }
+}
+
+
+/**
+ * DESCRIPTION:
+ * Helper for decrementing by n the reference count of some type
+ * 
+ * NOTE:
+ * If function returns -1, then data pointer was NULL
+*/
+size_t rttype_decrement_refcount(void* data, RtType type, size_t n) {
+    if(!data)
+        return -1;
+    
+    size_t *refcount;
+
+    switch (type)
+    {
+    case NULL_TYPE:
+    case UNDEFINED_TYPE:
+        refcount = ((size_t*)data);
+        break;
+    case NUMBER_TYPE:
+        refcount = &((RtNumber*)data)->refcount;
+        break;
+    case STRING_TYPE:
+        refcount = &((RtString*)data)->refcount;
+        break;
+    case LIST_TYPE:
+        refcount = &((RtList*)data)->refcount;
+        break;
+    case FUNCTION_TYPE:
+        refcount = &((RtFunction*)data)->refcount;
+        break;
+    case HASHMAP_TYPE:
+        refcount = &((RtMap*)data)->refcount;
+        break;
+    case CLASS_TYPE:
+        refcount = &((RtClass*)data)->refcount;
+        break;
+    case HASHSET_TYPE:
+        refcount = &((RtSet*)data)->refcount;
+        break;
+    case EXCEPTION_TYPE:
+        refcount = &((RtException*)data)->refcount;
+        break;
+    }
+    assert((*refcount) >= n);
+
+    *refcount -= n;
+
+    return *refcount;
 }
 
 

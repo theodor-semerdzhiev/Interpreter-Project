@@ -16,7 +16,7 @@
  * This file contains the implementation of runtime objects, and the corresponding operations on them
  */
 
-static RtObject *multiply_obj_by_multiplier(const RtObject* multiplier_obj, const RtObject *obj);
+static RtObject *multiply_obj_by_multiplier(const RtObject *multiplier_obj, const RtObject *obj);
 static void print_offset(int offset);
 static char *repeat_string(int repeated, const char *str, int strlen);
 
@@ -88,13 +88,13 @@ init_RtObject(RtType type)
     // special cases for null type and undefined type
     if (type == NULL_TYPE)
     {
-        obj->data.GCFlag_NULL_TYPE = malloc(sizeof(bool));
-        *obj->data.GCFlag_NULL_TYPE = false;
+        obj->data.GCrefcount_NULL_TYPE = malloc(sizeof(size_t));
+        *obj->data.GCrefcount_NULL_TYPE = 0;
     }
     else if (type == UNDEFINED_TYPE)
     {
-        obj->data.GCFlag_UNDEFINED_TYPE = malloc(sizeof(bool));
-        *obj->data.GCFlag_UNDEFINED_TYPE = false;
+        obj->data.GCrefcount_UNDEFINED_TYPE = malloc(sizeof(size_t));
+        *obj->data.GCrefcount_UNDEFINED_TYPE = 0;
     }
 
     return obj;
@@ -230,7 +230,7 @@ void rtobj_print(const RtObject *obj)
 /* Useful macro for flagging an exception during mult operation */
 
 #define SetMultException(obj1, obj2) \
-setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Multiplication (*)"))
+    setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Multiplication (*)"))
 
 __attribute__((warn_unused_result))
 /**
@@ -243,14 +243,18 @@ multiply_obj_by_multiplier(const RtObject *multiplier_obj, const RtObject *obj)
     long double multiplier;
 
     // asserts type
-    if(multiplier_obj->type == NUMBER_TYPE) {
+    if (multiplier_obj->type == NUMBER_TYPE)
+    {
         multiplier = multiplier_obj->data.Number->number;
-    } else if(multiplier_obj->type == NULL_TYPE) {
+    }
+    else if (multiplier_obj->type == NULL_TYPE)
+    {
         multiplier = 0;
-    } else {
+    }
+    else
+    {
         assert(false);
     }
-
 
     switch (obj->type)
     {
@@ -301,13 +305,11 @@ multiply_obj_by_multiplier(const RtObject *multiplier_obj, const RtObject *obj)
 
     default:
         break;
-    
     }
 
     SetMultException(multiplier_obj, obj);
     return NULL;
 }
-
 
 __attribute__((warn_unused_result))
 /**
@@ -368,7 +370,7 @@ multiply_objs(RtObject *obj1, RtObject *obj2)
 }
 
 #define SetAdditionException(obj1, obj2) \
-setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Addition (+)"))
+    setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Addition (+)"))
 
 __attribute__((warn_unused_result))
 /**
@@ -459,7 +461,7 @@ add_objs(RtObject *obj1, RtObject *obj2)
         case LIST_TYPE:
         {
             RtObject *result = init_RtObject(LIST_TYPE);
-            result->data.List = rtlist_concat(obj1->data.List, obj2->data.List, true, true); 
+            result->data.List = rtlist_concat(obj1->data.List, obj2->data.List, true, true);
             return result;
         }
 
@@ -499,7 +501,7 @@ add_objs(RtObject *obj1, RtObject *obj2)
 
 /* Useful macro for setting an exception during substraction */
 #define SetSubtractionException(obj1, obj2) \
-setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Substraction (-)"))
+    setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Substraction (-)"))
 
 __attribute__((warn_unused_result))
 /**
@@ -530,7 +532,7 @@ substract_objs(RtObject *obj1, RtObject *obj2)
         }
 
         default:
-           break;
+            break;
         }
         break;
     }
@@ -592,7 +594,7 @@ substract_objs(RtObject *obj1, RtObject *obj2)
 }
 
 #define SetDivisionException(obj1, obj2) \
-setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Division (/)"))
+    setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Division (/)"))
 
 __attribute__((warn_unused_result))
 /**
@@ -615,7 +617,7 @@ divide_objs(RtObject *obj1, RtObject *obj2)
 }
 
 #define SetModuloException(obj1, obj2) \
-setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Modulo (%)"))
+    setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Modulo (%)"))
 
 __attribute__((warn_unused_result))
 /**
@@ -640,9 +642,8 @@ modulus_objs(RtObject *obj1, RtObject *obj2)
     }
 }
 
-
 #define SetExponentiationException(obj1, obj2) \
-setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Exponentiation (**)"))
+    setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Exponentiation (**)"))
 
 /**
  * DESCRIPTION:
@@ -669,9 +670,8 @@ RtObject *exponentiate_obj(RtObject *base, RtObject *exponent)
     }
 }
 
-
 #define SetBitwiseAndException(obj1, obj2) \
-setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Bitwise AND (&)"))
+    setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Bitwise AND (&)"))
 
 __attribute__((warn_unused_result))
 /**
@@ -694,10 +694,8 @@ bitwise_and_objs(RtObject *obj1, RtObject *obj2)
     }
 }
 
-
-
 #define SetBitwiseOrException(obj1, obj2) \
-setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Bitwise OR (|)"))
+    setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Bitwise OR (|)"))
 
 __attribute__((warn_unused_result))
 /**
@@ -720,9 +718,8 @@ bitwise_or_objs(RtObject *obj1, RtObject *obj2)
     }
 }
 
-
 #define SetBitwiseXorException(obj1, obj2) \
-setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Bitwise XOR (^)"))
+    setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Bitwise XOR (^)"))
 
 __attribute__((warn_unused_result))
 /**
@@ -745,9 +742,8 @@ bitwise_xor_objs(RtObject *obj1, RtObject *obj2)
     }
 }
 
-
 #define SetBitwiseShiftLeftException(obj1, obj2) \
-setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Bitwise Shift Left (<<)"))
+    setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Bitwise Shift Left (<<)"))
 
 __attribute__((warn_unused_result))
 /**
@@ -770,9 +766,8 @@ shift_left_objs(RtObject *obj1, RtObject *obj2)
     }
 }
 
-
 #define SetBitwiseShiftRightException(obj1, obj2) \
-setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Bitwise Shift Right (>>)"))
+    setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Bitwise Shift Right (>>)"))
 
 __attribute__((warn_unused_result))
 /**
@@ -795,9 +790,8 @@ shift_right_objs(RtObject *obj1, RtObject *obj2)
     }
 }
 
-
 #define SetGreaterThanException(obj1, obj2) \
-setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Greater Than (>)"))
+    setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Greater Than (>)"))
 
 __attribute__((warn_unused_result))
 /**
@@ -828,7 +822,7 @@ greater_than_op(RtObject *obj1, RtObject *obj2)
 }
 
 #define SetGreaterThanEqException(obj1, obj2) \
-setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Greater Than Equal (>=)"))
+    setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Greater Than Equal (>=)"))
 
 __attribute__((warn_unused_result))
 /**
@@ -858,9 +852,8 @@ greater_equal_op(RtObject *obj1, RtObject *obj2)
     }
 }
 
-
 #define SetLesserThanException(obj1, obj2) \
-setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Lesser Than (<)"))
+    setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Lesser Than (<)"))
 
 __attribute__((warn_unused_result))
 /**
@@ -891,7 +884,7 @@ lesser_than_op(RtObject *obj1, RtObject *obj2)
 }
 
 #define SetLesserThanEqException(obj1, obj2) \
-setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Lesser Than (<=)"))
+    setIntermediateException(init_InvalidTypeException_BinaryOp(obj1, obj2, "Lesser Than (<=)"))
 
 __attribute__((warn_unused_result))
 /**
@@ -961,7 +954,7 @@ logical_or_op(RtObject *obj1, RtObject *obj2)
 }
 
 #define SetLogicalNotException(obj) \
-setIntermediateException(init_InvalidTypeException_UnaryOp(obj, "Logical NOT (!)"))
+    setIntermediateException(init_InvalidTypeException_UnaryOp(obj, "Logical NOT (!)"))
 
 __attribute__((warn_unused_result))
 /**
@@ -1128,9 +1121,9 @@ unsigned int rtobj_hash_data_ptr(const RtObject *obj)
     case CLASS_TYPE:
         return hash_pointer(obj->data.Func);
     case UNDEFINED_TYPE:
-        return hash_pointer(obj->data.GCFlag_UNDEFINED_TYPE);
+        return hash_pointer(obj->data.GCrefcount_UNDEFINED_TYPE);
     case NULL_TYPE:
-        return hash_pointer(obj->data.GCFlag_NULL_TYPE);
+        return hash_pointer(obj->data.GCrefcount_NULL_TYPE);
     case LIST_TYPE:
         return hash_pointer(obj->data.List);
     case HASHMAP_TYPE:
@@ -1164,9 +1157,9 @@ bool rtobj_shallow_equal(const RtObject *obj1, const RtObject *obj2)
     case CLASS_TYPE:
         return obj1->data.Class == obj2->data.Class;
     case UNDEFINED_TYPE:
-        return obj1->data.GCFlag_UNDEFINED_TYPE == obj2->data.GCFlag_UNDEFINED_TYPE;
+        return obj1->data.GCrefcount_UNDEFINED_TYPE == obj2->data.GCrefcount_UNDEFINED_TYPE;
     case NULL_TYPE:
-        return obj1->data.GCFlag_NULL_TYPE == obj2->data.GCFlag_NULL_TYPE;
+        return obj1->data.GCrefcount_NULL_TYPE == obj2->data.GCrefcount_NULL_TYPE;
     case LIST_TYPE:
         return obj1->data.List == obj2->data.List;
     case HASHMAP_TYPE:
@@ -1237,6 +1230,7 @@ RtObject *
 rtobj_shallow_cpy(const RtObject *obj)
 {
     RtObject *cpy = init_RtObject(obj->type);
+    // rtobj_refcount_increment1(obj);
     if (!cpy)
         return NULL;
 
@@ -1245,68 +1239,70 @@ rtobj_shallow_cpy(const RtObject *obj)
     case NUMBER_TYPE:
     {
         cpy->data.Number = obj->data.Number;
-        return cpy;
+        break;
     }
 
     case NULL_TYPE:
     {
         // needs to be freed since init_RtObject malloced it
-        free(cpy->data.GCFlag_NULL_TYPE);
-        cpy->data.GCFlag_NULL_TYPE = obj->data.GCFlag_NULL_TYPE;
-        return cpy;
+        free(cpy->data.GCrefcount_NULL_TYPE);
+        cpy->data.GCrefcount_NULL_TYPE = obj->data.GCrefcount_NULL_TYPE;
+        break;
     }
 
     case UNDEFINED_TYPE:
     {
         // needs to be freed since init_RtObject malloced it
-        free(cpy->data.GCFlag_UNDEFINED_TYPE);
-        cpy->data.GCFlag_UNDEFINED_TYPE = obj->data.GCFlag_UNDEFINED_TYPE;
-        return cpy;
+        free(cpy->data.GCrefcount_UNDEFINED_TYPE);
+        cpy->data.GCrefcount_UNDEFINED_TYPE = obj->data.GCrefcount_UNDEFINED_TYPE;
+        break;
     }
 
     case STRING_TYPE:
     {
         cpy->data.String = obj->data.String;
-        return cpy;
+        break;
     }
 
     case FUNCTION_TYPE:
     {
         cpy->data.Func = obj->data.Func;
-        return cpy;
+        break;
     }
 
     case LIST_TYPE:
     {
         cpy->data.List = obj->data.List;
-        return cpy;
+        break;
     }
 
     case HASHMAP_TYPE:
     {
 
         cpy->data.Map = obj->data.Map;
-        return cpy;
+        break;
     }
 
     case CLASS_TYPE:
     {
 
         cpy->data.Class = obj->data.Class;
-        return cpy;
+        break;
     }
 
     case HASHSET_TYPE:
     {
         cpy->data.Set = obj->data.Set;
-        return cpy;
+        break;
     }
     case EXCEPTION_TYPE:
     {
         cpy->data.Exception = obj->data.Exception;
-        return cpy;
+        break;
     }
     }
+    // rtobj_refcount_increment1(cpy);
+    return cpy;
 }
 
 __attribute__((warn_unused_result))
@@ -1402,7 +1398,7 @@ rtobj_deep_cpy(const RtObject *obj, bool add_to_gc)
  * Performs a mutation on the target, with the new value
  *
  * PARAMS:
- * new_val_disposable: wether new_value data is disposable (i.e. will be freed use)
+ * new_val_disposable: wether new_value data is disposable (i.e. will be freed after use)
  *
  */
 RtObject *rtobj_mutate(RtObject *target, const RtObject *new_value, bool new_val_disposable)
@@ -1420,7 +1416,9 @@ RtObject *rtobj_mutate(RtObject *target, const RtObject *new_value, bool new_val
     {
         // new copy is created each time
         target->data.Number =
-            new_val_disposable ? new_value->data.Number : init_RtNumber(new_value->data.Number->number);
+            new_val_disposable ? new_value->data.Number : 
+            init_RtNumber(new_value->data.Number->number);
+        
         break;
     }
 
@@ -1428,12 +1426,12 @@ RtObject *rtobj_mutate(RtObject *target, const RtObject *new_value, bool new_val
     {
         if (new_val_disposable)
         {
-            target->data.GCFlag_NULL_TYPE = malloc(sizeof(bool));
-            *target->data.GCFlag_NULL_TYPE = false;
+            target->data.GCrefcount_NULL_TYPE = malloc(sizeof(size_t));
+            *target->data.GCrefcount_NULL_TYPE = 0;
         }
         else
         {
-            target->data.GCFlag_NULL_TYPE = new_value->data.GCFlag_NULL_TYPE;
+            target->data.GCrefcount_NULL_TYPE = new_value->data.GCrefcount_NULL_TYPE;
         }
         break;
     }
@@ -1442,12 +1440,12 @@ RtObject *rtobj_mutate(RtObject *target, const RtObject *new_value, bool new_val
     {
         if (new_val_disposable)
         {
-            target->data.GCFlag_UNDEFINED_TYPE = malloc(sizeof(bool));
-            *target->data.GCFlag_UNDEFINED_TYPE = false;
+            target->data.GCrefcount_UNDEFINED_TYPE = malloc(sizeof(size_t));
+            *target->data.GCrefcount_UNDEFINED_TYPE = 0;
         }
         else
         {
-            target->data.GCFlag_UNDEFINED_TYPE = new_value->data.GCFlag_UNDEFINED_TYPE;
+            target->data.GCrefcount_UNDEFINED_TYPE = new_value->data.GCrefcount_UNDEFINED_TYPE;
         }
         break;
     }
@@ -1644,9 +1642,9 @@ bool rtobj_get_GCFlag(const RtObject *obj)
     switch (obj->type)
     {
     case NULL_TYPE:
-        return *obj->data.GCFlag_NULL_TYPE;
+        return *obj->data.GCrefcount_NULL_TYPE;
     case UNDEFINED_TYPE:
-        return *obj->data.GCFlag_UNDEFINED_TYPE;
+        return *obj->data.GCrefcount_UNDEFINED_TYPE;
     case NUMBER_TYPE:
         return obj->data.Number->GCFlag;
     case STRING_TYPE:
@@ -1675,10 +1673,10 @@ void rtobj_set_GCFlag(RtObject *obj, bool flag)
     switch (obj->type)
     {
     case NULL_TYPE:
-        *obj->data.GCFlag_NULL_TYPE = flag;
+        *obj->data.GCrefcount_NULL_TYPE = flag;
         return;
     case UNDEFINED_TYPE:
-        *obj->data.GCFlag_UNDEFINED_TYPE = flag;
+        *obj->data.GCrefcount_UNDEFINED_TYPE = flag;
         return;
     case NUMBER_TYPE:
         obj->data.Number->GCFlag = flag;
@@ -1709,57 +1707,6 @@ void rtobj_set_GCFlag(RtObject *obj, bool flag)
 
 /**
  * DESCRIPTION:
- * Creates a rtobject with the given type and associated data pointer
- * A shallow copy is created
- * PARAMS:
- * type: type of the new rt object
- * data: pointer to set the union value
- */
-RtObject *rtobj_init(RtType type, void *data)
-{
-    assert(data);
-    RtObject *obj = init_RtObject(type);
-
-    switch (obj->type)
-    {
-    case NULL_TYPE:
-        free(obj->data.GCFlag_NULL_TYPE);
-        obj->data.GCFlag_NULL_TYPE = (bool *)data;
-        break;
-    case UNDEFINED_TYPE:
-        free(obj->data.GCFlag_UNDEFINED_TYPE);
-        obj->data.GCFlag_UNDEFINED_TYPE = (bool *)data;
-        break;
-    case NUMBER_TYPE:
-        obj->data.Number = (RtNumber *)data;
-        break;
-    case STRING_TYPE:
-        obj->data.String = (RtString *)data;
-        break;
-    case LIST_TYPE:
-        obj->data.List = (RtList *)data;
-        break;
-    case FUNCTION_TYPE:
-        obj->data.Func = (RtFunction *)data;
-        break;
-    case HASHMAP_TYPE:
-        obj->data.Map = (RtMap *)data;
-        break;
-    case CLASS_TYPE:
-        obj->data.Class = (RtClass *)data;
-        break;
-    case HASHSET_TYPE:
-        obj->data.Set = (RtSet *)data;
-        break;
-    case EXCEPTION_TYPE:
-        obj->data.Exception = (RtException *)data;
-        break;
-    }
-    return obj;
-}
-
-/**
- * DESCRIPTION:
  * Gets the data pointer associated with the object
  *
  * NOTE:
@@ -1771,9 +1718,9 @@ void *rtobj_getdata(const RtObject *obj)
     switch (obj->type)
     {
     case NULL_TYPE:
-        return obj->data.GCFlag_NULL_TYPE;
+        return obj->data.GCrefcount_NULL_TYPE;
     case UNDEFINED_TYPE:
-        return obj->data.GCFlag_UNDEFINED_TYPE;
+        return obj->data.GCrefcount_UNDEFINED_TYPE;
     case NUMBER_TYPE:
         return obj->data.Number;
     case STRING_TYPE:
@@ -1795,9 +1742,15 @@ void *rtobj_getdata(const RtObject *obj)
 }
 
 /**
+ * DESCRIPTION:
  *  Frees objects associated data, but not object itself
+ *  
+ * PARAMS:
+ * obj: object to free
+ * free_immutable: wether immutable data should be freed (i.e function bytecode)
+ * update_ref_counts: wether references counts should be updated when freeing 
  * */
-void rtobj_free_data(RtObject *obj, bool free_immutable)
+void rtobj_free_data(RtObject *obj, bool free_immutable, bool update_ref_counts)
 {
     if (!obj)
         return;
@@ -1805,10 +1758,10 @@ void rtobj_free_data(RtObject *obj, bool free_immutable)
     switch (obj->type)
     {
     case UNDEFINED_TYPE:
-        free(obj->data.GCFlag_UNDEFINED_TYPE);
+        free(obj->data.GCrefcount_UNDEFINED_TYPE);
         break;
     case NULL_TYPE:
-        free(obj->data.GCFlag_NULL_TYPE);
+        free(obj->data.GCrefcount_NULL_TYPE);
         break;
     case NUMBER_TYPE:
         rtnum_free(obj->data.Number);
@@ -1819,32 +1772,32 @@ void rtobj_free_data(RtObject *obj, bool free_immutable)
         break;
     case CLASS_TYPE:
     {
-        rtclass_free(obj->data.Class, false, free_immutable);
+        rtclass_free(obj->data.Class, false, free_immutable, update_ref_counts);
         obj->data.Class = NULL;
         break;
     }
     case FUNCTION_TYPE:
     {
-        free_func_data(obj, free_immutable);
+        free_func_data(obj, free_immutable, update_ref_counts);
         obj->data.Func = NULL;
         break;
     }
 
     case LIST_TYPE:
     {
-        rtlist_free(obj->data.List, false);
+        rtlist_free(obj->data.List, false, update_ref_counts);
         obj->data.List = NULL;
         break;
     }
     case HASHMAP_TYPE:
     {
-        rtmap_free(obj->data.Map, false, false, free_immutable);
+        rtmap_free(obj->data.Map, false, false, free_immutable, update_ref_counts);
         obj->data.Map = NULL;
         break;
     }
     case HASHSET_TYPE:
     {
-        rtset_free(obj->data.Set, false, free_immutable);
+        rtset_free(obj->data.Set, false, free_immutable, update_ref_counts);
         obj->data.Set = NULL;
         break;
     }
@@ -1863,12 +1816,13 @@ void rtobj_free_data(RtObject *obj, bool free_immutable)
  *
  * PARAMS:
  * free_immutable: if true, it will metadata associated with the object
+ * update_ref_counts: wether reference counts should be update when freeing objects
  */
-void rtobj_free(RtObject *obj, bool free_immutable)
+void rtobj_free(RtObject *obj, bool free_immutable, bool update_ref_counts)
 {
     if (!obj)
         return;
-    rtobj_free_data(obj, free_immutable);
+    rtobj_free_data(obj, free_immutable, update_ref_counts);
     free(obj);
 }
 

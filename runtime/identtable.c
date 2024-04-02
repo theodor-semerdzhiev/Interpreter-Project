@@ -24,7 +24,8 @@ static Identifier *init_Identifier(const char *varname, RtObject *obj, AccessMod
     if (!node)
         return NULL;
     node->obj = obj;
-    node->key = malloc_string_cpy(NULL, varname);
+    rtobj_refcount_increment1(obj);
+    node->key = cpy_string(varname);
     node->access = access;
     node->next = NULL;
     return node;
@@ -42,6 +43,7 @@ static void free_Identifier(Identifier *node, bool free_rtobj)
     if (!node)
         return;
     free(node->key);
+    rtobj_refcount_decrement1(node->obj);
     if (free_rtobj)
     {
         remove_from_GC_registry(node->obj, true);

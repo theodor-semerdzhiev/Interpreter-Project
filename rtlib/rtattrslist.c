@@ -351,7 +351,7 @@ static RtObject *builtin_list_sort(RtObject *target, RtObject **args, int argcou
     (void)args;
 
     // Checks # of arguments     
-    if(argcount != 1 || argcount != 0) {
+    if(argcount != 1 && argcount != 0) {
         setInvalidNumberOfArgsIntermediateException("sort()", argcount, 1);
         return NULL;
     }
@@ -380,7 +380,7 @@ static RtObject *builtin_list_max(RtObject *target, RtObject **args, int argcoun
     (void)args;
 
     // Checks # of arguments     
-    if(argcount == 0) {
+    if(argcount != 0) {
         setInvalidNumberOfArgsIntermediateException("max()", argcount, INT64_MAX);
         return NULL;
     }
@@ -406,7 +406,7 @@ static RtObject *builtin_list_min(RtObject *target, RtObject **args, int argcoun
     (void)args;
 
     // Checks # of arguments     
-    if(argcount == 0) {
+    if(argcount != 0) {
         setInvalidNumberOfArgsIntermediateException("min()", argcount, INT64_MAX);
         return NULL;
     }

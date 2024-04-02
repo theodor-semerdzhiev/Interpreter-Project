@@ -561,7 +561,7 @@ static RtObject *builtin_abs(RtObject **args, int argcount)
 static RtObject *builtin_copy(RtObject **args, int argcount)
 {
     if(argcount != 1) {
-        setInvalidNumberOfArgsIntermediateException("Builtin abs()", argcount, 1);
+        setInvalidNumberOfArgsIntermediateException("Builtin copy()", argcount, 1);
         return NULL;
     }
 

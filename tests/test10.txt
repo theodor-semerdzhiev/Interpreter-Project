@@ -28,19 +28,19 @@ class BST() {
 let t = BST();
 let i = 0;
 let sign = -1;
-while(i < 4) {
+while(i < 100) {
     t->insert(i*sign);
     i = i + 1;
     sign = sign * -1;
 }
 
-println(t);
 
 func Inorder(root) {
     if(root == null) {
         return;
     }
-    println(root->val);
+
+    #println(root->val);
 
     Inorder(root->left);
     Inorder(root->right);

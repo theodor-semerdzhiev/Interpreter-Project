@@ -100,8 +100,8 @@ int main(int argc, char *argv[])
     init_keyword_table();
     init_Precedence();
 
-    // mainfile = argv[1];
-    mainfile = "./tests/test20.txt";
+    mainfile = argv[1];
+    mainfile = "./tests/test5.txt";
 
     AST_List *ast = parse_file(mainfile);
 

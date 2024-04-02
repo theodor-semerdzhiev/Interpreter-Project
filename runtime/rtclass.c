@@ -27,8 +27,10 @@ RtClass *init_RtClass(char *classname) {
         free(class);
         return NULL;
     }
+    class->attrs_table->refcount++;
     class->classname = classname;
     class->GCFlag = false;
+    class->refcount = 0;
     return class;
 }
 
@@ -95,10 +97,11 @@ char *rtclass_toString(const RtClass *cls) {
  * class: class object to free
  * free_refs: wether associated objects should be freed
  * free_immutable: wether immutable data should be freed
+ * update_ref_counts: wether reference coints should be updated, when freeing objects
 */
-void rtclass_free(RtClass *class, bool free_refs, bool free_immutable) {
+void rtclass_free(RtClass *class, bool free_refs, bool free_immutable, bool update_ref_counts) {
     if(!class) return;
-    rtmap_free(class->attrs_table, free_refs, free_refs, free_immutable);
+    rtmap_free(class->attrs_table, free_refs, free_refs, free_immutable, update_ref_counts);
     if(free_immutable)
         free(class->classname);
     

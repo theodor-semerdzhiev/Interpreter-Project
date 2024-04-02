@@ -20,3 +20,4 @@ class Point(x,y) {
 
 let p = Point(1,1);
 println(p->Dist1(Point(2,3)));
+

@@ -114,7 +114,7 @@ int prep_runtime_env(ByteCodeList *code, const char *mainfile)
  * This function performs runtime cleanup
  * After Program execution
  * */
-void perform_cleanup()
+void perform_runtime_cleanup()
 {
     stack_ptr = -1;
 
@@ -205,7 +205,7 @@ void RunTime_push_callframe(CallFrame *frame)
 /**
  * Pops Call frame from call stack
  */
-CallFrame * RunTime_pop_callframe()
+CallFrame *RunTime_pop_callframe()
 {
     CallFrame *frame = callStack[stack_ptr];
     callStack[stack_ptr] = NULL;
@@ -257,7 +257,8 @@ static void perform_binary_operation(
     dispose_disposable_obj(intermediate1, free_interm_1);
     dispose_disposable_obj(intermediate2, free_interm_2);
 
-    if(Intermediate_raisedException) {
+    if (Intermediate_raisedException)
+    {
         assert(!result);
         raiseException(Intermediate_raisedException);
         return;
@@ -295,7 +296,8 @@ static void perform_var_mutation()
     void *data1 = rtobj_getdata(old_val);
     RtType type2 = new_val->type;
     void *data2 = rtobj_getdata(new_val);
-    if(data1 != data2) {
+    if (data1 != data2)
+    {
         // variable mutation might lead to pointer loss
         // therefore data1 is put into the GC to maintain the ptr ref
         add_to_GC_registry(rtobj_shallow_cpy(old_val));
@@ -308,7 +310,6 @@ static void perform_var_mutation()
         rttype_increment_refcount(data2, type2, refcount);
     }
 
-    
     if (new_val_disposable)
     {
         assert(!GC_Registry_has(new_val));
@@ -391,7 +392,7 @@ static void perform_create_function(const RtObject *function)
             char *name = func->data.Func->func_data.user_func.closures[i];
             closures[i] = lookup_variable(name);
 
-            //updates ref count
+            // updates ref count
             rtobj_refcount_increment1(closures[i]);
 
             assert(GC_Registry_has(closures[i]));
@@ -498,9 +499,9 @@ CallFrame *perform_function_call(size_t arg_count)
         if (arg_count > 1)
         {
             char buffer[110 + strlen(funcname)];
-            snprintf(buffer,sizeof(buffer),
-                "%s Exception Constructor can only take 1 or 0 arguments, but was given %zu",
-                funcname, arg_count);
+            snprintf(buffer, sizeof(buffer),
+                     "%s Exception Constructor can only take 1 or 0 arguments, but was given %zu",
+                     funcname, arg_count);
 
             dispose_disposable_obj(func, func_disposable);
             raiseException(InvalidNumberOfArgumentsException(buffer));
@@ -508,13 +509,14 @@ CallFrame *perform_function_call(size_t arg_count)
 
         RtObject *exception_obj = init_RtObject(EXCEPTION_TYPE);
         exception_obj->data.Exception = init_RtException(funcname, NULL);
-        exception_obj->data.Exception->msg = 
-        arg_count == 1 ? rtobj_toString(arguments[0]) : cpy_string("");
+        exception_obj->data.Exception->msg =
+            arg_count == 1 ? rtobj_toString(arguments[0]) : cpy_string("");
 
         StackMachine_push(stk_machine, exception_obj, true);
         break;
     }
-    case BUILTIN_FUNC: {
+    case BUILTIN_FUNC:
+    {
 
         assert(func->data.Func->func_data.built_in.func);
         assert(!Intermediate_raisedException);
@@ -523,7 +525,8 @@ CallFrame *perform_function_call(size_t arg_count)
         RtObject *obj = builtin->builtin_func((RtObject **)arguments, arg_count);
 
         // if an exception occured during execution of built in function
-        if(Intermediate_raisedException) {
+        if (Intermediate_raisedException)
+        {
             assert(!obj);
             dispose_disposable_obj(func, func_disposable);
             raiseException(Intermediate_raisedException);
@@ -544,13 +547,13 @@ CallFrame *perform_function_call(size_t arg_count)
         RtObject *obj = attrfunc->func.builtin_func(target, arguments, arg_count);
 
         // exception occurred during execution of built in attribute function
-        if(Intermediate_raisedException) {
+        if (Intermediate_raisedException)
+        {
             assert(!obj);
             dispose_disposable_obj(func, func_disposable);
             raiseException(Intermediate_raisedException);
         }
         assert(obj);
-
 
         StackMachine_push(StackMachine, obj, obj != target);
         break;
@@ -565,7 +568,6 @@ CallFrame *perform_function_call(size_t arg_count)
     dispose_disposable_obj(func, func_disposable);
     return new_frame;
 }
-
 
 /**
  * DESCRIPTION:
@@ -629,7 +631,7 @@ static CallFrame *perform_regular_func_call(
     // adds closure variables
     for (unsigned int i = 0; i < func->func_data.user_func.closure_count; i++)
     {
-        char * closure_name = func->func_data.user_func.closures[i];
+        char *closure_name = func->func_data.user_func.closures[i];
         RtObject *closure_obj = func->func_data.user_func.closure_obj[i];
         // rtobj_refcount_increment1(closure_obj);
         Identifier_Table_add_var(new_frame->lookup, closure_name, closure_obj, DOES_NOT_APPLY);
@@ -761,7 +763,7 @@ static void perform_create_set(int setsize)
  * Fetches object from somce other object, using an index object
  */
 static void perform_get_index()
-{    
+{
     bool index_disposable = disposable();
     RtObject *index_ = StackMachine_pop(StackMachine, false);
     bool obj_disposable = disposable();
@@ -775,7 +777,8 @@ static void perform_get_index()
     dispose_disposable_obj(obj, obj_disposable);
 
     // if exception occurred during indexing
-    if(Intermediate_raisedException) {
+    if (Intermediate_raisedException)
+    {
         assert(!indexed_obj);
         raiseException(Intermediate_raisedException);
         return;
@@ -793,8 +796,8 @@ static void perform_return_class()
 {
     Identifier **fields = IdentifierTable_to_IdentList(CurrentStackFrame()->lookup);
 
-    RtClass *cl = 
-    init_RtClass(getCurrentStackFrame()->function->func_data.user_func.func_name);
+    RtClass *cl =
+        init_RtClass(getCurrentStackFrame()->function->func_data.user_func.func_name);
     cl->body = getCurrentStackFrame()->function;
 
     if (!cl)
@@ -848,7 +851,6 @@ static void perform_create_var(char *varname, AccessModifier access)
     }
 
     Identifier_Table_add_var(frame->lookup, varname, cpy, access);
-    
 
     add_to_GC_registry(cpy);
     // addDisposablePrimitiveToGC(disposable, cpy);
@@ -881,20 +883,20 @@ static void perform_get_attribute(const char *attrs)
 
     // handles special cases
 
-    if(target->type == NULL_TYPE) {
+    if (target->type == NULL_TYPE)
+    {
         char buffer[60 + strlen(attrs)];
         snprintf(buffer, sizeof(buffer), "Attemped to fetch attribute '%s' on Null type.", attrs);
         dispose_disposable_obj(target, target_disposable);
-        raiseException(NullTypeException(buffer))
-        return;
-    } 
+        raiseException(NullTypeException(buffer)) return;
+    }
 
-    if(target->type == UNDEFINED_TYPE) {
+    if (target->type == UNDEFINED_TYPE)
+    {
         char buffer[60 + strlen(attrs)];
         snprintf(buffer, sizeof(buffer), "Attemped to fetch attribute '%s' on Undefined type.", attrs);
         dispose_disposable_obj(target, target_disposable);
-        raiseException(UndefinedTypeException(buffer))
-        return;
+        raiseException(UndefinedTypeException(buffer)) return;
     }
 
     if (target->type == CLASS_TYPE)
@@ -955,7 +957,8 @@ static void perform_raise_exception_if_compare_exception_false()
     }
 
     // currently raised Exception does not match the pattern matched exception
-    if (!rtexception_compare(raisedException, obj->data.Exception)) {
+    if (!rtexception_compare(raisedException, obj->data.Exception))
+    {
         dispose_disposable_obj(obj, disposable);
         raiseException(raisedException);
     }
@@ -1005,7 +1008,7 @@ static void perform_raise_exception()
         raiseException(exc);
         return;
     }
-    
+
     RtException *exception = rtexception_cpy(obj->data.Exception);
     dispose_disposable_obj(obj, disposable);
     handle_runtime_exception(exception);
@@ -1018,7 +1021,7 @@ int run_program()
         CallFrame *frame = callStack[stack_ptr];
         ByteCodeList *bytecode = frame->pg;
 
-        // used for exception handling 
+        // used for exception handling
         int new_pg_counter = setjmp((int *)frame->exception_jump);
         if (new_pg_counter != 0)
         {
@@ -1152,7 +1155,8 @@ int run_program()
             case LOGICAL_NOT_VARS_OP:
             {
                 assert(!Intermediate_raisedException);
-                if(!logical_not_op(StackMachine->head->obj)) {
+                if (!logical_not_op(StackMachine->head->obj))
+                {
                     assert(Intermediate_raisedException);
                     raiseException(Intermediate_raisedException);
                 }
@@ -1186,7 +1190,7 @@ int run_program()
 
             case FUNCTION_CALL:
             {
-                
+
                 // checks wether a new call frame was created
                 // if it was, then it ends the inner loop
                 // otherwise, it was a built in function, in which case we continue the inner loop as usual
@@ -1309,8 +1313,7 @@ int run_program()
                 push_exception_handler(
                     stack_ptr,
                     frame->pg_counter + code->data.PUSH_EXCEPTION_HANDLER.start_of_catch_block,
-                    stk_machine->size
-                );
+                    stk_machine->size);
                 break;
             }
 
@@ -1324,8 +1327,7 @@ int run_program()
             {
                 perform_create_exception(
                     code->data.CREATE_EXCEPTION.exception,
-                    code->data.CREATE_EXCEPTION.access
-                );
+                    code->data.CREATE_EXCEPTION.access);
                 break;
             }
 

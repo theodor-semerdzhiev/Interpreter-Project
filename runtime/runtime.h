@@ -37,7 +37,6 @@ typedef struct CallFrame
 
 #define DisposableOrPrimitive(dispose, obj) (dispose || (!dispose && rttype_isprimitive(obj->type)))
 
-
 CallFrame *init_CallFrame(ByteCodeList *program, RtFunction *function, const char *filename);
 
 void free_CallFrame(CallFrame *call, bool free_rtobj);
@@ -58,4 +57,4 @@ int prep_runtime_env(ByteCodeList *code, const char *mainfile);
 CallFrame *perform_function_call(size_t arg_count);
 int run_program();
 bool isRuntimeActive();
-void perform_cleanup();
+void perform_runtime_cleanup();

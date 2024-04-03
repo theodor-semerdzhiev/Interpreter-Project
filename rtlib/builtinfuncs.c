@@ -29,6 +29,9 @@
  * - max
  * - abs
  * - copy
+ * - floor
+ * - round
+ * - ciel
  */
 
 /**
@@ -53,6 +56,9 @@ static RtObject *builtin_min(RtObject **args, int argcount);
 static RtObject *builtin_abs(RtObject **args, int argcount);
 static RtObject *builtin_copy(RtObject **args, int argcount);
 static RtObject *builtin_ord(RtObject **args, int argcount);
+static RtObject *builtin_floor(RtObject **args, int argcount);
+static RtObject *builtin_round(RtObject **args, int argcount);
+static RtObject *builtin_ciel(RtObject **args, int argcount);
 
 static GenericMap *BuiltinFunc_Registry = NULL;
 
@@ -69,6 +75,9 @@ static const BuiltinFunc _builtin_max = {"max", builtin_max, INT_FAST64_MAX};
 static const BuiltinFunc _builtin_abs = {"abs", builtin_abs, 1};
 static const BuiltinFunc _builtin_copy = {"copy", builtin_copy, 1};
 static const BuiltinFunc _builtin_ord = {"ord", builtin_ord, 1};
+static const BuiltinFunc _builtin_floor = {"floor", builtin_floor, 1};
+static const BuiltinFunc _builtin_round = {"round", builtin_round, 1};
+static const BuiltinFunc _builtin_ciel = {"ciel", builtin_ciel, 1};
 
 #define setInvalidNumberOfArgsIntermediateException(built_name, actual_args, expected_args) \
     setIntermediateException(init_InvalidNumberOfArgumentsException(built_name, actual_args, expected_args))
@@ -125,6 +134,9 @@ int init_BuiltinFuncs()
         InsertBuiltIn(BuiltinFunc_Registry, _builtin_abs) &&
         InsertBuiltIn(BuiltinFunc_Registry, _builtin_copy) &&
         InsertBuiltIn(BuiltinFunc_Registry, _builtin_ord) &&
+        InsertBuiltIn(BuiltinFunc_Registry, _builtin_floor) &&
+        InsertBuiltIn(BuiltinFunc_Registry, _builtin_round) &&
+        InsertBuiltIn(BuiltinFunc_Registry, _builtin_ciel) &&
         init_BuiltinException(BuiltinFunc_Registry);
 
     if (successful_init)
@@ -517,7 +529,7 @@ static RtObject *builtin_max(RtObject **args, int argcount)
  */
 static RtObject *builtin_min(RtObject **args, int argcount)
 {
-    if(argcount != 1) {
+    if(argcount == 0) {
         setInvalidNumberOfArgsIntermediateException("Builtin min()", argcount, INT64_MAX)
         return NULL;
     }
@@ -595,4 +607,73 @@ static RtObject *builtin_ord(RtObject **args, int argcount) {
     RtObject *ord = init_RtObject(NUMBER_TYPE);
     ord->data.Number = init_RtNumber(c);
     return ord;
+}
+
+/**
+ * DESCRIPTION:
+ * Built in function for flooring numbers
+ * 
+ * This function ONLY takes the first char of a string
+*/
+static RtObject *builtin_floor(RtObject **args, int argcount) {
+    if (argcount != 1)
+    {
+        setInvalidNumberOfArgsIntermediateException("Builtin floor()", argcount, 1);
+        return NULL;
+    }
+
+    if(args[0]->type != NUMBER_TYPE) {
+        setIntermediateException(init_InvalidTypeException_Builtin("floor()", "Number", args[0])); 
+        return NULL;
+    }
+    
+    RtObject *floored = init_RtObject(NUMBER_TYPE);
+    floored->data.Number = init_RtNumber(floorl(args[0]->data.Number->number));
+    return floored;
+}
+
+/**
+ * DESCRIPTION:
+ * Built in function for rounding numbers
+ * 
+ * This function ONLY takes the first char of a string
+*/
+static RtObject *builtin_round(RtObject **args, int argcount) {
+    if (argcount != 1)
+    {
+        setInvalidNumberOfArgsIntermediateException("Builtin round()", argcount, 1);
+        return NULL;
+    }
+    
+    if(args[0]->type != NUMBER_TYPE) {
+        setIntermediateException(init_InvalidTypeException_Builtin("round()", "Number", args[0])); 
+        return NULL;
+    }
+    
+    RtObject *rounded = init_RtObject(NUMBER_TYPE);
+    rounded->data.Number = init_RtNumber(roundl(args[0]->data.Number->number));
+    return rounded;
+}
+
+/**
+ * DESCRIPTION:
+ * Built in function for rounding numbers UP
+ * 
+ * This function ONLY takes the first char of a string
+*/
+static RtObject *builtin_ciel(RtObject **args, int argcount) {
+    if (argcount != 1)
+    {
+        setInvalidNumberOfArgsIntermediateException("Builtin ciel()", argcount, 1);
+        return NULL;
+    }
+    
+    if(args[0]->type != NUMBER_TYPE) {
+        setIntermediateException(init_InvalidTypeException_Builtin("ciel()", "Number", args[0])); 
+        return NULL;
+    }
+    
+    RtObject *cieled = init_RtObject(NUMBER_TYPE);
+    cieled->data.Number = init_RtNumber(ceill(args[0]->data.Number->number));
+    return cieled;
 }

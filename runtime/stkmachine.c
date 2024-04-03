@@ -113,7 +113,7 @@ RtObject **StackMachine_to_list(StackMachine *stk_machine)
  *
  * PARAMS:
  * stk_machine: stack machine
- * free_rtobj: wether objects still on the stack sould be freed
+ * free_rtobj: wether objects still on the stack sould be freed (only disposable objects are freed)
  * update_ref_counts: wether reference counts should be updated
  */
 void free_StackMachine(StackMachine *stk_machine, bool free_rtobj, bool update_ref_counts)
@@ -125,7 +125,7 @@ void free_StackMachine(StackMachine *stk_machine, bool free_rtobj, bool update_r
         StkMachineNode *tmp = stk_machine->head;
         stk_machine->head = tmp->next;
 
-        if (free_rtobj)
+        if (free_rtobj && tmp->dispose)
             rtobj_free(tmp->obj, false, update_ref_counts);
 
         free(tmp);

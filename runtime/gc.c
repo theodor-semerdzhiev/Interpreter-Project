@@ -20,6 +20,7 @@
 
 /* When the number of active objects reached this amount, garbage collector performs a rotation     */
 static size_t GC_THRESHOLD = 2;
+static size_t GC_TICK_THRESHOLD = 100000;
 static size_t liveObjCount = 0;
 
 static size_t ticks_since_last_collection = 0;
@@ -76,10 +77,10 @@ bool GC_Registry_has(const RtObject *obj)
  */
 void trigger_GC()
 {
-    if (liveObjCount >= GC_THRESHOLD)
+    if (liveObjCount >= GC_THRESHOLD || ticks_since_last_collection >= GC_TICK_THRESHOLD)
     {
         garbageCollect();
-        GC_THRESHOLD = liveObjCount * 10;
+        GC_THRESHOLD = liveObjCount * 2;
         ticks_since_last_collection = 0;
     }
     else

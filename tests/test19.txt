@@ -7,7 +7,6 @@ func test2() {
     println("Hello World");
 }
 
-print([1,2,3,4,5][2000]);
 func test1(x) {
     try {
         #test2(123123, 122321, x);

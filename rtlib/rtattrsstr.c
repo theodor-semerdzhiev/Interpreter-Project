@@ -18,6 +18,8 @@
  * isnumeric(): Returns wether string contains ONLY numeric characters
  * isalph(): Returns wether string contains ONLY alphabetical characters
  * isspace(): Returns wether string contains ONLY whitespace
+ * isupper(): Returns wether string contains ONLY uppercase characters
+ * islower(): Returns wether string contains ONLY lowercase characters
  */
 
 static RtObject *builtin_str_upper(RtObject *target, RtObject **args, int arg_count);

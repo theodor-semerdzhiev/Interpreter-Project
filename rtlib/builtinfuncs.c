@@ -52,6 +52,7 @@ static RtObject *builtin_max(RtObject **args, int argcount);
 static RtObject *builtin_min(RtObject **args, int argcount);
 static RtObject *builtin_abs(RtObject **args, int argcount);
 static RtObject *builtin_copy(RtObject **args, int argcount);
+static RtObject *builtin_ord(RtObject **args, int argcount);
 
 static GenericMap *BuiltinFunc_Registry = NULL;
 
@@ -65,8 +66,9 @@ static const BuiltinFunc _builtin_len = {"len", builtin_len, 1};
 static const BuiltinFunc _builtin_cmd = {"cmd", builtin_cmd, 1};
 static const BuiltinFunc _builtin_min = {"min", builtin_min, INT64_MAX};
 static const BuiltinFunc _builtin_max = {"max", builtin_max, INT_FAST64_MAX};
-static const BuiltinFunc _builtin_abs = {"abs", builtin_abs, INT_FAST64_MAX};
-static const BuiltinFunc _builtin_copy = {"copy", builtin_copy, INT_FAST64_MAX};
+static const BuiltinFunc _builtin_abs = {"abs", builtin_abs, 1};
+static const BuiltinFunc _builtin_copy = {"copy", builtin_copy, 1};
+static const BuiltinFunc _builtin_ord = {"ord", builtin_ord, 1};
 
 #define setInvalidNumberOfArgsIntermediateException(built_name, actual_args, expected_args) \
     setIntermediateException(init_InvalidNumberOfArgumentsException(built_name, actual_args, expected_args))
@@ -122,6 +124,7 @@ int init_BuiltinFuncs()
         InsertBuiltIn(BuiltinFunc_Registry, _builtin_max) &&
         InsertBuiltIn(BuiltinFunc_Registry, _builtin_abs) &&
         InsertBuiltIn(BuiltinFunc_Registry, _builtin_copy) &&
+        InsertBuiltIn(BuiltinFunc_Registry, _builtin_ord) &&
         init_BuiltinException(BuiltinFunc_Registry);
 
     if (successful_init)
@@ -567,4 +570,29 @@ static RtObject *builtin_copy(RtObject **args, int argcount)
 
     RtObject *obj = rtobj_shallow_cpy(args[0]);
     return obj;
+}
+
+
+/**
+ * DESCRIPTION:
+ * Built in function for getting value of a one character string (char -> int)
+ * 
+ * This function ONLY takes the first char of a string
+*/
+static RtObject *builtin_ord(RtObject **args, int argcount) {
+    if (argcount != 1)
+    {
+        setInvalidNumberOfArgsIntermediateException("Builtin ord()", argcount, 1);
+        return NULL;
+    }
+    if(args[0]->type != STRING_TYPE) {
+        setIntermediateException(init_InvalidTypeException_Builtin("ord()", "String", args[0])); 
+        return NULL;
+    }
+    RtString *string = args[0]->data.String;
+    
+    char c = args[0]->data.String->string[0];
+    RtObject *ord = init_RtObject(NUMBER_TYPE);
+    ord->data.Number = init_RtNumber(c);
+    return ord;
 }

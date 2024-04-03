@@ -52,7 +52,6 @@ init_RtMap(unsigned long initial_bucket_size)
         free(map);
         return NULL;
     }
-    map->GCFlag = false;
     map->size = 0;
     map->refcount = 0;
     return map;

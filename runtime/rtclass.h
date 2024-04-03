@@ -9,12 +9,7 @@ typedef struct RtClass {
     char *classname;    
     RtFunction *body;
     
-    //////
-
     RtMap *attrs_table;
-
-    bool GCFlag;
-
     size_t refcount;
 } RtClass;
 

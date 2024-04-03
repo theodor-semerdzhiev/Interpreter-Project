@@ -292,22 +292,20 @@ static void perform_var_mutation()
 
     // Mutation only occurs data pointer are different
     // i.e If a change actually happens
-    RtType type1 = old_val->type;
-    void *data1 = rtobj_getdata(old_val);
-    RtType type2 = new_val->type;
-    void *data2 = rtobj_getdata(new_val);
-    if (data1 != data2)
+    if (rtobj_getdata(old_val) != rtobj_getdata(new_val))
     {
+        size_t refcount = rtobj_refcount(old_val);
+        rtobj_refcount_decrement1(old_val);
+        
         // variable mutation might lead to pointer loss
         // therefore data1 is put into the GC to maintain the ptr ref
         add_to_GC_registry(rtobj_shallow_cpy(old_val));
 
         rtobj_mutate(old_val, new_val, new_val_disposable);
 
-        // data2, needs to have its reference count updated
+        // old_val needs to have its reference count updated
         // to ensure correctness
-        size_t refcount = rttype_get_refcount(data1, type1);
-        rttype_increment_refcount(data2, type2, refcount);
+        rtobj_increment_refcount(old_val, refcount);
     }
 
     if (new_val_disposable)

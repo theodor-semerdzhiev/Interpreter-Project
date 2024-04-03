@@ -9,8 +9,6 @@ typedef struct RtMap
     size_t size;        // number of elements in the set
     size_t bucket_size; // number of buckets
     MapNode **buckets;
-
-    bool GCFlag; // used by GC
     size_t refcount;
 } RtMap;
 

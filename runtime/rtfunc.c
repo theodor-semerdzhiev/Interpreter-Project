@@ -51,7 +51,6 @@ init_rtfunc(RtFuncType type)
     if (!func)
         return NULL;
     func->functype = type;
-    func->GCFlag = false;
     func->refcount = 0;
     return func;
 }

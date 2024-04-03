@@ -30,12 +30,8 @@ typedef struct RtObject
     union
     {
         size_t *GCrefcount_NULL_TYPE;
-        // bool *GCFlag_NULL_TYPE; // represents the GC flag for the null type, MUST be malloced
-        // bool *GCrefcount_NULL_TYPE; // represents the GC flag for the null type, MUST be malloced
 
         size_t *GCrefcount_UNDEFINED_TYPE;
-        // bool *GCFlag_UNDEFINED_TYPE; // represents the undefined type GC flag, MUST be malloced
-        // bool *GCrefcount_UNDEFINED_TYPE; // represents the undefined type GC flag, MUST be malloced
 
         RtNumber *Number;
 
@@ -100,8 +96,14 @@ RtObject *rtobj_getindex(const RtObject *obj, const RtObject *index);
 
 RtObject **rtobj_getrefs(const RtObject *obj);
 void *rtobj_getdata(const RtObject *obj);
-bool rtobj_get_GCFlag(const RtObject *obj);
-void rtobj_set_GCFlag(RtObject *obj, bool flag);
+
+size_t rtobj_refcount(const RtObject *obj);
+size_t rtobj_increment_refcount(RtObject *obj, size_t n);
+size_t rtobj_decrement_refcount(RtObject *obj, size_t n);
+
+/* A few macro */
+#define rtobj_refcount_increment1(obj) rtobj_increment_refcount(obj, 1);
+#define rtobj_refcount_decrement1(obj) rtobj_decrement_refcount(obj, 1);
 
 void rtobj_free_data(RtObject *obj, bool free_immutable, bool update_ref_counts);
 void rtobj_free(RtObject *obj, bool free_immutable, bool update_ref_counts);

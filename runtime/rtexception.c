@@ -17,7 +17,6 @@ RtException *init_RtException(const char *exname, const char *msg)
         MallocError();
     exception->ex_name = cpy_string(exname);
     exception->msg = cpy_string(msg);
-    exception->GCFlag = false;
     exception->refcount = 0;
     return exception;
 }
@@ -33,7 +32,6 @@ RtException *rtexception_cpy(const RtException *exc)
     if (!cpy)
         MallocError();
 
-    cpy->GCFlag = false;
     cpy->ex_name = cpy_string(exc->ex_name);
     cpy->msg = cpy_string(exc->msg);
     return cpy;

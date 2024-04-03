@@ -145,6 +145,7 @@ static bool parse_program_args(int argc, char *argv[])
         else if (strings_equal(argv[i], "--norun"))
         {
             exec_prog_flag = false;
+            printf("123123");
         }
         else if (strings_equal(argv[i], "--help"))
         {

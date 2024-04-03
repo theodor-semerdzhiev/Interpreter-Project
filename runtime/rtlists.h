@@ -8,11 +8,7 @@ typedef struct RtList
 {
     RtObject **objs;
     size_t length; // how many rt objects in the list
-
     size_t memsize; // keep track of size of array block
-
-    bool GCFlag; // used by garbage collector
-
     size_t refcount; // used by GC for ref counting
 } RtList;
 

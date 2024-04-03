@@ -60,8 +60,6 @@ typedef struct RtFunction
         } exception_constructor;
     } func_data;
 
-    bool GCFlag; // used by GC for garbage collection
-
     size_t refcount; // reference count
 } RtFunction;
 

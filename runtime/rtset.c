@@ -81,7 +81,6 @@ RtSet *init_RtSet(size_t max_buckets)
     }
 
     set->size = 0;
-    set->GCFlag = false;
     set->refcount = 0;
     return set;
 }

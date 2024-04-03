@@ -13,7 +13,6 @@ RtNumber *init_RtNumber(long double number) {
     RtNumber *num = malloc(sizeof(RtNumber));
     if(!num) MallocError();
     num->number=number;
-    num->GCFlag=false;
     num->refcount = 0;
     return num;
 }

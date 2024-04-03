@@ -9,7 +9,6 @@ typedef struct RtException
 {
     char *ex_name;
     char *msg;
-    bool GCFlag;
     size_t refcount;
 } RtException;
 

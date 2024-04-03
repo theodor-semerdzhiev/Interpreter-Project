@@ -1635,10 +1635,10 @@ RtObject **rtobj_getrefs(const RtObject *obj)
 
 /**
  * DESCRIPTION:
- * Gets the GC flag of the data pointer associated with the object depending on its type
- */
-bool rtobj_get_GCFlag(const RtObject *obj)
-{
+ * Gets the objects associated type reference count
+*/
+size_t rtobj_refcount(const RtObject *obj) {
+    assert(obj);
     switch (obj->type)
     {
     case NULL_TYPE:
@@ -1646,63 +1646,120 @@ bool rtobj_get_GCFlag(const RtObject *obj)
     case UNDEFINED_TYPE:
         return *obj->data.GCrefcount_UNDEFINED_TYPE;
     case NUMBER_TYPE:
-        return obj->data.Number->GCFlag;
+        return obj->data.Number->refcount;
     case STRING_TYPE:
-        return obj->data.String->GCFlag;
+        return obj->data.String->refcount;
     case LIST_TYPE:
-        return obj->data.List->GCFlag;
+        return obj->data.List->refcount;
     case FUNCTION_TYPE:
-        return obj->data.Func->GCFlag;
-    case HASHMAP_TYPE:
-        return obj->data.Map->GCFlag;
+        return obj->data.Func->refcount;
     case CLASS_TYPE:
-        return obj->data.Class->GCFlag;
+        return obj->data.Class->refcount;
+    case HASHMAP_TYPE:
+        return obj->data.Map->refcount;
     case HASHSET_TYPE:
-        return obj->data.Set->GCFlag;
+        return obj->data.Set->refcount;
     case EXCEPTION_TYPE:
-        return obj->data.Exception->GCFlag;
+        return obj->data.Exception->refcount;
     }
 }
 
 /**
  * DESCRIPTION:
- * Sets the GC flag of the associated data to the flag parameter
- */
-void rtobj_set_GCFlag(RtObject *obj, bool flag)
-{
+ * Increments reference count by n
+ * 
+ * Returns the objects new reference counts
+*/
+size_t rtobj_increment_refcount(RtObject *obj, size_t n) {
+    assert(obj);
+    size_t *refcount = NULL;
+
     switch (obj->type)
     {
     case NULL_TYPE:
-        *obj->data.GCrefcount_NULL_TYPE = flag;
-        return;
+        refcount = obj->data.GCrefcount_NULL_TYPE;
+        break;
     case UNDEFINED_TYPE:
-        *obj->data.GCrefcount_UNDEFINED_TYPE = flag;
-        return;
+        refcount = obj->data.GCrefcount_UNDEFINED_TYPE;
+        break;
     case NUMBER_TYPE:
-        obj->data.Number->GCFlag = flag;
-        return;
+        refcount = &obj->data.Number->refcount;
+        break;
     case STRING_TYPE:
-        obj->data.String->GCFlag = flag;
-        return;
+        refcount = &obj->data.String->refcount;
+        break;
     case LIST_TYPE:
-        obj->data.List->GCFlag = flag;
-        return;
+        refcount = &obj->data.List->refcount;
+        break;
     case FUNCTION_TYPE:
-        obj->data.Func->GCFlag = flag;
-        return;
-    case HASHMAP_TYPE:
-        obj->data.Map->GCFlag = flag;
-        return;
+        refcount = &obj->data.Func->refcount;
+        break;
     case CLASS_TYPE:
-        obj->data.Class->GCFlag = flag;
-        return;
+        refcount = &obj->data.Class->refcount;
+        break;
+    case HASHMAP_TYPE:
+        refcount = &obj->data.Map->refcount;
+        break;
     case HASHSET_TYPE:
-        obj->data.Set->GCFlag = flag;
-        return;
+        refcount = &obj->data.Set->refcount;
+        break;
     case EXCEPTION_TYPE:
-        obj->data.Exception->GCFlag = flag;
-        return;
+        refcount = &obj->data.Exception->refcount;
+        break;
     }
+
+    *refcount += n;
+    return *refcount;
+}
+
+/**
+ * DESCRIPTION:
+ * Decrements reference count by n
+ * 
+ * Returns the objects new reference counts
+*/
+size_t rtobj_decrement_refcount(RtObject *obj, size_t n) {
+    assert(obj);
+    size_t *refcount = NULL;
+
+    switch (obj->type)
+    {
+    case NULL_TYPE:
+        refcount = obj->data.GCrefcount_NULL_TYPE;
+        break;
+    case UNDEFINED_TYPE:
+        refcount = obj->data.GCrefcount_UNDEFINED_TYPE;
+        break;
+    case NUMBER_TYPE:
+        refcount = &obj->data.Number->refcount;
+        break;
+    case STRING_TYPE:
+        refcount = &obj->data.String->refcount;
+        break;
+    case LIST_TYPE:
+        refcount = &obj->data.List->refcount;
+        break;
+    case FUNCTION_TYPE:
+        refcount = &obj->data.Func->refcount;
+        break;
+    case CLASS_TYPE:
+        refcount = &obj->data.Class->refcount;
+        break;
+    case HASHMAP_TYPE:
+        refcount = &obj->data.Map->refcount;
+        break;
+    case HASHSET_TYPE:
+        refcount = &obj->data.Set->refcount;
+        break;
+    case EXCEPTION_TYPE:
+        refcount = &obj->data.Exception->refcount;
+        break;
+    }
+
+    assert((*refcount) >= n);
+
+    *refcount -= n;
+    return *refcount;
 }
 
 /**

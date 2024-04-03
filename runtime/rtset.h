@@ -10,7 +10,6 @@ typedef struct RtSet
 
     SetNode **buckets;
 
-    bool GCFlag;
     size_t refcount;
 } RtSet;
 

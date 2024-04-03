@@ -29,7 +29,6 @@ RtClass *init_RtClass(char *classname) {
     }
     class->attrs_table->refcount++;
     class->classname = classname;
-    class->GCFlag = false;
     class->refcount = 0;
     return class;
 }

@@ -19,10 +19,10 @@
  */
 
 /* When the number of active objects reached this amount, garbage collector performs a rotation     */
-static unsigned long GC_THRESHOLD = 2;
-static unsigned long liveObjCount = 0;
+static size_t GC_THRESHOLD = 2;
+static size_t liveObjCount = 0;
 
-static unsigned long ticks_since_last_collection = 0;
+static size_t ticks_since_last_collection = 0;
 
 static bool gc_active = false;
 static GenericSet *GCregistry = NULL;
@@ -78,8 +78,6 @@ void trigger_GC()
 {
     if (liveObjCount >= GC_THRESHOLD)
     {
-        // printf("%d  ", liveObjCount);
-        // printf("%d \n", ticks_since_last_collection);
         garbageCollect();
         GC_THRESHOLD = liveObjCount * 10;
         ticks_since_last_collection = 0;
@@ -209,8 +207,6 @@ void cleanup_GarbageCollector()
     freed_ptrs_set = NULL;
 }
 
-static void traverse_reference_graph(RtObject *root);
-
 /*DEPRECATED*/
 /**
  * DESCRIPTION:
@@ -317,6 +313,7 @@ void _garbageCollect()
 }
 #endif
 
+#if 0 
 /**
  * DESCRIPTION:
  * This object performs a DFS traversal of the reference graph, and marks all reachable nodes
@@ -336,6 +333,7 @@ static void traverse_reference_graph(RtObject *root)
 
     free(refs);
 }
+#endif 
 
 /**
  * DESCRIPTION:

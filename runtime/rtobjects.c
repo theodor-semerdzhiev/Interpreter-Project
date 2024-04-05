@@ -1039,7 +1039,7 @@ void rtobj_init_cmp_tbl()
  * else if obj1 == obj2 then output is 0
  * else if obj1 < obj2 then output is negative
  * */
-int rtobj_compare(const RtObject *obj1, const RtObject *obj2)
+long double rtobj_compare(const RtObject *obj1, const RtObject *obj2)
 {
     assert(obj1);
     assert(obj2);
@@ -1048,7 +1048,7 @@ int rtobj_compare(const RtObject *obj1, const RtObject *obj2)
         return 0;
 
     if (obj1->type != obj2->type)
-        return RtObjTypeCompareTbl[obj1->type] - RtObjTypeCompareTbl[obj2->type];
+        return (size_t)(RtObjTypeCompareTbl[obj1->type] - RtObjTypeCompareTbl[obj2->type]);
 
     switch (obj1->type)
     {

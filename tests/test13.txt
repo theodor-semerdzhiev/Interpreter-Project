@@ -1,6 +1,6 @@
 for(let i =0 ; i < 100; i = i + 1;) {
-    for(let j =0 ; j < 10; j = j + 1;) {
-        for(let k =0 ; k < 10; k = k + 1;) {
+    for(let j =0 ; j < 100; j = j + 1;) {
+        for(let k =0 ; k < 100; k = k + 1;) {
             for(let n =0 ; n < 10; n = n + 1;) {
                 println(i,j,n);
             }

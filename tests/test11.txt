@@ -25,15 +25,15 @@ class LinkedList() {
 
 let l = LinkedList();
 
-for(let i =0; i < 1000; i = i +1;) {
+for(let i =0; i < 10000; i = i +1;) {
     l->add(i);
-    println(i);
+    #println(i);
 }
 
 
 let tmp = l->head;
 while(!(tmp == null)) {
-    #println(tmp->val);
+    println(tmp->val);
     tmp = tmp->next;
 }
 

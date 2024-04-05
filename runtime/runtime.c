@@ -26,6 +26,8 @@
 /* Stores call stack */
 static CallFrame *callStack[MAX_STACK_SIZE] = {NULL};
 
+size_t MAX_CALLSTACK_SIZE = MAX_STACK_SIZE;
+
 /* Flag for storing current status of runtime environment */
 static bool Runtime_active = false;
 
@@ -300,7 +302,7 @@ static void perform_var_mutation()
         // variable mutation might lead to pointer loss
         // therefore data1 is put into the GC to maintain the ptr ref
         add_to_GC_registry(rtobj_shallow_cpy(old_val));
-    
+        
         rtobj_mutate(old_val, new_val, new_val_disposable);
 
         // old_val needs to have its reference count updated

@@ -32,6 +32,7 @@
  * - floor
  * - round
  * - ciel
+ * - read
  */
 
 /**
@@ -59,6 +60,7 @@ static RtObject *builtin_ord(RtObject **args, int argcount);
 static RtObject *builtin_floor(RtObject **args, int argcount);
 static RtObject *builtin_round(RtObject **args, int argcount);
 static RtObject *builtin_ciel(RtObject **args, int argcount);
+static RtObject *builtin_read(RtObject **args, int argcount);
 
 static GenericMap *BuiltinFunc_Registry = NULL;
 
@@ -78,6 +80,7 @@ static const BuiltinFunc _builtin_ord = {"ord", builtin_ord, 1};
 static const BuiltinFunc _builtin_floor = {"floor", builtin_floor, 1};
 static const BuiltinFunc _builtin_round = {"round", builtin_round, 1};
 static const BuiltinFunc _builtin_ciel = {"ciel", builtin_ciel, 1};
+static const BuiltinFunc _builtin_read = {"read", builtin_read, 1};
 
 #define setInvalidNumberOfArgsIntermediateException(built_name, actual_args, expected_args) \
     setIntermediateException(init_InvalidNumberOfArgumentsException(built_name, actual_args, expected_args))
@@ -137,6 +140,7 @@ int init_BuiltinFuncs()
         InsertBuiltIn(BuiltinFunc_Registry, _builtin_floor) &&
         InsertBuiltIn(BuiltinFunc_Registry, _builtin_round) &&
         InsertBuiltIn(BuiltinFunc_Registry, _builtin_ciel) &&
+        InsertBuiltIn(BuiltinFunc_Registry, _builtin_read) &&
         init_BuiltinException(BuiltinFunc_Registry);
 
     if (successful_init)
@@ -534,16 +538,16 @@ static RtObject *builtin_min(RtObject **args, int argcount)
         return NULL;
     }
 
-    RtObject *max = args[0];
+    RtObject *min = args[0];
     for (int i = 1; i < argcount; i++)
     {
-        if (rtobj_compare(max, args[i]) > 0)
+        if (rtobj_compare(min, args[i]) > 0)
         {
-            max = args[i];
+            min = args[i];
         }
     }
 
-    return max;
+    return min;
 }
 
 /**
@@ -676,4 +680,46 @@ static RtObject *builtin_ciel(RtObject **args, int argcount) {
     RtObject *cieled = init_RtObject(NUMBER_TYPE);
     cieled->data.Number = init_RtNumber(ceill(args[0]->data.Number->number));
     return cieled;
+}
+
+/**
+ * DESCRIPTION:
+ * Builtin function for reading entire file and returning its contents
+*/
+static RtObject *builtin_read(RtObject **args, int argcount) {
+    if(argcount != 1) {
+        setInvalidNumberOfArgsIntermediateException("read()", argcount, 1);
+        return NULL;
+    } 
+
+    if(args[0]->type != STRING_TYPE) {
+        setIntermediateException(init_InvalidTypeException_Builtin("read()", "String", args[0]));
+        return NULL;
+    }
+
+    char *filename = args[0]->data.String->string;
+    size_t filename_length = args[0]->data.String->length;
+
+    FILE *file;
+    if ((file = fopen(filename, "r")) == NULL)
+    {
+        char buffer[100 + 2 * filename_length];
+        snprintf(buffer, sizeof(buffer), "Builtin function read() failed to read file %s, because %s does not exist.", filename, filename);
+        setIntermediateException(IOExceptionException(buffer));
+        return NULL;
+    }
+    fclose(file);
+
+    char* file_contents = get_file_contents(filename);
+    if(!file_contents) {
+        char buffer[100 + filename_length];
+        snprintf(buffer, sizeof(buffer), "Builtin function read() failed to read file %s, even though the target file exists.", filename);
+        setIntermediateException(IOExceptionException(buffer));
+        return NULL;
+    }
+
+    RtObject *readfile = init_RtObject(STRING_TYPE);
+    readfile->data.String = init_RtString(file_contents);
+
+    return readfile;
 }

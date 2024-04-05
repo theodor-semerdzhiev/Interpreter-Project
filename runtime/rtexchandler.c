@@ -2,6 +2,7 @@
 #include <assert.h>
 #include "../main.h"
 #include "runtime.h"
+#include "../generics/utilities.h"
 #include "rtexception.h"
 #include "rtexchandler.h"
 
@@ -181,10 +182,12 @@ void handle_runtime_exception(RtException *exception)
  * Functions prints out unhandled exception error
 */
 #define TAB2 "      "
+#define TAB4 "              "
 #define StackPtr getCallStackPointer()
 
 #define RED_TEXT "\x1b[31m"
 #define RESET_COLOR "\x1b[0m"
+#define PRINT_STACK_LIMIT 30
 
 void print_unhandledexception(RtException *exception) {
     assert(exception);
@@ -197,31 +200,44 @@ void print_unhandledexception(RtException *exception) {
         printf(RED_TEXT "Unhandled exception '%s' occured: \n", exception->ex_name);
     }
 
-    printf("Message: %s\n" "Call Stack:\n", exception->msg);
+    printf("Message: %s\n" "Call Stack: (MAX %zu)\n", exception->msg, MAX_CALLSTACK_SIZE);
 
     CallFrame *frame;
-    size_t cur_linenb;
-    // pops until we reach the Call Frame with the catch block
+    long calldepth = StackPtr;
+
     while(StackPtr >= 0)
     {
+        int count = 0;
         if(StackPtr > 0) {
             frame = RunTime_pop_callframe();
             assert(frame && frame->function);
             size_t cur_linenb = frame->pg->code[frame->pg_counter]->line_nb;
             char *functostring = rtfunc_toString(frame->function);
 
-            printf("%s:%zu" TAB2 "%s()" TAB2 "Function Signature: %s\n", 
-                frame->code_file_location, 
-                cur_linenb,
-                rtfunc_get_funcname(frame->function),
-                functostring);
+            if((calldepth - StackPtr) <= PRINT_STACK_LIMIT || StackPtr <= PRINT_STACK_LIMIT) {
+                printf("%ld    %s:%zu" TAB2 "%s()" TAB2 "Function Signature: %s\n", 
+                    StackPtr + 1,
+                    frame->code_file_location, 
+                    cur_linenb,
+                    rtfunc_get_funcname(frame->function),
+                    functostring);
 
-            free(functostring);
+                free(functostring);
+            } else if((calldepth - StackPtr) == PRINT_STACK_LIMIT + 1) {
+                printf(TAB4 ".\n" TAB4 ".\n" TAB4 ".\n");
+                printf("    (%ld more Call Frames ...)\n", StackPtr + 1 - PRINT_STACK_LIMIT);
+                printf(TAB4 ".\n" TAB4 ".\n" TAB4 ".\n");
+
+            }
+            count++;
         } else {
             frame = RunTime_pop_callframe();
             assert(!frame->function);
             size_t cur_linenb = frame->pg->code[frame->pg_counter]->line_nb;
-            printf("%s:%zu\n", frame->code_file_location, cur_linenb);
+            printf("%ld    %s:%zu\n", 
+                StackPtr + 1, 
+                frame->code_file_location, 
+                cur_linenb);
         }
 
         free_CallFrame(frame, false);

@@ -79,7 +79,7 @@ RtObject *logical_not_op(RtObject *target);
 
 bool eval_obj(const RtObject *obj);
 void rtobj_init_cmp_tbl();
-int rtobj_compare(const RtObject *obj1, const RtObject *obj2);
+long double rtobj_compare(const RtObject *obj1, const RtObject *obj2);
 
 void rtobj_print(const RtObject *obj);
 

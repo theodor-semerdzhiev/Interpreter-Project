@@ -3,7 +3,7 @@
 #include <stdbool.h>
 typedef struct RtString {
     char* string;
-    unsigned int length;
+    size_t length;
     size_t refcount;
 } RtString;
 

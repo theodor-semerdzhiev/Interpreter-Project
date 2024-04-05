@@ -9,6 +9,8 @@
 
 #define MAX_STACK_SIZE 16000
 
+extern size_t MAX_CALLSTACK_SIZE;
+
 typedef struct CallFrame
 {
 

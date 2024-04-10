@@ -1,11 +1,8 @@
 
+sleep(3000);
 
-
-func test() {
-    func test1() {
-        test();
-    }
-    test1();
+for(let i = 0;i < 100; i = i + 1;) {
+    let file = fopen("testfile" + str(i) + ".txt", "r");
+    
 }
 
-test();

@@ -30,6 +30,7 @@ SRC_FILES = \
   runtime/rttype.c \
   runtime/rtnumber.c \
   runtime/rtexception.c \
+  runtime/filetable.c \
   rtlib/builtinfuncs.c \
   rtlib/builtinexception.c \
   rtlib/rtattrs.c \

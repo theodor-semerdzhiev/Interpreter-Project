@@ -396,3 +396,28 @@ RtException *init_InvalidTypeException_Builtin(const char* builtin_name, const c
     RtException *exc = InvalidTypeException(buffer);
     return exc;
 }
+
+/**
+ * DESCRIPTION:
+ * Creates InvalidTypeException
+ * 
+ * USECASE:
+ * When a builtin function attempts to access fileID that is NOT is the file table 
+ * 
+ * PARAMS:
+ * builtin_name: name of the builtin function
+ * fileID: the invalid file ID
+*/
+RtException *init_InvalidFileIDException_Builtin(const char* builtin_name, size_t fileID) {
+    assert(builtin_name);
+
+    char buffer[strlen(builtin_name) + 200];
+
+    snprintf(buffer, sizeof(buffer),
+        "During execution of builtin function %s, opened with file ID %zu does not exist.",
+        builtin_name, fileID
+    );
+
+    RtException *exc = InvalidTypeException(buffer);
+    return exc;
+}

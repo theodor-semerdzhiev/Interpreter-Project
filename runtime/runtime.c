@@ -10,6 +10,7 @@
 #include "identtable.h"
 #include "rtlists.h"
 #include "rttype.h"
+#include "filetable.h"
 #include "gc.h"
 #include "rtexchandler.h"
 
@@ -107,6 +108,7 @@ int prep_runtime_env(ByteCodeList *code, const char *mainfile)
     RunTime_push_callframe(init_CallFrame(code, NULL, mainfile));
     init_GarbageCollector();
     init_AttrRegistry();
+    init_FileTable();
     rtobj_init_cmp_tbl();
     return returncode ? 1 : 0;
 }
@@ -126,6 +128,8 @@ void perform_runtime_cleanup()
     cleanup_builtin();
     cleanup_GarbageCollector();
     cleanup_AttrsRegistry();
+    cleanup_FileTable();
+    
 
     rtexception_free(raisedException);
     raisedException = NULL;

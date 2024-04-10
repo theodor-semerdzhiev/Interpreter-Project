@@ -54,6 +54,9 @@ RtException *init_InvalidNumberOfArgumentsException(const char* callable_name, s
 
 RtException *init_InvalidTypeException_Builtin(const char* builtin_name, const char* expected_type, const RtObject *actual_arg);
 
+RtException *init_InvalidFileIDException_Builtin(const char* builtin_name, size_t fileID);
+
+
 
 /* All built in exceptions */
 
@@ -101,3 +104,6 @@ RtException *init_InvalidTypeException_Builtin(const char* builtin_name, const c
 
 #define IOExceptionString "IOException"
 #define IOExceptionException(msg) init_RtException(IOExceptionString, msg)
+
+#define InvalidFileIDString "InvalidFileIDException"
+#define InvalidFileIDException(msg) init_RtException(InvalidFileIDString, msg)

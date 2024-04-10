@@ -4,6 +4,8 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include <errno.h>
 #include "builtinexception.h"
 #include "builtins.h"
 #include "../compiler/compiler.h"
@@ -13,6 +15,7 @@
 #include "../runtime/rtobjects.h"
 #include "../runtime/rttype.h"
 #include "../runtime/rtexchandler.h"
+#include "../runtime/filetable.h"
 
 /**
  * This file contains the implementation of all general built in functions:
@@ -32,7 +35,10 @@
  * - floor
  * - round
  * - ciel
- * - read
+ * - fopen
+ * - fwrite
+ * - freadall
+ * - fclose
  */
 
 /**
@@ -40,7 +46,7 @@
  * If an exception occurs during the execution of a built in function
  * 1- raisedException variable is set to the relevant exception
  * 2- Function MUST return NULL
-*/
+ */
 
 #define BuiltinsInitError() exitprogram(FAILED_BUILTINS_INIT)
 
@@ -60,7 +66,11 @@ static RtObject *builtin_ord(RtObject **args, int argcount);
 static RtObject *builtin_floor(RtObject **args, int argcount);
 static RtObject *builtin_round(RtObject **args, int argcount);
 static RtObject *builtin_ciel(RtObject **args, int argcount);
-static RtObject *builtin_read(RtObject **args, int argcount);
+static RtObject *builtin_sleep(RtObject **args, int argcount);
+static RtObject *builtin_fopen(RtObject **args, int argcount);
+static RtObject *builtin_fwrite(RtObject **args, int argcount);
+static RtObject *builtin_freadall(RtObject **args, int argcount);
+static RtObject *builtin_fclose(RtObject **args, int argcount);
 
 static GenericMap *BuiltinFunc_Registry = NULL;
 
@@ -80,7 +90,11 @@ static const BuiltinFunc _builtin_ord = {"ord", builtin_ord, 1};
 static const BuiltinFunc _builtin_floor = {"floor", builtin_floor, 1};
 static const BuiltinFunc _builtin_round = {"round", builtin_round, 1};
 static const BuiltinFunc _builtin_ciel = {"ciel", builtin_ciel, 1};
-static const BuiltinFunc _builtin_read = {"read", builtin_read, 1};
+static const BuiltinFunc _builtin_sleep = {"sleep", builtin_sleep, 1};
+static const BuiltinFunc _builtin_fopen = {"fopen", builtin_fopen, 2};
+static const BuiltinFunc _builtin_fwrite = {"fwrite", builtin_fwrite, 2};
+static const BuiltinFunc _builtin_freadall = {"freadall", builtin_freadall, 1};
+static const BuiltinFunc _builtin_fclose = {"fclose", builtin_fclose, 1};
 
 #define setInvalidNumberOfArgsIntermediateException(built_name, actual_args, expected_args) \
     setIntermediateException(init_InvalidNumberOfArgumentsException(built_name, actual_args, expected_args))
@@ -95,7 +109,7 @@ static bool builtins_equal(const BuiltinFunc *builtin1, const BuiltinFunc *built
 }
 
 #define InsertBuiltIn(registry, builtin_struct) \
-GenericHashMap_insert(registry, builtin_struct.builtin_name, (void *)&builtin_struct, false)
+    GenericHashMap_insert(registry, builtin_struct.builtin_name, (void *)&builtin_struct, false)
 
 /**
  * Initializes builtin function table
@@ -140,7 +154,11 @@ int init_BuiltinFuncs()
         InsertBuiltIn(BuiltinFunc_Registry, _builtin_floor) &&
         InsertBuiltIn(BuiltinFunc_Registry, _builtin_round) &&
         InsertBuiltIn(BuiltinFunc_Registry, _builtin_ciel) &&
-        InsertBuiltIn(BuiltinFunc_Registry, _builtin_read) &&
+        InsertBuiltIn(BuiltinFunc_Registry, _builtin_sleep) &&
+        InsertBuiltIn(BuiltinFunc_Registry, _builtin_fopen) &&
+        InsertBuiltIn(BuiltinFunc_Registry, _builtin_fwrite) &&
+        InsertBuiltIn(BuiltinFunc_Registry, _builtin_freadall) &&
+        InsertBuiltIn(BuiltinFunc_Registry, _builtin_fclose) &&
         init_BuiltinException(BuiltinFunc_Registry);
 
     if (successful_init)
@@ -239,9 +257,9 @@ static RtObject *builtin_println(RtObject **args, int arg_count)
  */
 static RtObject *builtin_toString(RtObject **args, int arg_count)
 {
-    if(arg_count != 1) {
-        setInvalidNumberOfArgsIntermediateException("Builtin str()", arg_count, 1)
-        return NULL;
+    if (arg_count != 1)
+    {
+        setInvalidNumberOfArgsIntermediateException("Builtin str(obj)", arg_count, 1) return NULL;
     }
 
     char *str = malloc(sizeof(char));
@@ -275,7 +293,7 @@ static RtObject *builtin_typeof(RtObject **args, int arg_count)
 {
     if (arg_count != 1)
     {
-        setInvalidNumberOfArgsIntermediateException("Builtin typeof()", arg_count, 1);
+        setInvalidNumberOfArgsIntermediateException("Builtin typeof(obj)", arg_count, 1);
         return NULL;
     }
 
@@ -297,7 +315,7 @@ static RtObject *builtin_input(RtObject **args, int arg_count)
 {
     if (arg_count != 1)
     {
-        setInvalidNumberOfArgsIntermediateException("Builtin input()", arg_count, 1);
+        setInvalidNumberOfArgsIntermediateException("Builtin input(prompt)", arg_count, 1);
         return NULL;
     }
 
@@ -324,16 +342,16 @@ static RtObject *builtin_input(RtObject **args, int arg_count)
 /**
  * DESCRIPTION:
  * Helper Function for creating exception for when num() is enable to convert object to number
-*/
-static RtException *_CannotConvertObjToNumber(RtObject *invalid_arg) {
+ */
+static RtException *_CannotConvertObjToNumber(RtObject *invalid_arg)
+{
     assert(invalid_arg);
     const char *type = rtobj_type_toString(invalid_arg->type);
     char *argtostr = rtobj_toString(invalid_arg);
     char buffer[100 + strlen(type) + strlen(argtostr)];
-    snprintf(buffer, sizeof(buffer), 
-        "Builtin num() cannot convert Object %s with type %s to a Number",
-        argtostr, type
-    );
+    snprintf(buffer, sizeof(buffer),
+             "Builtin num() cannot convert Object %s with type %s to a Number",
+             argtostr, type);
 
     free(argtostr);
 
@@ -348,7 +366,7 @@ static RtObject *builtin_toNumber(RtObject **args, int arg_count)
 {
     if (arg_count != 1)
     {
-        setInvalidNumberOfArgsIntermediateException("Builtin num()", arg_count, 1);
+        setInvalidNumberOfArgsIntermediateException("Builtin num(obj)", arg_count, 1);
         return NULL;
     }
 
@@ -393,7 +411,7 @@ static RtObject *builtin_len(RtObject **args, int arg_count)
 {
     if (arg_count != 1)
     {
-        setInvalidNumberOfArgsIntermediateException("Builtin len()", arg_count, 1);
+        setInvalidNumberOfArgsIntermediateException("Builtin len(obj)", arg_count, 1);
         return NULL;
     }
 
@@ -431,8 +449,7 @@ static RtObject *builtin_len(RtObject **args, int arg_count)
 
     default:
         setIntermediateException(
-            init_InvalidTypeException_Builtin("len()", "Map, List, String, or Set", arg)
-        );
+            init_InvalidTypeException_Builtin("len(obj)", "Map, List, String, or Set", arg));
         return NULL;
     }
 }
@@ -446,13 +463,13 @@ static RtObject *builtin_cmd(RtObject **args, int arg_count)
 {
     if (arg_count != 1)
     {
-        setInvalidNumberOfArgsIntermediateException("Builtin cmd()", arg_count, 1);
+        setInvalidNumberOfArgsIntermediateException("Builtin cmd(command)", arg_count, 1);
         return NULL;
     }
 
     if (args[0]->type != STRING_TYPE)
     {
-        setIntermediateException(init_InvalidTypeException_Builtin("cmd()", "String", args[0]));
+        setIntermediateException(init_InvalidTypeException_Builtin("cmd(command)", "String", args[0]));
         return NULL;
     }
 
@@ -468,7 +485,7 @@ static RtObject *builtin_cmd(RtObject **args, int arg_count)
     if (fp == NULL)
     {
         char buffer[60 + strlen(command)];
-        snprintf(buffer, sizeof(buffer), "Builtin function cmd() failed to run command '%s'", command);
+        snprintf(buffer, sizeof(buffer), "Builtin function cmd(command) failed to run command '%s'", command);
         setIntermediateException(IOExceptionException(buffer));
         return NULL;
     }
@@ -482,7 +499,7 @@ static RtObject *builtin_cmd(RtObject **args, int arg_count)
         if (output == NULL)
         {
             char buffer[80];
-            snprintf(buffer, sizeof(buffer), "Builtin function cmd() failed to run command due to memory allocation error.");
+            snprintf(buffer, sizeof(buffer), "Builtin function cmd(command) failed to run command due to memory allocation error.");
             setIntermediateException(IOExceptionException(buffer));
             return NULL;
         }
@@ -509,9 +526,9 @@ static RtObject *builtin_cmd(RtObject **args, int arg_count)
  */
 static RtObject *builtin_max(RtObject **args, int argcount)
 {
-    if(argcount == 0) {
-        setInvalidNumberOfArgsIntermediateException("Builtin max()", 0, INT64_MAX)
-        return NULL;
+    if (argcount == 0)
+    {
+        setInvalidNumberOfArgsIntermediateException("Builtin max(obj_1, obj_2, ..., obj_n)", 0, INT64_MAX) return NULL;
     }
 
     RtObject *max = args[0];
@@ -533,9 +550,9 @@ static RtObject *builtin_max(RtObject **args, int argcount)
  */
 static RtObject *builtin_min(RtObject **args, int argcount)
 {
-    if(argcount == 0) {
-        setInvalidNumberOfArgsIntermediateException("Builtin min()", argcount, INT64_MAX)
-        return NULL;
+    if (argcount == 0)
+    {
+        setInvalidNumberOfArgsIntermediateException("Builtin min(obj_1, obj_2, ..., obj_n)", argcount, INT64_MAX) return NULL;
     }
 
     RtObject *min = args[0];
@@ -557,13 +574,14 @@ static RtObject *builtin_min(RtObject **args, int argcount)
  */
 static RtObject *builtin_abs(RtObject **args, int argcount)
 {
-    if(argcount != 1) {
-        setInvalidNumberOfArgsIntermediateException("Builtin abs()", argcount, 1)
-        return NULL;
+    if (argcount != 1)
+    {
+        setInvalidNumberOfArgsIntermediateException("Builtin abs(num)", argcount, 1) return NULL;
     }
 
-    if(args[0]->type != NUMBER_TYPE) {
-        setIntermediateException(init_InvalidTypeException_Builtin("abs()", "Number", args[0])); 
+    if (args[0]->type != NUMBER_TYPE)
+    {
+        setIntermediateException(init_InvalidTypeException_Builtin("abs(num)", "Number", args[0]));
         return NULL;
     }
 
@@ -579,8 +597,9 @@ static RtObject *builtin_abs(RtObject **args, int argcount)
  */
 static RtObject *builtin_copy(RtObject **args, int argcount)
 {
-    if(argcount != 1) {
-        setInvalidNumberOfArgsIntermediateException("Builtin copy()", argcount, 1);
+    if (argcount != 1)
+    {
+        setInvalidNumberOfArgsIntermediateException("Builtin copy(obj)", argcount, 1);
         return NULL;
     }
 
@@ -588,25 +607,26 @@ static RtObject *builtin_copy(RtObject **args, int argcount)
     return obj;
 }
 
-
 /**
  * DESCRIPTION:
  * Built in function for getting value of a one character string (char -> int)
- * 
+ *
  * This function ONLY takes the first char of a string
-*/
-static RtObject *builtin_ord(RtObject **args, int argcount) {
+ */
+static RtObject *builtin_ord(RtObject **args, int argcount)
+{
     if (argcount != 1)
     {
-        setInvalidNumberOfArgsIntermediateException("Builtin ord()", argcount, 1);
+        setInvalidNumberOfArgsIntermediateException("Builtin ord(char)", argcount, 1);
         return NULL;
     }
-    if(args[0]->type != STRING_TYPE) {
-        setIntermediateException(init_InvalidTypeException_Builtin("ord()", "String", args[0])); 
+    if (args[0]->type != STRING_TYPE)
+    {
+        setIntermediateException(init_InvalidTypeException_Builtin("ord(char)", "String", args[0]));
         return NULL;
     }
     RtString *string = args[0]->data.String;
-    
+
     char c = args[0]->data.String->string[0];
     RtObject *ord = init_RtObject(NUMBER_TYPE);
     ord->data.Number = init_RtNumber(c);
@@ -616,21 +636,23 @@ static RtObject *builtin_ord(RtObject **args, int argcount) {
 /**
  * DESCRIPTION:
  * Built in function for flooring numbers
- * 
+ *
  * This function ONLY takes the first char of a string
-*/
-static RtObject *builtin_floor(RtObject **args, int argcount) {
+ */
+static RtObject *builtin_floor(RtObject **args, int argcount)
+{
     if (argcount != 1)
     {
-        setInvalidNumberOfArgsIntermediateException("Builtin floor()", argcount, 1);
+        setInvalidNumberOfArgsIntermediateException("Builtin floor(num)", argcount, 1);
         return NULL;
     }
 
-    if(args[0]->type != NUMBER_TYPE) {
-        setIntermediateException(init_InvalidTypeException_Builtin("floor()", "Number", args[0])); 
+    if (args[0]->type != NUMBER_TYPE)
+    {
+        setIntermediateException(init_InvalidTypeException_Builtin("floor(num)", "Number", args[0]));
         return NULL;
     }
-    
+
     RtObject *floored = init_RtObject(NUMBER_TYPE);
     floored->data.Number = init_RtNumber(floorl(args[0]->data.Number->number));
     return floored;
@@ -639,21 +661,23 @@ static RtObject *builtin_floor(RtObject **args, int argcount) {
 /**
  * DESCRIPTION:
  * Built in function for rounding numbers
- * 
+ *
  * This function ONLY takes the first char of a string
-*/
-static RtObject *builtin_round(RtObject **args, int argcount) {
+ */
+static RtObject *builtin_round(RtObject **args, int argcount)
+{
     if (argcount != 1)
     {
-        setInvalidNumberOfArgsIntermediateException("Builtin round()", argcount, 1);
+        setInvalidNumberOfArgsIntermediateException("Builtin round(num)", argcount, 1);
         return NULL;
     }
-    
-    if(args[0]->type != NUMBER_TYPE) {
-        setIntermediateException(init_InvalidTypeException_Builtin("round()", "Number", args[0])); 
+
+    if (args[0]->type != NUMBER_TYPE)
+    {
+        setIntermediateException(init_InvalidTypeException_Builtin("round(num)", "Number", args[0]));
         return NULL;
     }
-    
+
     RtObject *rounded = init_RtObject(NUMBER_TYPE);
     rounded->data.Number = init_RtNumber(roundl(args[0]->data.Number->number));
     return rounded;
@@ -662,21 +686,23 @@ static RtObject *builtin_round(RtObject **args, int argcount) {
 /**
  * DESCRIPTION:
  * Built in function for rounding numbers UP
- * 
+ *
  * This function ONLY takes the first char of a string
-*/
-static RtObject *builtin_ciel(RtObject **args, int argcount) {
+ */
+static RtObject *builtin_ciel(RtObject **args, int argcount)
+{
     if (argcount != 1)
     {
-        setInvalidNumberOfArgsIntermediateException("Builtin ciel()", argcount, 1);
+        setInvalidNumberOfArgsIntermediateException("Builtin ciel(num)", argcount, 1);
         return NULL;
     }
-    
-    if(args[0]->type != NUMBER_TYPE) {
-        setIntermediateException(init_InvalidTypeException_Builtin("ciel()", "Number", args[0])); 
+
+    if (args[0]->type != NUMBER_TYPE)
+    {
+        setIntermediateException(init_InvalidTypeException_Builtin("ciel(num)", "Number", args[0]));
         return NULL;
     }
-    
+
     RtObject *cieled = init_RtObject(NUMBER_TYPE);
     cieled->data.Number = init_RtNumber(ceill(args[0]->data.Number->number));
     return cieled;
@@ -684,42 +710,211 @@ static RtObject *builtin_ciel(RtObject **args, int argcount) {
 
 /**
  * DESCRIPTION:
- * Builtin function for reading entire file and returning its contents
+ * Builtin function for halting the current program for a determined amount of seconds
 */
-static RtObject *builtin_read(RtObject **args, int argcount) {
-    if(argcount != 1) {
-        setInvalidNumberOfArgsIntermediateException("read()", argcount, 1);
+static RtObject *builtin_sleep(RtObject **args, int argcount) {
+    if (argcount != 1)
+    {
+        setInvalidNumberOfArgsIntermediateException("Builtin sleep(milliseconds)", argcount, 1);
         return NULL;
-    } 
+    }
 
-    if(args[0]->type != STRING_TYPE) {
-        setIntermediateException(init_InvalidTypeException_Builtin("read()", "String", args[0]));
+    if (args[0]->type != NUMBER_TYPE)
+    {
+        setIntermediateException(init_InvalidTypeException_Builtin("sleep(milliseconds)", "Number", args[0]));
+        return NULL;
+    }
+
+    size_t milsecs = (size_t) args[0]->data.Number->number;
+    size_t seconds = milsecs / 1000;
+
+    struct timespec remainder;
+    struct timespec time;
+    time.tv_sec = seconds;
+    time.tv_nsec = (milsecs % 1000) * 1000000;
+
+    errno = 0; 
+    if(nanosleep(&time, &remainder) == -1) {
+        switch (errno)
+        {
+            case EINTR: {
+                char *msg = "Builtin function sleep(milliseconds) got interrupted by a signal handler.";
+                setIntermediateException(IOExceptionException(msg));
+                return NULL;
+            }
+
+            case EINVAL: {                
+                char *msg = "Input miliseconds must be positive.";
+                setIntermediateException(IOExceptionException(msg));
+                return NULL;
+            }
+
+            default: 
+                break; 
+        } 
+    }
+
+    return init_RtObject(UNDEFINED_TYPE);
+}
+
+/**
+ * DESCRIPTION:
+ * Built in function for opening file, inserting it into the file table and returning its file ID
+ */
+static RtObject *builtin_fopen(RtObject **args, int argcount)
+{
+    if (argcount != 2)
+    {
+        setInvalidNumberOfArgsIntermediateException("fopen(filename, flags)", argcount, 2);
+        return NULL;
+    }
+
+    if (args[0]->type != STRING_TYPE || args[1]->type != STRING_TYPE)
+    {
+        setIntermediateException(
+            init_InvalidTypeException_Builtin("fopen(filename, flags)", "String",
+                                              args[0]->type != STRING_TYPE ? args[0] : args[1]));
         return NULL;
     }
 
     char *filename = args[0]->data.String->string;
-    size_t filename_length = args[0]->data.String->length;
+    char *flags = args[1]->data.String->string;
+    FILE *file = fopen(filename, flags);
 
-    FILE *file;
-    if ((file = fopen(filename, "r")) == NULL)
+    // fopen fails
+    if (!file)
     {
-        char buffer[100 + 2 * filename_length];
-        snprintf(buffer, sizeof(buffer), "Builtin function read() failed to read file %s, because %s does not exist.", filename, filename);
+        char buffer[100 + args[0]->data.String->length + args[1]->data.String->length];
+        snprintf(buffer, sizeof(buffer), "Builtin function fopen(filename, flags) failed to open/create file %s with flags %s.", filename, flags);
         setIntermediateException(IOExceptionException(buffer));
         return NULL;
     }
-    fclose(file);
 
-    char* file_contents = get_file_contents(filename);
-    if(!file_contents) {
-        char buffer[100 + filename_length];
-        snprintf(buffer, sizeof(buffer), "Builtin function read() failed to read file %s, even though the target file exists.", filename);
+    // inserts FILE into file table and returns fileID to user
+    size_t fileid = filetbl_insert(file, filename);
+    RtObject *fileIDnum = init_RtObject(NUMBER_TYPE);
+    fileIDnum->data.Number = init_RtNumber(fileid);
+    return fileIDnum;
+}
+
+/**
+ * DESCRIPTION:
+ * Builtin function for writing to file
+ */
+static RtObject *builtin_fwrite(RtObject **args, int argcount)
+{
+    if (argcount != 2)
+    {
+        setInvalidNumberOfArgsIntermediateException("fwrite(FileID, String)", argcount, 2);
+        return NULL;
+    }
+
+    if (args[0]->type != NUMBER_TYPE)
+    {
+        setIntermediateException(init_InvalidTypeException_Builtin("fwrite(FileID, String)", "Number", args[0]));
+        return NULL;
+    }
+
+    if (args[1]->type != STRING_TYPE)
+    {
+        setIntermediateException(init_InvalidTypeException_Builtin("fwrite(FileID, String)", "String", args[1]));
+        return NULL;
+    }
+
+    size_t fileid = (size_t)args[0]->data.Number->number;
+    char *string = args[1]->data.String->string;
+
+    // gets FILE
+    FILE *file = filetbl_search(fileid);
+    if (!file)
+    {
+        setIntermediateException(init_InvalidFileIDException_Builtin("fwrite(FileID, String)", fileid));
+        return NULL;
+    }
+
+    int err_code = fputs(string, file);
+
+    // case where writing to file fails
+    if (err_code == EOF)
+    {
+        const char *filename = filetbl_search_filename(fileid);
+        char buffer[125 + strlen(filename) + strlen(string)];
+        snprintf(buffer, sizeof(buffer), 
+        "Failed to write \"%s\", into file \"%s\" (ID %zu).", string, filename, fileid);
+        setIntermediateException(IOExceptionException(buffer));
+        return NULL;
+    }
+
+    RtObject *ret = init_RtObject(NUMBER_TYPE);
+    ret->data.Number = init_RtNumber(fileid);
+    return ret;
+}
+
+/**
+ * DESCRIPTION:
+ * Builtin function for reading an entire file and returning its contents
+ */
+static RtObject *builtin_freadall(RtObject **args, int argcount)
+{
+    if (argcount != 1)
+    {
+        setInvalidNumberOfArgsIntermediateException("freadall(FileID)", argcount, 1);
+        return NULL;
+    }
+
+    if (args[0]->type != NUMBER_TYPE)
+    {
+        setIntermediateException(init_InvalidTypeException_Builtin("freadall(fileID)", "Number", args[0]));
+        return NULL;
+    }
+
+    size_t fileid = (size_t)args[0]->data.Number->number;
+    const char *filename = filetbl_search_filename(fileid);
+    if(!filename) {
+        setIntermediateException(init_InvalidFileIDException_Builtin("freadall(FileID)", fileid));
+        return NULL;
+    }
+
+    char *file_contents = get_file_contents(filename);
+    if (!file_contents)
+    {
+        char buffer[175 + strlen(filename)];
+        snprintf(buffer, sizeof(buffer), "Builtin function freadall(fileID) failed to read file %s (ID %zu), even though the target file exists.", filename, fileid);
         setIntermediateException(IOExceptionException(buffer));
         return NULL;
     }
 
     RtObject *readfile = init_RtObject(STRING_TYPE);
-    readfile->data.String = init_RtString(file_contents);
-
+    readfile->data.String = init_RtString(NULL);
+    readfile->data.String->string = file_contents;
+    readfile->data.String->length = strlen(file_contents);
     return readfile;
 }
+
+/**
+ * DESCRIPTION:
+ * Builtin function for closing files using their fileID's
+*/
+static RtObject *builtin_fclose(RtObject **args, int argcount) {
+    if (argcount != 1)
+    {
+        setInvalidNumberOfArgsIntermediateException("fclose(FileID)", argcount, 1);
+        return NULL;
+    }
+
+    if (args[0]->type != NUMBER_TYPE)
+    {
+        setIntermediateException(init_InvalidTypeException_Builtin("fclose(fileID)", "Number", args[0]));
+        return NULL;
+    }
+
+    size_t fileId = (size_t) args[0]->data.Number->number;
+
+    if(!filetbl_close(fileId)) {
+        setIntermediateException(init_InvalidFileIDException_Builtin("fclose(fileID)", fileId));
+        return NULL;
+    }
+
+    return init_RtObject(UNDEFINED_TYPE);
+}
+

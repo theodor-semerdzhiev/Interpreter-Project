@@ -21,6 +21,7 @@
 
 typedef struct FileEntry {
     FILE *file;
+    char *filename;
     size_t fileId;
     bool was_occupied;
 } FileEntry;
@@ -37,7 +38,8 @@ static size_t file_counter = 0;
 */
 void init_FileTable()
 {
-    assert(!table);
+    if(table) return;
+
     table = malloc(sizeof(FileEntry) * DEFAULT_BUCKET_COUNT);
     // if (!table)
     //     MallocError();
@@ -46,6 +48,7 @@ void init_FileTable()
         table[i].file = NULL;
         table[i].was_occupied = false;
         table[i].fileId = 0;
+        table[i].filename = NULL;
     }
     
     entry_count = 0;
@@ -60,9 +63,19 @@ void init_FileTable()
 */
 void cleanup_FileTable()
 {
-    for(int i=0; i < table_length; i++) {
+    if(!table) {
+        table_length = 0;
+        entry_count = 0;
+        file_counter = 0;
+        return;
+    }
+
+    for(size_t i=0; i < table_length; i++) {
         if(table[i].file) {
             fclose(table[i].file);
+        }
+        if(table[i].filename) {
+            free(table[i].filename);
         }
     }
     free(table);
@@ -80,17 +93,18 @@ static void resize_filetbl(size_t newsize) {
     FileEntry* newtable = malloc(sizeof(FileEntry) * newsize);
     // if(!newtable)
     //     MallocError();
-    for(int i=0; i < newsize; i++) {
+    for(size_t i=0; i < newsize; i++) {
         newtable[i].file = NULL;
         newtable[i].fileId = 0;
         newtable[i].was_occupied = false;
     } 
     
-    for(int i=0; i < table_length; i++) {
+    for(size_t i=0; i < table_length; i++) {
         if(table[i].file) {
             size_t idx = table[i].fileId % newsize;
             newtable[idx].file = table[i].file;
             newtable[idx].fileId = table[i].fileId;
+            newtable[idx].filename = table[i].filename;
             newtable[idx].was_occupied = table[i].was_occupied;
         }
     }
@@ -105,7 +119,7 @@ static void resize_filetbl(size_t newsize) {
  * Inserts file into file table and returns its mapped key 
  * The returned key will always be unique
 */
-size_t filetbl_insert(FILE *file) {
+size_t filetbl_insert(FILE *file, const char *filename) {
     assert(file);
 
     // resizes table if necessary 
@@ -116,10 +130,11 @@ size_t filetbl_insert(FILE *file) {
     size_t hash = file_counter % table_length;
     size_t idx;
 
-    for(int i=0; i < table_length; i++) {
+    for(size_t i=0; i < table_length; i++) {
         idx = (i + hash) % table_length;
         if(!table[idx].file) {
             table[idx].file = file;
+            table[idx].filename = cpy_string(filename);
             table[idx].was_occupied = true;
             table[idx].fileId = file_counter;
             break;
@@ -131,29 +146,56 @@ size_t filetbl_insert(FILE *file) {
     return table[idx].fileId;
 }
 
+/**
+ * DESCRIPTION:
+ * Searches file table using fileId, and returns ONLY the FILE struct, NOT the filename
+*/
 FILE *filetbl_search(size_t fileId) {
     size_t hash = fileId % table_length;
 
-    for(int i=0; i < table_length; i++) {
+    for(size_t i=0; i < table_length; i++) {
         size_t idx = (i + hash) % table_length;
 
         if(table[idx].file && table[idx].fileId == fileId)
             return table[idx].file;
         
-        if(!table[idx].file && !table[idx].was_occupied) 
+        if(!table[idx].was_occupied) 
             return NULL;
     }
 
     return NULL;
 }
 
+/**
+ * DESCRIPTION:
+ * Searches file table using fileId, but returns ONLY the filename associated with the fileID
+*/
+const char* filetbl_search_filename(size_t fileId) {
+    size_t hash = fileId % table_length;
+
+    for(size_t i=0; i < table_length; i++) {
+        size_t idx = (i + hash) % table_length;
+
+        if(table[idx].file && table[idx].fileId == fileId)
+            return table[idx].filename;
+        
+        if(!table[idx].was_occupied) 
+            return NULL;
+    }
+
+    return NULL;
+}
+
+
 FILE *filetbl_remove(size_t fileId) {
     size_t hash = fileId % table_length;
 
-    for(int i=0; i < table_length; i++) {
+    for(size_t i=0; i < table_length; i++) {
         size_t idx = (i + hash) % table_length;
         if(table[idx].file && table[idx].fileId == fileId) {
             FILE *file = table[idx].file;
+            free(table[idx].filename);
+            table[idx].filename = NULL;
             table[idx].file = NULL;
             table[idx].fileId = 0;
             table[idx].was_occupied = true;
@@ -165,7 +207,7 @@ FILE *filetbl_remove(size_t fileId) {
             return file;
         }
 
-        if(!table[idx].file && !table[idx].was_occupied) {
+        if(!table[idx].was_occupied) {
             return NULL;
         }
     }
@@ -176,10 +218,12 @@ FILE *filetbl_remove(size_t fileId) {
 bool filetbl_close(size_t fileId) {
     size_t hash = fileId % table_length;
 
-    for(int i=0; i < table_length; i++) {
+    for(size_t i=0; i < table_length; i++) {
         size_t idx = (i + hash) % table_length;
         if(table[idx].file && table[idx].fileId == fileId) {
             fclose(table[idx].file);
+            free(table[idx].filename);
+            table[idx].filename = NULL;
             table[idx].file = NULL;
             table[idx].fileId = 0;
             table[idx].was_occupied = true;
@@ -191,12 +235,13 @@ bool filetbl_close(size_t fileId) {
             return true;
         }
 
-        if(!table[idx].file && !table[idx].was_occupied)
-            return NULL;
+        if(!table[idx].was_occupied)
+            return false;
     }
     return false;
 }
 
+#if 0
 int main() {
     init_FileTable();
     for(int i=0; i < 50; i++) {
@@ -207,10 +252,11 @@ int main() {
     filetbl_insert(fopen("main.c","r"));
 
 
-    for(int i=0; i < table_length; i++) {
+    for(size_t i=0; i < table_length; i++) {
         printf("%d: file:%p     key: %zu     reserved: %d \n", 
         i, table[i].file, table[i].fileId, table[i].was_occupied);
     }
 
     cleanup_FileTable();
 }
+#endif

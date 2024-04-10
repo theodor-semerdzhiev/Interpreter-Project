@@ -227,7 +227,6 @@ void print_unhandledexception(RtException *exception) {
                 printf(TAB4 ".\n" TAB4 ".\n" TAB4 ".\n");
                 printf("    (%ld more Call Frames ...)\n", StackPtr + 1 - PRINT_STACK_LIMIT);
                 printf(TAB4 ".\n" TAB4 ".\n" TAB4 ".\n");
-
             }
             count++;
         } else {

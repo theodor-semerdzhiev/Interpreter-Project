@@ -5,7 +5,6 @@
 #include "rtstring.h"
 #include "../generics/utilities.h"
 
-
 /**
  * DEESCRIPTION:
  * Initializes a RtString struct, input str is malloced

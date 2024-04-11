@@ -196,6 +196,7 @@ int main(int argc, char *argv[])
     // makes sure that program is valid
     if (!program_ast)
     {
+        free_keyword_table();
         return 1;
     }
 
@@ -206,6 +207,7 @@ int main(int argc, char *argv[])
     // frees structs that are no longer needed
     compiler_free(compiler);
     free_ast_list(program_ast);
+    free_keyword_table();
 
     // user requests to deconstruct bytecode
     if (print_bytecode_flag)

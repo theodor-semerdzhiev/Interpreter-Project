@@ -909,7 +909,7 @@ static RtObject *builtin_fclose(RtObject **args, int argcount) {
     }
 
     size_t fileId = (size_t) args[0]->data.Number->number;
-
+    
     if(!filetbl_close(fileId)) {
         setIntermediateException(init_InvalidFileIDException_Builtin("fclose(fileID)", fileId));
         return NULL;

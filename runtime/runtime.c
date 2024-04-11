@@ -130,7 +130,6 @@ void perform_runtime_cleanup()
     cleanup_AttrsRegistry();
     cleanup_FileTable();
     
-
     rtexception_free(raisedException);
     raisedException = NULL;
 

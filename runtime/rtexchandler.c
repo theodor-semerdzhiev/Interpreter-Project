@@ -146,7 +146,7 @@ void handle_runtime_exception(RtException *exception)
         } else {
             rtexception_free(raisedException);
         }
-        
+
         raisedException = NULL;
         free_exception_handlers();
         

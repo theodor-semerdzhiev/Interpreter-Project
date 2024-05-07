@@ -1026,6 +1026,8 @@ int run_program()
 
         // used for exception handling
         int new_pg_counter = setjmp((int *)frame->exception_jump);
+        frame = callStack[stack_ptr];
+        bytecode = frame->pg;
         if (new_pg_counter != 0)
         {
             frame->pg_counter = new_pg_counter;

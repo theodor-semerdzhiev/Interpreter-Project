@@ -9,12 +9,9 @@ func test2() {
 
 func test1(x) {
     try {
-        #test2(123123, 122321, x);
-        raise Exception__("Hello World");
-        raise Exception__();
+        raise Ex();
     } catch (Exception__()) {
         print("Exception__");
-        print(1/0);
     }
 }
 

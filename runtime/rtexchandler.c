@@ -140,12 +140,16 @@ void handle_runtime_exception(RtException *exception)
         print_unhandledexception(exception);
         
         // handles special case
-        if(raisedException) {
-            free_exception_handler(raisedException);
-            raisedException = NULL;
+        if(exception != raisedException) {
+            rtexception_free(exception);
+            rtexception_free(raisedException);
+        } else {
+            rtexception_free(raisedException);
         }
-        rtexception_free(exception);
-
+        
+        raisedException = NULL;
+        free_exception_handlers();
+        
         longjmp(global_program_interrupt, 1);
         return;
     }

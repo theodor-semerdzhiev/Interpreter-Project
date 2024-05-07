@@ -145,7 +145,6 @@ static bool parse_program_args(int argc, char *argv[])
         else if (strings_equal(argv[i], "--norun"))
         {
             exec_prog_flag = false;
-            printf("123123");
         }
         else if (strings_equal(argv[i], "--help"))
         {
@@ -165,10 +164,10 @@ static bool parse_program_args(int argc, char *argv[])
 /* MAIN PROGRAM LOGIC */
 int main(int argc, char *argv[])
 {
-    if (!parse_program_args(argc, argv))
-        return 1;
+    // if (!parse_program_args(argc, argv))
+        // return 1;
 
-    // mainfile = "tests/test23.txt";
+    mainfile = "tests/test19.txt";
 
     // --help flag was used
     if (print_help_msg_flag)

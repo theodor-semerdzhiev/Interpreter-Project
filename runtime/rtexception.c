@@ -279,7 +279,7 @@ RtException *init_InvalidTypeException_BinaryOp(
     const char* typeobj1 = rtobj_type_toString(obj1->type);
     const char* typeobj2 = rtobj_type_toString(obj2->type);
     char *obj1tostr = rtobj_toString(obj1);
-    char *obj2tostr = rtobj_toString(obj1);
+    char *obj2tostr = rtobj_toString(obj2);
 
     char buffer[
         100 + strlen(binaryOp) + strlen(typeobj1) + strlen(typeobj2) + strlen(obj1tostr) + strlen(obj2tostr)

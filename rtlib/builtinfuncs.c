@@ -456,6 +456,7 @@ static RtObject *builtin_len(RtObject **args, int arg_count)
 
 #define MAX_STDOUT_BUFFER 6000
 /**
+ * REQUIRES REWRITE
  * DESCRIPTION:
  * Built in function for running commands in the command line
  */
@@ -507,15 +508,13 @@ static RtObject *builtin_cmd(RtObject **args, int arg_count)
         // Append current chunk to output
         memcpy(output + output_size - bytes_read, stdoutbuffer, bytes_read);
     }
-
+    free(output);
     pclose(fp);
 
-    system(command);
+    int errcode = system(command);
 
-    RtObject *stdout_ = init_RtObject(STRING_TYPE);
-    stdout_->data.String = init_RtString(NULL);
-    stdout_->data.String->string = output;
-
+    RtObject *stdout_ = init_RtObject(NUMBER_TYPE);
+    stdout_->data.Number = init_RtNumber((long double)errcode);
     return stdout_;
 }
 

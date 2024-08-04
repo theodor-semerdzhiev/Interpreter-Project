@@ -55,8 +55,10 @@ CallFrame *RunTime_pop_callframe();
 
 void dispose_disposable_obj(RtObject *obj, bool disposable);
 
-int prep_runtime_env(ByteCodeList *code, const char *mainfile);
+int prep_runtime_env(ByteCodeList *code, const char *mainfile, int argc, char **argv);
 CallFrame *perform_function_call(size_t arg_count);
 int run_program();
 bool isRuntimeActive();
 void perform_runtime_cleanup();
+
+void init_ScriptArgs(int argc, char **argv);

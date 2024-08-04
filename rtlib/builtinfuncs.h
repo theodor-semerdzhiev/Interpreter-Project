@@ -20,3 +20,6 @@ int init_BuiltinFuncs();
 bool ident_is_builtin(const char *identifier);
 RtObject *get_builtinfunc(const char *identifier);
 void cleanup_builtin();
+
+#define BUILT_IN_SCRIPT_ARGS_VAR "_args"
+

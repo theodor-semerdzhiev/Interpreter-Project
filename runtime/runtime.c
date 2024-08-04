@@ -95,6 +95,30 @@ int init_RunTime()
 }
 
 /**
+ * 
+ * DESCRIPTION:
+ * Initializes script argument array and adds a variable called _args
+*/
+void init_ScriptArgs(int argc, char **argv) {
+    CallFrame *frame = getCurrentStackFrame();
+    assert(frame);
+
+    RtObject *arglist = init_RtObject(LIST_TYPE);
+    arglist->data.List = init_RtList(argc);
+
+    for(int i=0; i < argc; i++) {
+        RtObject *arg = init_RtObject(STRING_TYPE);
+        arg->data.String = init_RtString(argv[i]);
+        add_to_GC_registry(arg);
+        
+        rtlist_append(arglist->data.List, arg);
+    }
+
+    Identifier_Table_add_var(frame->lookup, BUILT_IN_SCRIPT_ARGS_VAR, arglist, DOES_NOT_APPLY);
+    add_to_GC_registry(arglist);
+}
+
+/**
  * DESCRIPTION:
  * This Function setups runtime environment
  * It initializes the stack machine
@@ -102,7 +126,7 @@ int init_RunTime()
  * The runtime struct
  * Std lib functions
  */
-int prep_runtime_env(ByteCodeList *code, const char *mainfile)
+int prep_runtime_env(ByteCodeList *code, const char *mainfile, int argc, char **argv)
 {
     int returncode = init_RunTime();
     RunTime_push_callframe(init_CallFrame(code, NULL, mainfile));
@@ -110,6 +134,7 @@ int prep_runtime_env(ByteCodeList *code, const char *mainfile)
     init_AttrRegistry();
     init_FileTable();
     rtobj_init_cmp_tbl();
+    init_ScriptArgs(argc, argv);
     return returncode ? 1 : 0;
 }
 

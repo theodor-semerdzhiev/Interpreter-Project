@@ -135,7 +135,8 @@ bool vartable_has_var(VarTable *symtable, const char *ident)
         head = head->next;
     }
 
-    return ident_is_builtin(ident);
+    // is either built in function or script _args variable
+    return ident_is_builtin(ident) || strcmp(ident, BUILT_IN_SCRIPT_ARGS_VAR) == 0;
 }
 
 /* Removes all symbols that have a smaller or equal nesting level */

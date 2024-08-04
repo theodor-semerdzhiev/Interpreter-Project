@@ -9,7 +9,7 @@ func test2() {
 
 func test1(x) {
     try {
-        raise Ex();
+        raise Ex("hello");
     } catch (Exception__()) {
         print("Exception__");
     }
@@ -18,7 +18,7 @@ func test1(x) {
 func a() {
     func b() {
         func c() {
-            test1(2);
+            test1(2, 2);
         }
         c();
     }

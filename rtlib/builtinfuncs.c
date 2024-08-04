@@ -491,7 +491,7 @@ static RtObject *builtin_cmd(RtObject **args, int arg_count)
         return NULL;
     }
 
-    // Read the entire command output
+    // Read the entire command output (stdout)
     while ((bytes_read = fread(stdoutbuffer, 1, sizeof(stdoutbuffer), fp)) > 0)
     {
         // Resize output buffer
@@ -515,6 +515,7 @@ static RtObject *builtin_cmd(RtObject **args, int arg_count)
 
     RtObject *stdout_ = init_RtObject(NUMBER_TYPE);
     stdout_->data.Number = init_RtNumber((long double)errcode);
+
     return stdout_;
 }
 

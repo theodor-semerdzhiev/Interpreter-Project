@@ -1,4 +1,4 @@
-CC = clang
+CC = gcc
 CFLAGS = -fsanitize=address -fno-omit-frame-pointer -fstack-protector -g  -Wextra -std=c17
 # CFLAGS = -g -Wextra -std=c17
 # CFLAGS = -O3 -Wextra -std=c17

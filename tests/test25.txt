@@ -6,5 +6,4 @@ while(1) {
     }
     
     let errc = cmd(s);
-    print("EXIT CODE: " + str(errc));
 }

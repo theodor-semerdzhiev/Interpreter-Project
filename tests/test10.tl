@@ -28,7 +28,7 @@ class BST() {
 let t = BST();
 let i = 0;
 let sign = -1;
-while(i < 100) {
+while(i < 10) {
     t->insert(i*sign);
     i = i + 1;
     sign = sign * -1;

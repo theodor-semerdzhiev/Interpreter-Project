@@ -3,10 +3,6 @@ exception Exception__;
 exception Ex;
 println(Exception__);
 
-func test2() {
-    println("Hello World");
-}
-
 func test1(x) {
     try {
         raise Ex("hello");

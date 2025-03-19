@@ -69,3 +69,9 @@ for (let i = 0; i < 2; i = i + 1;)
 }
 
 print_list(tri_list);
+
+let s = set { 1,2 ,3 ,4, 5 * 3};
+let m = map {1:2 , 3:3 , 4:5 ,  5* 23: "sds"};
+
+let _ = 20 & 0;
+print(_);

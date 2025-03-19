@@ -16,4 +16,4 @@ func sin(x, ite) {
     return res;
 }
 
-print(sin(5*PI, 40));
+print(sin(1/2*PI, 40));

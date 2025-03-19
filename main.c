@@ -211,7 +211,7 @@ int main(int argc, char *argv[])
     if (!parse_program_args(argc, argv))
         return 1;
 
-    // mainfile = "tests/test26.txt";
+    // mainfile = "tests/test24.txt";
 
     // --help flag was used
     if (print_help_msg_flag)

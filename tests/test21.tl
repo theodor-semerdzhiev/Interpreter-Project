@@ -13,11 +13,14 @@ class Point(x,y) {
     }
 
     func Dist1(p1) {
-        #cmd("./main.out ./tests/test23.txt");
         return (abs(p1->x - x)**2 + abs(p1->y - y) ** 2) ** (0.5);
     }
 }
 
 let p = Point(1,1);
-println(p->Dist1(Point(2,3)));
+for(let i = 0 ; i < 20; i = i + 1;) {
+    println(p->Dist1(Point(i,3)));
+}
+
+
 
